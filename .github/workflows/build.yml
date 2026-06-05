@@ -1,0 +1,143 @@
+name: Build and Test Pointly
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+  release:
+    types: [ published ]
+
+env:
+  XCODE_VERSION: '15.0'
+  MACOS_VERSION: '13.0'
+
+jobs:
+  build:
+    runs-on: macos-13
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Select Xcode version
+      run: sudo xcode-select -s /Applications/Xcode_${{ env.XCODE_VERSION }}.app/Contents/Developer
+      
+    - name: Show Xcode version
+      run: xcodebuild -version
+      
+    - name: Cache derived data
+      uses: actions/cache@v3
+      with:
+        path: ~/Library/Developer/Xcode/DerivedData
+        key: ${{ runner.os }}-xcode-derived-data-${{ hashFiles('**/*.swift') }}
+        restore-keys: |
+          ${{ runner.os }}-xcode-derived-data-
+          
+    - name: Install dependencies
+      run: |
+        # Install any dependencies if needed
+        echo "No external dependencies required"
+        
+    - name: Build for Testing
+      run: |
+        xcodebuild \
+          -project Pointly.xcodeproj \
+          -scheme Pointly \
+          -destination 'platform=macOS' \
+          -configuration Debug \
+          build-for-testing \
+          CODE_SIGNING_ALLOWED=NO
+          
+    - name: Run Tests
+      run: |
+        xcodebuild \
+          -project Pointly.xcodeproj \
+          -scheme Pointly \
+          -destination 'platform=macOS' \
+          -configuration Debug \
+          test-without-building \
+          CODE_SIGNING_ALLOWED=NO
+          
+    - name: Build Release
+      if: github.event_name == 'release'
+      run: |
+        xcodebuild \
+          -project Pointly.xcodeproj \
+          -scheme Pointly \
+          -destination 'platform=macOS' \
+          -configuration Release \
+          -archivePath Pointly.xcarchive \
+          archive \
+          CODE_SIGNING_ALLOWED=NO
+          
+    - name: Export Archive
+      if: github.event_name == 'release'
+      run: |
+        xcodebuild \
+          -exportArchive \
+          -archivePath Pointly.xcarchive \
+          -exportPath ./build \
+          -exportOptionsPlist ExportOptions.plist
+          
+    - name: Upload Build Artifacts
+      if: github.event_name == 'release'
+      uses: actions/upload-artifact@v3
+      with:
+        name: Pointly-${{ github.ref_name }}
+        path: ./build/Pointly.app
+        
+    - name: Create DMG
+      if: github.event_name == 'release'
+      run: |
+        # Create a DMG file for distribution
+        mkdir -p dmg-temp
+        cp -R ./build/Pointly.app dmg-temp/
+        hdiutil create -volname "Pointly" -srcfolder dmg-temp -ov -format UDZO Pointly-${{ github.ref_name }}.dmg
+        
+    - name: Upload DMG to Release
+      if: github.event_name == 'release'
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ github.event.release.upload_url }}
+        asset_path: ./Pointly-${{ github.ref_name }}.dmg
+        asset_name: Pointly-${{ github.ref_name }}.dmg
+        asset_content_type: application/octet-stream
+
+  lint:
+    runs-on: macos-13
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Select Xcode version
+      run: sudo xcode-select -s /Applications/Xcode_${{ env.XCODE_VERSION }}.app/Contents/Developer
+      
+    - name: Install SwiftLint
+      run: |
+        brew install swiftlint
+        
+    - name: Run SwiftLint
+      run: |
+        swiftlint --strict --reporter github-actions-logging
+        
+  security-scan:
+    runs-on: macos-13
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Run security scan
+      run: |
+        # Basic security checks
+        echo "Checking for hardcoded secrets..."
+        grep -r "password\|secret\|key" --include="*.swift" . || echo "No hardcoded secrets found"
+        
+        echo "Checking entitlements..."
+        plutil -lint Pointly/Pointly.entitlements
+        
+        echo "Security scan completed"

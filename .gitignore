@@ -1,0 +1,29 @@
+# Swift / Xcode build artifacts
+.build/
+DerivedData/
+*.xcarchive
+*.dSYM
+*.ipa
+
+# App bundle (generated)
+*.app/
+
+# Build logs
+build_output.log
+
+# macOS system files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+
+# Cursor IDE workspace
+.cursor/
+
+# Xcode user data
+*.xcuserstate
+xcuserdata/
+
+# SwiftPM resolved file (optional — uncomment to track)
+# Package.resolved
