@@ -6,13 +6,18 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     var overlayWindowManager: OverlayWindowManager?
     var globalHotkeyManager: GlobalHotkeyManager?
     private var settingsWindow: NSWindow?
-    
+    private var onboardingWindow: NSWindow?
+
     func applicationDidFinishLaunching(_ notification: Notification) {
+        CrashReporter.setup()
+
         // Hide dock icon - we'll use menubar only
         NSApp.setActivationPolicy(.accessory)
-        
+
         // Create status bar item
         setupMenuBarItem()
+
+        showOnboardingIfNeeded()
         
         // Initialize overlay manager
         overlayWindowManager = OverlayWindowManager()
@@ -120,6 +125,26 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         globalHotkeyManager?.registerHotkey(keyCode: 48, modifiers: []) { [weak self] in
             self?.toggleInteractionMode()
         }
+    }
+
+    private func showOnboardingIfNeeded() {
+        guard !UserDefaults.standard.bool(forKey: "hasSeenOnboarding") else { return }
+
+        let window = NSWindow(
+            contentRect: NSRect(x: 0, y: 0, width: 460, height: 420),
+            styleMask: [.titled, .closable],
+            backing: .buffered,
+            defer: false
+        )
+        window.title = "Welcome to Pointly"
+        window.isReleasedWhenClosed = false
+        window.contentView = NSHostingView(rootView: OnboardingView {
+            self.onboardingWindow?.orderOut(nil)
+        })
+        window.center()
+        onboardingWindow = window
+        window.makeKeyAndOrderFront(nil)
+        NSApp.activate(ignoringOtherApps: true)
     }
 
     @objc private func openSettings() {
