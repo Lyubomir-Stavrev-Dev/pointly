@@ -34,6 +34,14 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         ) { [weak self] in
             self?.toggleInteractionMode()
         }
+
+        // Re-register hotkey whenever the user changes it in Settings
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handleHotkeyChanged(_:)),
+            name: .globalHotkeyChanged,
+            object: nil
+        )
     }
     
     private func setupMenuBarItem() {
@@ -92,6 +100,28 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
     
+    @objc private func handleHotkeyChanged(_ notification: Notification) {
+        guard let hotkeyString = notification.object as? String else { return }
+        var modifiers: NSEvent.ModifierFlags = []
+        var keyChar = ""
+        for char in hotkeyString {
+            switch char {
+            case "⌘": modifiers.insert(.command)
+            case "⇧": modifiers.insert(.shift)
+            case "⌥": modifiers.insert(.option)
+            case "⌃": modifiers.insert(.control)
+            default: keyChar = String(char)
+            }
+        }
+        guard !keyChar.isEmpty,
+              let keyCode = GlobalHotkeyManager.keyCode(for: keyChar) else { return }
+        globalHotkeyManager?.unregisterAll()
+        globalHotkeyManager?.registerHotkey(keyCode: keyCode, modifiers: modifiers)
+        globalHotkeyManager?.registerHotkey(keyCode: 48, modifiers: []) { [weak self] in
+            self?.toggleInteractionMode()
+        }
+    }
+
     @objc private func openSettings() {
         if settingsWindow == nil {
             let window = NSWindow(

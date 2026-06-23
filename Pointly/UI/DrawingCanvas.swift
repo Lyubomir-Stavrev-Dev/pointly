@@ -3,16 +3,23 @@ import SwiftUI
 /// Canvas view that renders all drawing elements
 struct DrawingCanvas: View {
     @ObservedObject var state: DrawingState
-    
+
+    private var hasLaserElements: Bool {
+        state.elements.contains { $0.tool == .laserPointer }
+    }
+
     var body: some View {
-        Canvas { context, size in
-            // Render all drawing elements
-            for element in state.elements {
-                drawElement(element, in: context)
+        // TimelineView drives animation when laser elements are fading;
+        // paused otherwise so we don't burn CPU on a static canvas.
+        TimelineView(.animation(minimumInterval: 1.0 / 60.0, paused: !hasLaserElements)) { _ in
+            Canvas { context, size in
+                for element in state.elements {
+                    drawElement(element, in: context)
+                }
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .allowsHitTesting(false) // Let touches pass through to parent
+        .allowsHitTesting(false)
     }
     
     private func drawElement(_ element: DrawingElement, in context: GraphicsContext) {

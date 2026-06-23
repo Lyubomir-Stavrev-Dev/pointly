@@ -8,6 +8,7 @@ class SettingsStore: ObservableObject {
     @Published var globalHotkey: String {
         didSet {
             UserDefaults.standard.set(globalHotkey, forKey: "globalHotkey")
+            NotificationCenter.default.post(name: .globalHotkeyChanged, object: globalHotkey)
         }
     }
     
@@ -242,4 +243,8 @@ extension SettingsStore {
         static let exportFormat = "exportFormat"
         static let exportQuality = "exportQuality"
     }
+}
+
+extension Notification.Name {
+    static let globalHotkeyChanged = Notification.Name("GlobalHotkeyChanged")
 }
