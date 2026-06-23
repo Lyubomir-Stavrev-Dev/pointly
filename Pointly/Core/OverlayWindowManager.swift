@@ -2,90 +2,112 @@ import AppKit
 import SwiftUI
 import CoreGraphics
 
-/// Manages the overlay window system for screen annotations
+/// Manages one overlay window per screen, sharing a single drawing state and interaction mode
 class OverlayWindowManager: ObservableObject {
-    private var overlayWindow: NSWindow?
+    private var overlayWindows: [NSScreen: NSWindow] = [:]
     private var isOverlayActive = false
-    private var interactionModeManager: InteractionModeManager?
+
+    let sharedDrawingState = DrawingState()
+    let sharedInteractionMode = InteractionModeManager()
 
     init() {
-        setupOverlayWindow()
+        buildWindows(for: NSScreen.screens)
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(screensChanged),
+            name: NSApplication.didChangeScreenParametersNotification,
+            object: nil
+        )
     }
-    
-    private func setupOverlayWindow() {
-        // Create a window that covers the entire screen
-        let screenFrame = NSScreen.main?.frame ?? NSRect.zero
-        
-        overlayWindow = NSWindow(
-            contentRect: screenFrame,
+
+    // MARK: - Window Lifecycle
+
+    private func buildWindows(for screens: [NSScreen]) {
+        for screen in screens {
+            guard overlayWindows[screen] == nil else { continue }
+            let window = makeWindow(for: screen)
+            overlayWindows[screen] = window
+        }
+    }
+
+    private func makeWindow(for screen: NSScreen) -> NSWindow {
+        let window = NSWindow(
+            contentRect: screen.frame,
             styleMask: [.borderless, .fullSizeContentView],
             backing: .buffered,
             defer: false
         )
-        
-        guard let window = overlayWindow else { return }
-        interactionModeManager = InteractionModeManager()
-
-        // Configure window properties for overlay
-        window.level = .screenSaver // High level to appear over other windows
-        window.backgroundColor = NSColor.clear
+        window.level = .screenSaver
+        window.backgroundColor = .clear
         window.isOpaque = false
         window.hasShadow = false
         window.ignoresMouseEvents = false
         window.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
-        
-        // Set up the content view
-        let overlayView = OverlayView()
-        window.contentView = NSHostingView(rootView: overlayView)
-        
-        // Initially hide the window
+
+        let view = OverlayView(
+            drawingState: sharedDrawingState,
+            interactionMode: sharedInteractionMode
+        )
+        window.contentView = NSHostingView(rootView: view)
         window.orderOut(nil)
+        return window
     }
-    
-    func toggleOverlay() {
-        guard overlayWindow != nil else { return }
-        
+
+    @objc private func screensChanged() {
+        let current = Set(NSScreen.screens)
+        let existing = Set(overlayWindows.keys)
+
+        // Remove windows for disconnected screens
+        for screen in existing.subtracting(current) {
+            overlayWindows[screen]?.orderOut(nil)
+            overlayWindows.removeValue(forKey: screen)
+        }
+
+        // Add windows for new screens
+        buildWindows(for: NSScreen.screens)
+
+        // Re-show on all screens if overlay was active
         if isOverlayActive {
-            hideOverlay()
-        } else {
-            showOverlay()
+            showOnAllScreens()
         }
     }
-    
+
+    // MARK: - Show / Hide
+
+    func toggleOverlay() {
+        if isOverlayActive { hideOverlay() } else { showOverlay() }
+    }
+
     private func showOverlay() {
-        guard let window = overlayWindow else { return }
-        
-        // Request screen recording permission if needed
         requestScreenRecordingPermission()
-        
-        // Update window frame to current screen
-        if let screen = NSScreen.main {
-            window.setFrame(screen.frame, display: true)
-        }
-        
-        window.orderFrontRegardless()
-        window.makeKey()
-        
+        showOnAllScreens()
         isOverlayActive = true
     }
-    
+
+    private func showOnAllScreens() {
+        for (screen, window) in overlayWindows {
+            window.setFrame(screen.frame, display: true)
+            window.orderFrontRegardless()
+            if screen == NSScreen.main {
+                window.makeKey()
+            }
+        }
+    }
+
     private func hideOverlay() {
-        overlayWindow?.orderOut(nil)
+        overlayWindows.values.forEach { $0.orderOut(nil) }
         isOverlayActive = false
     }
-    
+
+    // MARK: - Screen Recording Permission
+
     private func requestScreenRecordingPermission() {
-        // Check and request screen recording permission
-        // This is required for overlay functionality on macOS
-        let options = CGWindowListOption.optionOnScreenOnly
-        let windowList = CGWindowListCopyWindowInfo(options, kCGNullWindowID)
-        
+        let windowList = CGWindowListCopyWindowInfo(.optionOnScreenOnly, kCGNullWindowID)
         if windowList == nil {
-            // Permission not granted - show alert or redirect to settings
             showPermissionAlert()
         }
     }
-    
+
     private func showPermissionAlert() {
         let alert = NSAlert()
         alert.messageText = "Screen Recording Permission Required"
@@ -93,25 +115,15 @@ class OverlayWindowManager: ObservableObject {
         alert.alertStyle = .warning
         alert.addButton(withTitle: "Open System Preferences")
         alert.addButton(withTitle: "Cancel")
-        
-        let response = alert.runModal()
-        if response == .alertFirstButtonReturn {
-            // Open System Preferences
-            if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture") {
-                NSWorkspace.shared.open(url)
-            }
+
+        if alert.runModal() == .alertFirstButtonReturn,
+           let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture") {
+            NSWorkspace.shared.open(url)
         }
     }
-    
+
     // MARK: - Public Interface
-    
-    /// Get the current interaction mode manager
-    var currentInteractionMode: InteractionModeManager? {
-        return interactionModeManager
-    }
-    
-    /// Check if overlay is currently active
-    var isActive: Bool {
-        return isOverlayActive
-    }
+
+    var currentInteractionMode: InteractionModeManager? { sharedInteractionMode }
+    var isActive: Bool { isOverlayActive }
 }

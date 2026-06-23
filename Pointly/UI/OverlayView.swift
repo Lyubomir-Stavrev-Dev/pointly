@@ -3,8 +3,8 @@ import MetalKit
 
 @available(macOS 13.0, *)
 struct OverlayView: View {
-    @StateObject private var drawingState = DrawingState()
-    @StateObject private var interactionMode = InteractionModeManager()
+    @ObservedObject var drawingState: DrawingState
+    @ObservedObject var interactionMode: InteractionModeManager
     @State private var showToolbar = true
     @State private var toolbarPosition = CGPoint(x: 200, y: 100)
     @State private var isDrawing = false
@@ -265,7 +265,7 @@ extension Notification.Name {
 }
 
 #Preview {
-    OverlayView()
+    OverlayView(drawingState: DrawingState(), interactionMode: InteractionModeManager())
         .frame(width: 800, height: 600)
         .background(Color.black.opacity(0.1))
 }
