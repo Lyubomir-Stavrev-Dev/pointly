@@ -6,7 +6,8 @@ import CoreGraphics
 class OverlayWindowManager: ObservableObject {
     private var overlayWindow: NSWindow?
     private var isOverlayActive = false
-    
+    private var interactionModeManager: InteractionModeManager?
+
     init() {
         setupOverlayWindow()
     }
@@ -23,7 +24,8 @@ class OverlayWindowManager: ObservableObject {
         )
         
         guard let window = overlayWindow else { return }
-        
+        interactionModeManager = InteractionModeManager()
+
         // Configure window properties for overlay
         window.level = .screenSaver // High level to appear over other windows
         window.backgroundColor = NSColor.clear

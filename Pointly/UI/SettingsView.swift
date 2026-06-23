@@ -54,15 +54,7 @@ struct GeneralSettingsView: View {
                 HStack {
                     Text("Toggle Overlay:")
                     Spacer()
-                    Text(settings.globalHotkey)
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 4)
-                        .background(Color.secondary.opacity(0.2))
-                        .cornerRadius(4)
-                    Button("Change") {
-                        // TODO: Implement hotkey recorder
-                    }
-                    .buttonStyle(.bordered)
+                    HotkeyRecorderView(hotkey: $settings.globalHotkey)
                 }
                 
                 Toggle("Show Toolbar on Startup", isOn: $settings.showToolbarOnStartup)
@@ -344,6 +336,71 @@ struct AdvancedSettingsView: View {
                 alert.runModal()
             }
         }
+    }
+}
+
+// MARK: - Hotkey Recorder
+
+struct HotkeyRecorderView: View {
+    @Binding var hotkey: String
+    @State private var isRecording = false
+    @State private var eventMonitor: Any?
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Text(isRecording ? "Press shortcut…" : hotkey)
+                .monospacedDigit()
+                .padding(.horizontal, 8)
+                .padding(.vertical, 4)
+                .background(
+                    RoundedRectangle(cornerRadius: 4)
+                        .fill(isRecording ? Color.accentColor.opacity(0.15) : Color.secondary.opacity(0.15))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 4)
+                                .stroke(isRecording ? Color.accentColor : Color.clear, lineWidth: 1)
+                        )
+                )
+
+            Button(isRecording ? "Cancel" : "Change") {
+                isRecording ? stopRecording() : startRecording()
+            }
+            .buttonStyle(.bordered)
+        }
+        .onDisappear { stopRecording() }
+    }
+
+    private func startRecording() {
+        isRecording = true
+        eventMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [self] event in
+            guard event.keyCode != 53 else { // Escape cancels
+                stopRecording()
+                return nil
+            }
+            hotkey = formatHotkey(from: event)
+            stopRecording()
+            return nil
+        }
+    }
+
+    private func stopRecording() {
+        isRecording = false
+        if let monitor = eventMonitor {
+            NSEvent.removeMonitor(monitor)
+            eventMonitor = nil
+        }
+    }
+
+    private func formatHotkey(from event: NSEvent) -> String {
+        var parts: [String] = []
+        let flags = event.modifierFlags
+        if flags.contains(.command) { parts.append("⌘") }
+        if flags.contains(.shift)   { parts.append("⇧") }
+        if flags.contains(.option)  { parts.append("⌥") }
+        if flags.contains(.control) { parts.append("⌃") }
+        if let char = event.charactersIgnoringModifiers?.uppercased(), !char.isEmpty {
+            parts.append(char)
+        }
+        return parts.joined()
     }
 }
 

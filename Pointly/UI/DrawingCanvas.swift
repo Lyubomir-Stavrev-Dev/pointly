@@ -24,6 +24,12 @@ struct DrawingCanvas: View {
         case .eraser:
             // Eraser is handled by removing elements, no drawing needed
             break
+        case .marker:
+            drawMarker(element, in: context)
+        case .blurBrush:
+            drawBlurBrush(element, in: context)
+        case .laserPointer:
+            drawLaserPointer(element, in: context)
         case .rectangle:
             drawRectangle(element, in: context)
         case .ellipse:
@@ -34,6 +40,8 @@ struct DrawingCanvas: View {
             drawLine(element, in: context)
         case .text:
             drawText(element, in: context)
+        default:
+            break
         }
     }
     
@@ -88,42 +96,34 @@ struct DrawingCanvas: View {
     
     private func drawRectangle(_ element: DrawingElement, in context: GraphicsContext) {
         guard element.points.count >= 2 else { return }
-        
         let startPoint = element.points[0]
         let endPoint = element.points.last!
-        
         let rect = CGRect(
             x: min(startPoint.x, endPoint.x),
             y: min(startPoint.y, endPoint.y),
             width: abs(endPoint.x - startPoint.x),
             height: abs(endPoint.y - startPoint.y)
         )
-        
-        context.stroke(
-            Path(rect),
-            with: .color(element.color),
-            style: StrokeStyle(lineWidth: element.thickness)
-        )
+        if element.isFilled {
+            context.fill(Path(rect), with: .color(element.color.opacity(element.opacity * 0.3)))
+        }
+        context.stroke(Path(rect), with: .color(element.color), style: StrokeStyle(lineWidth: element.thickness))
     }
-    
+
     private func drawEllipse(_ element: DrawingElement, in context: GraphicsContext) {
         guard element.points.count >= 2 else { return }
-        
         let startPoint = element.points[0]
         let endPoint = element.points.last!
-        
         let rect = CGRect(
             x: min(startPoint.x, endPoint.x),
             y: min(startPoint.y, endPoint.y),
             width: abs(endPoint.x - startPoint.x),
             height: abs(endPoint.y - startPoint.y)
         )
-        
-        context.stroke(
-            Path(ellipseIn: rect),
-            with: .color(element.color),
-            style: StrokeStyle(lineWidth: element.thickness)
-        )
+        if element.isFilled {
+            context.fill(Path(ellipseIn: rect), with: .color(element.color.opacity(element.opacity * 0.3)))
+        }
+        context.stroke(Path(ellipseIn: rect), with: .color(element.color), style: StrokeStyle(lineWidth: element.thickness))
     }
     
     private func drawLine(_ element: DrawingElement, in context: GraphicsContext) {
@@ -188,18 +188,101 @@ struct DrawingCanvas: View {
         )
     }
     
+    // MARK: - Marker: multiple overlapping strokes at varying offsets create a textured look
+    private func drawMarker(_ element: DrawingElement, in context: GraphicsContext) {
+        guard element.points.count > 1 else { return }
+        let offsets: [(CGFloat, CGFloat, Double)] = [
+            ( 0,  0,   0.55),
+            ( 1.2, 0.5, 0.30),
+            (-0.8, 1.0, 0.25),
+            ( 0.5,-1.2, 0.20),
+        ]
+        for (dx, dy, alpha) in offsets {
+            var path = Path()
+            path.move(to: element.points[0].offset(dx: dx, dy: dy))
+            for i in 1..<element.points.count {
+                path.addLine(to: element.points[i].offset(dx: dx, dy: dy))
+            }
+            context.stroke(path,
+                with: .color(element.color.opacity(alpha)),
+                style: StrokeStyle(lineWidth: element.thickness * 1.4, lineCap: .round, lineJoin: .round))
+        }
+    }
+
+    // MARK: - Blur brush: concentric semi-transparent rings simulate a soft glow/blur
+    private func drawBlurBrush(_ element: DrawingElement, in context: GraphicsContext) {
+        let blurRadius = element.blurRadius ?? element.thickness * 2
+        let rings = 5
+        for i in 0..<rings {
+            let t = CGFloat(i) / CGFloat(rings)
+            let radius = blurRadius * (0.3 + t * 0.7)
+            let alpha  = element.opacity * Double(1.0 - t) * 0.35
+            var path = Path()
+            if element.points.count == 1, let pt = element.points.first {
+                path.addEllipse(in: CGRect(x: pt.x - radius, y: pt.y - radius,
+                                           width: radius * 2, height: radius * 2))
+                context.fill(path, with: .color(element.color.opacity(alpha)))
+            } else {
+                path.move(to: element.points[0])
+                for pt in element.points.dropFirst() { path.addLine(to: pt) }
+                context.stroke(path,
+                    with: .color(element.color.opacity(alpha)),
+                    style: StrokeStyle(lineWidth: radius * 2, lineCap: .round, lineJoin: .round))
+            }
+        }
+    }
+
+    // MARK: - Laser pointer: bright core + wide glow halo, fades over time
+    private func drawLaserPointer(_ element: DrawingElement, in context: GraphicsContext) {
+        guard element.points.count > 1 else {
+            if let pt = element.points.first {
+                let r = element.thickness * 4
+                let opacity = element.currentOpacity
+                // outer glow
+                context.fill(Path(ellipseIn: CGRect(x: pt.x-r, y: pt.y-r, width: r*2, height: r*2)),
+                             with: .color(element.color.opacity(opacity * 0.25)))
+                // bright core
+                let cr = element.thickness
+                context.fill(Path(ellipseIn: CGRect(x: pt.x-cr, y: pt.y-cr, width: cr*2, height: cr*2)),
+                             with: .color(Color.white.opacity(opacity * 0.9)))
+            }
+            return
+        }
+        let opacity = element.currentOpacity
+        // Wide outer glow
+        var glowPath = Path()
+        glowPath.move(to: element.points[0])
+        for pt in element.points.dropFirst() { glowPath.addLine(to: pt) }
+        context.stroke(glowPath,
+            with: .color(element.color.opacity(opacity * 0.20)),
+            style: StrokeStyle(lineWidth: element.thickness * 8, lineCap: .round, lineJoin: .round))
+        // Medium halo
+        context.stroke(glowPath,
+            with: .color(element.color.opacity(opacity * 0.40)),
+            style: StrokeStyle(lineWidth: element.thickness * 4, lineCap: .round, lineJoin: .round))
+        // Bright core
+        context.stroke(glowPath,
+            with: .color(Color.white.opacity(opacity * 0.85)),
+            style: StrokeStyle(lineWidth: element.thickness * 0.8, lineCap: .round, lineJoin: .round))
+    }
+
     private func drawText(_ element: DrawingElement, in context: GraphicsContext) {
-        // TODO: Implement text rendering
-        // This would require additional state for text content and font properties
-        // For now, we'll draw a placeholder
-        guard let point = element.points.first else { return }
-        
-        let rect = CGRect(x: point.x - 5, y: point.y - 5, width: 10, height: 10)
-        context.stroke(
-            Path(rect),
-            with: .color(element.color),
-            style: StrokeStyle(lineWidth: 1)
+        guard let point = element.points.first,
+              let text = element.text, !text.isEmpty else { return }
+        let fontSize = max(14, element.thickness * 4)
+        let resolved = context.resolve(
+            Text(text)
+                .font(.system(size: fontSize, weight: .medium))
+                .foregroundColor(element.color.opacity(element.currentOpacity))
         )
+        context.draw(resolved, at: point, anchor: .topLeading)
+    }
+}
+
+// MARK: - Helpers
+private extension CGPoint {
+    func offset(dx: CGFloat, dy: CGFloat) -> CGPoint {
+        CGPoint(x: x + dx, y: y + dy)
     }
 }
 

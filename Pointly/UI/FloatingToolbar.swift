@@ -118,7 +118,19 @@ struct FloatingToolbar: View {
                             .frame(width: 50)
                     }
                 }
-                
+
+                // Fill toggle for shape tools
+                if drawingState.selectedTool == .rectangle || drawingState.selectedTool == .ellipse {
+                    Button(action: { drawingState.isFilled.toggle() }) {
+                        Image(systemName: drawingState.isFilled ? "square.fill" : "square")
+                            .font(.system(size: 16))
+                            .foregroundColor(drawingState.isFilled ? .accentColor : .primary)
+                            .frame(width: 28, height: 28)
+                    }
+                    .buttonStyle(PlainButtonStyle())
+                    .help("Toggle fill")
+                }
+
                 Divider()
                     .frame(height: 25)
             
@@ -128,21 +140,21 @@ struct FloatingToolbar: View {
                     exportManager.showExportPanel(
                         for: drawingState,
                         format: .png,
-                        size: CGSize(width: 1920, height: 1080)
+                        size: NSScreen.main?.frame.size ?? CGSize(width: 1920, height: 1080)
                     )
                 }
                 Button("Export as PDF") {
                     exportManager.showExportPanel(
                         for: drawingState,
                         format: .pdf,
-                        size: CGSize(width: 1920, height: 1080)
+                        size: NSScreen.main?.frame.size ?? CGSize(width: 1920, height: 1080)
                     )
                 }
                 Button("Export as JPEG") {
                     exportManager.showExportPanel(
                         for: drawingState,
                         format: .jpeg,
-                        size: CGSize(width: 1920, height: 1080)
+                        size: NSScreen.main?.frame.size ?? CGSize(width: 1920, height: 1080)
                     )
                 }
             } label: {

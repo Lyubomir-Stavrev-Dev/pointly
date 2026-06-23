@@ -5,6 +5,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     var statusItem: NSStatusItem?
     var overlayWindowManager: OverlayWindowManager?
     var globalHotkeyManager: GlobalHotkeyManager?
+    private var settingsWindow: NSWindow?
     
     func applicationDidFinishLaunching(_ notification: Notification) {
         // Hide dock icon - we'll use menubar only
@@ -92,17 +93,21 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
     
     @objc private func openSettings() {
-        // Open settings window
-        let settingsWindow = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 500, height: 400),
-            styleMask: [.titled, .closable, .resizable],
-            backing: .buffered,
-            defer: false
-        )
-        settingsWindow.title = "Pointly Settings"
-        settingsWindow.contentView = NSHostingView(rootView: SettingsView())
-        settingsWindow.center()
-        settingsWindow.makeKeyAndOrderFront(nil)
+        if settingsWindow == nil {
+            let window = NSWindow(
+                contentRect: NSRect(x: 0, y: 0, width: 600, height: 500),
+                styleMask: [.titled, .closable, .resizable],
+                backing: .buffered,
+                defer: false
+            )
+            window.title = "Pointly Settings"
+            window.contentView = NSHostingView(rootView: SettingsView())
+            window.center()
+            window.isReleasedWhenClosed = false
+            settingsWindow = window
+        }
+        settingsWindow?.makeKeyAndOrderFront(nil)
+        NSApp.activate(ignoringOtherApps: true)
     }
     
     @objc private func quitApp() {

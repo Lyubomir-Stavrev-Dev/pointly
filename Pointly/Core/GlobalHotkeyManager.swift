@@ -8,102 +8,83 @@ protocol GlobalHotkeyManagerDelegate: AnyObject {
 /// Manages system-wide hotkey registration using Carbon APIs
 class GlobalHotkeyManager {
     weak var delegate: GlobalHotkeyManagerDelegate?
-    
-    private var hotkeyRef: EventHotKeyRef?
+
+    private var hotkeyRefs: [UInt32: EventHotKeyRef] = [:]
+    private var hotkeyCallbacks: [UInt32: () -> Void] = [:]
     private var eventHandler: EventHandlerRef?
-    
-    deinit {
-        unregisterHotkey()
-    }
-    
-    /// Register a global hotkey with the system
-    /// - Parameters:
-    ///   - keyCode: Virtual key code (e.g., 35 for 'P')
-    ///   - modifiers: Modifier keys (command, shift, etc.)
-    func registerHotkey(keyCode: UInt32, modifiers: NSEvent.ModifierFlags) {
-        // Unregister existing hotkey first
-        unregisterHotkey()
-        
-        // Convert NSEvent modifiers to Carbon modifiers
+    private var nextID: UInt32 = 1
+
+    deinit { unregisterAll() }
+
+    /// Register a global hotkey with an optional per-hotkey callback.
+    /// If no callback is provided, `delegate?.hotkeyPressed()` is called instead.
+    func registerHotkey(keyCode: UInt32, modifiers: NSEvent.ModifierFlags, callback: (() -> Void)? = nil) {
+        let id = nextID
+        nextID += 1
+
+        hotkeyCallbacks[id] = callback ?? { [weak self] in self?.delegate?.hotkeyPressed() }
+
         var carbonModifiers: UInt32 = 0
-        if modifiers.contains(.command) {
-            carbonModifiers |= UInt32(cmdKey)
-        }
-        if modifiers.contains(.shift) {
-            carbonModifiers |= UInt32(shiftKey)
-        }
-        if modifiers.contains(.option) {
-            carbonModifiers |= UInt32(optionKey)
-        }
-        if modifiers.contains(.control) {
-            carbonModifiers |= UInt32(controlKey)
-        }
-        
-        // Create hotkey ID
-        let hotkeyID = EventHotKeyID(signature: OSType(fourCharCode: "PTLY"), id: 1)
-        
-        // Register the hotkey
-        let status = RegisterEventHotKey(
-            keyCode,
-            carbonModifiers,
-            hotkeyID,
-            GetApplicationEventTarget(),
-            0,
-            &hotkeyRef
-        )
-        
-        if status == noErr {
-            // Install event handler
-            let eventSpec = EventTypeSpec(eventClass: OSType(kEventClassKeyboard), eventKind: OSType(kEventHotKeyPressed))
-            var eventSpecs = [eventSpec]
-            
-            InstallApplicationEventHandler(
-                { (nextHandler, theEvent, userData) -> OSStatus in
-                    // Extract the GlobalHotkeyManager instance from userData
-                    let manager = Unmanaged<GlobalHotkeyManager>.fromOpaque(userData!).takeUnretainedValue()
-                    manager.delegate?.hotkeyPressed()
-                    return noErr
-                },
-                1,
-                &eventSpecs,
-                Unmanaged.passUnretained(self).toOpaque(),
-                &eventHandler
-            )
-            
-            print("✅ Global hotkey registered successfully")
+        if modifiers.contains(.command) { carbonModifiers |= UInt32(cmdKey) }
+        if modifiers.contains(.shift)   { carbonModifiers |= UInt32(shiftKey) }
+        if modifiers.contains(.option)  { carbonModifiers |= UInt32(optionKey) }
+        if modifiers.contains(.control) { carbonModifiers |= UInt32(controlKey) }
+
+        // Signature: 'PTLY' = 0x50544C59
+        let hotkeyID = EventHotKeyID(signature: 0x50544C59, id: id)
+        var ref: EventHotKeyRef?
+        let status = RegisterEventHotKey(keyCode, carbonModifiers, hotkeyID, GetApplicationEventTarget(), 0, &ref)
+
+        if status == noErr, let ref = ref {
+            hotkeyRefs[id] = ref
+            installEventHandlerIfNeeded()
+            print("✅ Hotkey registered (id: \(id), keyCode: \(keyCode))")
         } else {
-            print("❌ Failed to register global hotkey: \(status)")
+            print("❌ Failed to register hotkey (keyCode: \(keyCode)): \(status)")
         }
     }
-    
-    /// Unregister the current hotkey
-    func unregisterHotkey() {
-        if let hotkeyRef = hotkeyRef {
-            UnregisterEventHotKey(hotkeyRef)
-            self.hotkeyRef = nil
+
+    func unregisterAll() {
+        hotkeyRefs.values.forEach { UnregisterEventHotKey($0) }
+        hotkeyRefs.removeAll()
+        hotkeyCallbacks.removeAll()
+        if let handler = eventHandler {
+            RemoveEventHandler(handler)
+            eventHandler = nil
         }
-        
-        if let eventHandler = eventHandler {
-            RemoveEventHandler(eventHandler)
-            self.eventHandler = nil
-        }
+    }
+
+    // MARK: - Private
+
+    private func installEventHandlerIfNeeded() {
+        guard eventHandler == nil else { return }
+        var eventSpec = EventTypeSpec(
+            eventClass: OSType(kEventClassKeyboard),
+            eventKind: OSType(kEventHotKeyPressed)
+        )
+        let selfPtr = Unmanaged.passUnretained(self).toOpaque()
+        InstallApplicationEventHandler(
+            { _, event, userData -> OSStatus in
+                guard let event = event, let userData = userData else { return noErr }
+                var hotKeyID = EventHotKeyID()
+                GetEventParameter(event,
+                    EventParamName(kEventParamDirectObject),
+                    EventParamType(typeEventHotKeyID),
+                    nil,
+                    MemoryLayout<EventHotKeyID>.size,
+                    nil,
+                    &hotKeyID)
+                let manager = Unmanaged<GlobalHotkeyManager>.fromOpaque(userData).takeUnretainedValue()
+                DispatchQueue.main.async { manager.hotkeyCallbacks[hotKeyID.id]?() }
+                return noErr
+            },
+            1, &eventSpec, selfPtr, &eventHandler
+        )
     }
 }
 
-// MARK: - Helper Functions
+// MARK: - Key Code Lookup
 extension GlobalHotkeyManager {
-    /// Convert a four-character string to OSType
-    private func fourCharCode(_ string: String) -> FourCharCode {
-        let utf8 = string.utf8
-        var result: FourCharCode = 0
-        for (i, byte) in utf8.enumerated() {
-            if i >= 4 { break }
-            result = result << 8 + FourCharCode(byte)
-        }
-        return result
-    }
-    
-    /// Get key code for common keys
     static func keyCode(for character: String) -> UInt32? {
         let keyCodes: [String: UInt32] = [
             "a": 0, "s": 1, "d": 2, "f": 3, "h": 4, "g": 5, "z": 6, "x": 7,

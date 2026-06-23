@@ -153,10 +153,13 @@ struct DrawingElement: Identifiable {
     let glowIntensity: CGFloat?     // For laser pointer
     let textureType: TextureType?   // For marker
     let animationSpeed: CGFloat?    // For animated tools
-    
-    init(tool: DrawingTool, points: [CGPoint], color: Color, thickness: CGFloat, 
-         blurRadius: CGFloat? = nil, glowIntensity: CGFloat? = nil, 
-         textureType: TextureType? = nil, animationSpeed: CGFloat? = nil) {
+    let text: String?               // For text tool
+    let isFilled: Bool              // For shape fills (rectangle, ellipse)
+
+    init(tool: DrawingTool, points: [CGPoint], color: Color, thickness: CGFloat,
+         blurRadius: CGFloat? = nil, glowIntensity: CGFloat? = nil,
+         textureType: TextureType? = nil, animationSpeed: CGFloat? = nil,
+         text: String? = nil, isFilled: Bool = false) {
         self.tool = tool
         self.points = points
         self.color = color
@@ -167,6 +170,8 @@ struct DrawingElement: Identifiable {
         self.glowIntensity = glowIntensity
         self.textureType = textureType
         self.animationSpeed = animationSpeed
+        self.text = text
+        self.isFilled = isFilled
     }
     
     /// Whether this element should fade over time (laser pointer)
@@ -209,6 +214,7 @@ class DrawingState: ObservableObject {
     @Published var selectedTool: DrawingTool = .pen
     @Published var selectedColor: Color = Color(red: 1.0, green: 0.231, blue: 0.188) // #FF3B30
     @Published var strokeThickness: CGFloat = 3.0
+    @Published var isFilled: Bool = false
     
     // Drawing elements and undo/redo stacks
     @Published private(set) var elements: [DrawingElement] = []
@@ -247,8 +253,28 @@ class DrawingState: ObservableObject {
     
     func continueDrawing(to point: CGPoint) {
         guard isDrawing else { return }
-        currentStroke.append(point)
+        let processed = applyDrawingAssistance(point)
+        currentStroke.append(processed)
         updateCurrentElement()
+    }
+
+    private func applyDrawingAssistance(_ point: CGPoint) -> CGPoint {
+        var result = point
+        // Snap to grid
+        if UserDefaults.standard.bool(forKey: "snapToGrid") {
+            let gridSize: CGFloat = 20
+            result = CGPoint(
+                x: round(result.x / gridSize) * gridSize,
+                y: round(result.y / gridSize) * gridSize
+            )
+        }
+        // Straight-line assist: for shape tools, only keep start + current endpoint
+        if UserDefaults.standard.bool(forKey: "straightLineAssist"),
+           [DrawingTool.line, .arrow, .rectangle, .ellipse].contains(selectedTool),
+           let first = currentStroke.first {
+            currentStroke = [first]
+        }
+        return result
     }
     
     private func initializeToolSpecificProperties() {
@@ -290,20 +316,47 @@ class DrawingState: ObservableObject {
     
     func finishStroke() {
         guard isDrawing && !currentStroke.isEmpty else { return }
-        
+
         let element = createDrawingElement()
-        
         elements.append(element)
         currentStroke.removeAll()
         isDrawing = false
-        
-        // Clear redo stack when new action is performed
         redoStack.removeAll()
-        
-        // Post-process for special tools
         handleToolSpecificPostProcessing(element)
+        saveAnnotations()
     }
     
+    /// Add a text annotation at a specific point
+    func addTextElement(at point: CGPoint, text: String) {
+        guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
+        saveStateForUndo()
+        let element = DrawingElement(
+            tool: .text,
+            points: [point],
+            color: selectedColor,
+            thickness: strokeThickness,
+            text: text
+        )
+        elements.append(element)
+        redoStack.removeAll()
+        saveAnnotations()
+    }
+
+    /// Cancel the current in-progress stroke without adding it to elements
+    func cancelCurrentStroke() {
+        guard isDrawing else { return }
+        // Remove the temp element added by updateCurrentElement
+        if let last = elements.last, last.timestamp.timeIntervalSinceNow > -0.5 {
+            elements.removeLast()
+        }
+        // Remove the undo state saved at startDrawing
+        if !undoStack.isEmpty {
+            undoStack.removeLast()
+        }
+        currentStroke.removeAll()
+        isDrawing = false
+    }
+
     private func createDrawingElement() -> DrawingElement {
         // Create element with tool-specific properties
         switch selectedTool {
@@ -336,11 +389,13 @@ class DrawingState: ObservableObject {
             )
             
         default:
+            let fillable = selectedTool == .rectangle || selectedTool == .ellipse
             return DrawingElement(
                 tool: selectedTool,
                 points: currentStroke,
                 color: selectedColor,
-                thickness: strokeThickness
+                thickness: strokeThickness,
+                isFilled: fillable ? isFilled : false
             )
         }
     }
@@ -446,6 +501,7 @@ class DrawingState: ObservableObject {
         saveStateForUndo()
         elements.removeAll()
         redoStack.removeAll()
+        saveAnnotations()
     }
     
     func selectTool(_ tool: DrawingTool) {
@@ -462,12 +518,85 @@ class DrawingState: ObservableObject {
 // MARK: - Notification Extensions
 
 extension Notification.Name {
-    /// Posted when drawing tool changes
-    static let toolChanged = Notification.Name("ToolChanged")
-    
-    /// Posted when blur effect should be applied
-    static let applyBlurEffect = Notification.Name("ApplyBlurEffect")
-    
-    /// Posted when laser pointer animation should start
+    static let toolChanged        = Notification.Name("ToolChanged")
+    static let applyBlurEffect    = Notification.Name("ApplyBlurEffect")
     static let startLaserAnimation = Notification.Name("StartLaserAnimation")
+}
+
+// MARK: - Persistence
+
+/// Codable mirror of DrawingElement for JSON serialisation
+private struct PersistedElement: Codable {
+    let tool: String
+    let points: [[Double]]   // [[x, y], ...]
+    let colorHex: String
+    let thickness: Double
+    let opacity: Double
+    let blurRadius: Double?
+    let glowIntensity: Double?
+    let text: String?
+    let isFilled: Bool
+}
+
+extension DrawingState {
+
+    private static var saveURL: URL {
+        let dir = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
+            .appendingPathComponent("Pointly", isDirectory: true)
+        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        return dir.appendingPathComponent("annotations.json")
+    }
+
+    /// Persist all current (non-fading) elements to disk.
+    func saveAnnotations() {
+        guard UserDefaults.standard.bool(forKey: "autoSaveAnnotations") else { return }
+        let persistent = elements.filter { $0.tool.isPersistent }
+        let encoded = persistent.map { el -> PersistedElement in
+            PersistedElement(
+                tool: el.tool.rawValue,
+                points: el.points.map { [$0.x, $0.y] },
+                colorHex: el.color.toHex(),
+                thickness: el.thickness,
+                opacity: el.opacity,
+                blurRadius: el.blurRadius.map { Double($0) },
+                glowIntensity: el.glowIntensity.map { Double($0) },
+                text: el.text,
+                isFilled: el.isFilled
+            )
+        }
+        if let data = try? JSONEncoder().encode(encoded) {
+            try? data.write(to: Self.saveURL, options: .atomic)
+        }
+    }
+
+    /// Load previously saved annotations from disk.
+    func loadAnnotations() {
+        guard UserDefaults.standard.bool(forKey: "autoSaveAnnotations"),
+              let data = try? Data(contentsOf: Self.saveURL),
+              let decoded = try? JSONDecoder().decode([PersistedElement].self, from: data)
+        else { return }
+
+        let loaded: [DrawingElement] = decoded.compactMap { p in
+            guard let tool = DrawingTool(rawValue: p.tool) else { return nil }
+            let points = p.points.compactMap { arr -> CGPoint? in
+                guard arr.count == 2 else { return nil }
+                return CGPoint(x: arr[0], y: arr[1])
+            }
+            guard !points.isEmpty else { return nil }
+            return DrawingElement(
+                tool: tool,
+                points: points,
+                color: Color(hex: p.colorHex) ?? .red,
+                thickness: CGFloat(p.thickness),
+                blurRadius: p.blurRadius.map { CGFloat($0) },
+                glowIntensity: p.glowIntensity.map { CGFloat($0) },
+                text: p.text,
+                isFilled: p.isFilled
+            )
+        }
+        if !loaded.isEmpty {
+            saveStateForUndo()
+            elements = loaded
+        }
+    }
 }
