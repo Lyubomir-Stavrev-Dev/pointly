@@ -63,17 +63,21 @@ class GlobalHotkeyManager {
             eventKind: OSType(kEventHotKeyPressed)
         )
         let selfPtr = Unmanaged.passUnretained(self).toOpaque()
-        InstallApplicationEventHandler(
-            { _, event, userData -> OSStatus in
-                guard let event = event, let userData = userData else { return noErr }
+        // InstallApplicationEventHandler is a C macro; call its expansion directly.
+        InstallEventHandler(
+            GetApplicationEventTarget(),
+            { (_, event, userData) -> OSStatus in
+                guard let event, let userData else { return noErr }
                 var hotKeyID = EventHotKeyID()
-                GetEventParameter(event,
+                GetEventParameter(
+                    event,
                     EventParamName(kEventParamDirectObject),
                     EventParamType(typeEventHotKeyID),
                     nil,
                     MemoryLayout<EventHotKeyID>.size,
                     nil,
-                    &hotKeyID)
+                    &hotKeyID
+                )
                 let manager = Unmanaged<GlobalHotkeyManager>.fromOpaque(userData).takeUnretainedValue()
                 DispatchQueue.main.async { manager.hotkeyCallbacks[hotKeyID.id]?() }
                 return noErr

@@ -17,7 +17,7 @@ class MetalRenderer: ObservableObject {
     
     // MARK: - Metal Resources
     
-    private let device: MTLDevice
+    let device: MTLDevice                       // internal — read by MetalView
     private let commandQueue: MTLCommandQueue
     private var renderPipelineState: MTLRenderPipelineState?
     private var vertexBuffer: MTLBuffer?
@@ -85,7 +85,7 @@ class MetalRenderer: ObservableObject {
         
         // Setup render pass
         let renderPassDescriptor = MTLRenderPassDescriptor()
-        renderPassDescriptor.colorAttachments[0].texture = drawable.texture
+        renderPassDescriptor.colorAttachments[0].texture = (drawable as? CAMetalDrawable)?.texture
         renderPassDescriptor.colorAttachments[0].loadAction = .clear
         renderPassDescriptor.colorAttachments[0].clearColor = MTLClearColor(red: 0, green: 0, blue: 0, alpha: 0)
         renderPassDescriptor.colorAttachments[0].storeAction = .store
@@ -178,7 +178,7 @@ class MetalRenderer: ObservableObject {
         var markerUniforms = MarkerUniforms(
             opacity: Float(element.opacity),
             color: element.color.metalColor,
-            texture: .marker,  // Predefined marker texture
+            texture: .marker,
             blendMode: .multiply
         )
         
@@ -280,7 +280,7 @@ class MetalRenderer: ObservableObject {
             renderStandardTool(element, with: encoder, viewportSize: viewportSize)
         case .marker:
             renderMarker(element, with: encoder, viewportSize: viewportSize)
-        case .laser:
+        case .laserPointer:
             renderLaserPointer(element, with: encoder, viewportSize: viewportSize)
         case .blurBrush:
             renderBlurBrush(element, with: encoder, viewportSize: viewportSize)
@@ -440,8 +440,8 @@ struct StandardUniforms {
 struct MarkerUniforms {
     let opacity: Float
     let color: simd_float4
-    let texture: TextureType
-    let blendMode: BlendMode
+    let texture: MetalTextureType
+    let blendMode: MetalBlendMode
 }
 
 /// Laser pointer specific uniforms
@@ -461,13 +461,13 @@ struct BlurUniforms {
 
 // MARK: - Enums
 
-enum TextureType: Int32 {
+enum MetalTextureType: Int32 {
     case none = 0
     case marker = 1
     case paper = 2
 }
 
-enum BlendMode: Int32 {
+enum MetalBlendMode: Int32 {
     case normal = 0
     case multiply = 1
     case screen = 2

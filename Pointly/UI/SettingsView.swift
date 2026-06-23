@@ -1,4 +1,5 @@
 import SwiftUI
+import UserNotifications
 
 /// Settings window for configuring Pointly preferences
 struct SettingsView: View {
@@ -286,11 +287,12 @@ struct AdvancedSettingsView: View {
                 let jsonData = try JSONSerialization.data(withJSONObject: settingsData, options: .prettyPrinted)
                 try jsonData.write(to: url)
                 
-                // Show success notification
-                let notification = NSUserNotification()
-                notification.title = "Settings Exported"
-                notification.informativeText = "Settings have been exported successfully"
-                NSUserNotificationCenter.default.deliver(notification)
+                let content = UNMutableNotificationContent()
+                content.title = "Settings Exported"
+                content.body = "Settings have been exported successfully"
+                UNUserNotificationCenter.current().add(
+                    UNNotificationRequest(identifier: UUID().uuidString, content: content, trigger: nil)
+                )
                 
             } catch {
                 // Show error alert
@@ -318,11 +320,12 @@ struct AdvancedSettingsView: View {
                 if let settingsData = settingsData {
                     settings.importSettings(settingsData)
                     
-                    // Show success notification
-                    let notification = NSUserNotification()
-                    notification.title = "Settings Imported"
-                    notification.informativeText = "Settings have been imported successfully"
-                    NSUserNotificationCenter.default.deliver(notification)
+                    let content = UNMutableNotificationContent()
+                    content.title = "Settings Imported"
+                    content.body = "Settings have been imported successfully"
+                    UNUserNotificationCenter.current().add(
+                        UNNotificationRequest(identifier: UUID().uuidString, content: content, trigger: nil)
+                    )
                 }
                 
             } catch {
@@ -401,6 +404,3 @@ struct HotkeyRecorderView: View {
     }
 }
 
-#Preview {
-    SettingsView()
-}

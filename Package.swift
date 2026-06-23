@@ -4,7 +4,7 @@ import PackageDescription
 let package = Package(
     name: "Pointly",
     platforms: [
-        .macOS(.v13)
+        .macOS(.v14)   // .onKeyPress requires 14.0
     ],
     products: [
         .executable(name: "Pointly", targets: ["Pointly"])
@@ -13,13 +13,16 @@ let package = Package(
         .executableTarget(
             name: "Pointly",
             dependencies: [],
-            path: "Sources",
-            sources: [
-                "PointlyTestApp.swift",
-                "ShapeTools.swift"
+            path: "Pointly",
+            exclude: [
+                "Tests",
+                "Pointly-Bridging-Header.h",
+                "Pointly.entitlements",
+                "Info.plist"
             ],
             resources: [
-                .process("Resources")
+                .process("Resources/Assets.xcassets"),
+                .process("Core/Rendering/Shaders/DrawingShaders.metal")
             ]
         )
     ]

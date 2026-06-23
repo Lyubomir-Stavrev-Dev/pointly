@@ -237,11 +237,3 @@ struct FloatingToolbar: View {
     }
 }
 
-#Preview {
-    FloatingToolbar(
-        drawingState: DrawingState(),
-        interactionMode: InteractionModeManager(),
-        position: .constant(CGPoint(x: 260, y: 100))
-    )
-    .padding()
-}

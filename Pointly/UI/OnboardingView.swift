@@ -98,7 +98,7 @@ private struct StepCard: View {
                 .resizable()
                 .scaledToFit()
                 .frame(width: 60, height: 60)
-                .foregroundStyle(.accent)
+                .foregroundColor(.accentColor)
                 .padding(.top, 36)
 
             Text(step.title)
@@ -116,7 +116,3 @@ private struct StepCard: View {
     }
 }
 
-#Preview {
-    OnboardingView(onDismiss: {})
-        .frame(width: 460, height: 420)
-}

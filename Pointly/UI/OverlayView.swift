@@ -1,7 +1,6 @@
 import SwiftUI
 import MetalKit
 
-@available(macOS 13.0, *)
 struct OverlayView: View {
     @ObservedObject var drawingState: DrawingState
     @ObservedObject var interactionMode: InteractionModeManager
@@ -294,8 +293,3 @@ extension Notification.Name {
     static let hideOverlay = Notification.Name("HideOverlay")
 }
 
-#Preview {
-    OverlayView(drawingState: DrawingState(), interactionMode: InteractionModeManager())
-        .frame(width: 800, height: 600)
-        .background(Color.black.opacity(0.1))
-}
