@@ -1,31 +1,31 @@
 import SwiftUI
 
-/// Floating toolbar with annotation tools
-/// 
-/// **Phase 2.1 Enhancement**: Added interaction mode integration and new professional tools
 struct FloatingToolbar: View {
     @ObservedObject var drawingState: DrawingState
+    @ObservedObject var interactionMode: InteractionModeManager   // injected, not owned
     @Binding var position: CGPoint
+
     @State private var isDragging = false
-    @State private var showExportMenu = false
+    @State private var dragStartPosition: CGPoint = .zero         // fixed: capture start once
     @StateObject private var exportManager = ExportManager()
-    @StateObject private var interactionMode = InteractionModeManager()
-    
-    private let toolbarWidth: CGFloat = 500
-    private let toolbarHeight: CGFloat = 70
-    
+
+    private let toolbarWidth: CGFloat = 520
+    private let toolbarHeight: CGFloat = 90
+
     var body: some View {
-        VStack(spacing: 8) {
-            // Interaction Mode Toggle (Top Row)
-            HStack {
+        VStack(spacing: 6) {
+            // Row 1 — mode toggle
+            HStack(spacing: 6) {
                 Text("Mode:")
                     .font(.caption)
                     .foregroundColor(.secondary)
-                
-                Button(action: { interactionMode.toggleMode() }) {
+
+                Button {
+                    interactionMode.toggleMode()
+                } label: {
                     HStack(spacing: 4) {
                         Image(systemName: interactionMode.currentMode.systemImage)
-                            .font(.system(size: 14))
+                            .font(.system(size: 13))
                         Text(interactionMode.currentMode.displayName)
                             .font(.system(size: 12, weight: .medium))
                     }
@@ -33,233 +33,215 @@ struct FloatingToolbar: View {
                     .padding(.vertical, 4)
                     .background(
                         RoundedRectangle(cornerRadius: 6)
-                            .fill(interactionMode.currentMode == .draw ? Color.accentColor : Color.secondary.opacity(0.2))
+                            .fill(interactionMode.currentMode == .draw
+                                  ? Color.accentColor
+                                  : Color.secondary.opacity(0.2))
                     )
                     .foregroundColor(interactionMode.currentMode == .draw ? .white : .primary)
                 }
-                .buttonStyle(PlainButtonStyle())
-                
+                .buttonStyle(.plain)
+
                 Spacer()
-                
-                // Quick mode indicator
+
                 if interactionMode.isTransitioning {
-                    ProgressView()
-                        .scaleEffect(0.5)
+                    ProgressView().scaleEffect(0.5)
                 }
             }
-            
-            // Tools Row
-            HStack(spacing: 8) {
-                // Core Tools
-                toolButton(.pen, isSelected: drawingState.selectedTool == .pen)
-                toolButton(.highlighter, isSelected: drawingState.selectedTool == .highlighter)
-                toolButton(.eraser, isSelected: drawingState.selectedTool == .eraser)
-                
-                Divider()
-                    .frame(height: 25)
-                
-                // Professional Tools (Phase 2.1)
-                toolButton(.marker, isSelected: drawingState.selectedTool == .marker)
-                toolButton(.blurBrush, isSelected: drawingState.selectedTool == .blurBrush)
-                toolButton(.laserPointer, isSelected: drawingState.selectedTool == .laserPointer)
-                
-                Divider()
-                    .frame(height: 25)
-            
-                // Shape tools
-                toolButton(.rectangle, isSelected: drawingState.selectedTool == .rectangle)
-                toolButton(.ellipse, isSelected: drawingState.selectedTool == .ellipse)
-                toolButton(.arrow, isSelected: drawingState.selectedTool == .arrow)
-                toolButton(.line, isSelected: drawingState.selectedTool == .line)
-                
-                Divider()
-                    .frame(height: 25)
-                
-                // Text tool
-                toolButton(.text, isSelected: drawingState.selectedTool == .text)
-                
-                Divider()
-                    .frame(height: 25)
-            
-                // Undo/Redo
-                Button(action: { drawingState.undo() }) {
+
+            // Row 2 — tools
+            HStack(spacing: 6) {
+                toolButton(.pen)
+                toolButton(.highlighter)
+                toolButton(.eraser)
+
+                divider()
+
+                toolButton(.marker)
+                toolButton(.blurBrush)
+                toolButton(.laserPointer)
+
+                divider()
+
+                toolButton(.rectangle)
+                toolButton(.ellipse)
+                toolButton(.arrow)
+                toolButton(.line)
+
+                divider()
+
+                toolButton(.text)
+
+                divider()
+
+                // Undo / Redo
+                Button { drawingState.undo() } label: {
                     Image(systemName: "arrow.uturn.backward")
-                        .font(.system(size: 16))
-                        .foregroundColor(drawingState.canUndo ? .primary : .secondary)
-                        .frame(width: 28, height: 28)
+                        .font(.system(size: 15))
+                        .foregroundColor(drawingState.canUndo ? .primary : .secondary.opacity(0.4))
+                        .frame(width: 26, height: 26)
                 }
                 .disabled(!drawingState.canUndo)
-                .buttonStyle(PlainButtonStyle())
-                
-                Button(action: { drawingState.redo() }) {
+                .buttonStyle(.plain)
+
+                Button { drawingState.redo() } label: {
                     Image(systemName: "arrow.uturn.forward")
-                        .font(.system(size: 16))
-                        .foregroundColor(drawingState.canRedo ? .primary : .secondary)
-                        .frame(width: 28, height: 28)
+                        .font(.system(size: 15))
+                        .foregroundColor(drawingState.canRedo ? .primary : .secondary.opacity(0.4))
+                        .frame(width: 26, height: 26)
                 }
                 .disabled(!drawingState.canRedo)
-                .buttonStyle(PlainButtonStyle())
-                
-                Divider()
-                    .frame(height: 25)
-                
+                .buttonStyle(.plain)
+
+                divider()
+
                 // Color picker
                 ColorPicker("", selection: $drawingState.selectedColor)
-                    .frame(width: 28, height: 28)
+                    .frame(width: 26, height: 26)
                     .disabled(!drawingState.selectedTool.supportsColor)
-                
-                // Thickness slider (only for supported tools)
+
+                // Thickness
                 if drawingState.selectedTool.supportsThickness {
-                    VStack(spacing: 2) {
+                    HStack(spacing: 2) {
                         Text("\(Int(drawingState.strokeThickness))")
                             .font(.caption2)
                             .foregroundColor(.secondary)
+                            .frame(width: 14)
                         Slider(value: $drawingState.strokeThickness, in: 1...10, step: 1)
-                            .frame(width: 50)
+                            .frame(width: 46)
                     }
                 }
 
-                // Fill toggle for shape tools
+                // Fill toggle (shapes only)
                 if drawingState.selectedTool == .rectangle || drawingState.selectedTool == .ellipse {
-                    Button(action: { drawingState.isFilled.toggle() }) {
+                    Button { drawingState.isFilled.toggle() } label: {
                         Image(systemName: drawingState.isFilled ? "square.fill" : "square")
-                            .font(.system(size: 16))
+                            .font(.system(size: 15))
                             .foregroundColor(drawingState.isFilled ? .accentColor : .primary)
-                            .frame(width: 28, height: 28)
+                            .frame(width: 26, height: 26)
                     }
-                    .buttonStyle(PlainButtonStyle())
+                    .buttonStyle(.plain)
                     .help("Toggle fill")
                 }
 
-                Divider()
-                    .frame(height: 25)
-            
-            // Export menu
-            Menu {
-                Button("Export as PNG") {
-                    exportManager.showExportPanel(
-                        for: drawingState,
-                        format: .png,
-                        size: NSScreen.main?.frame.size ?? CGSize(width: 1920, height: 1080)
-                    )
+                divider()
+
+                // Export
+                Menu {
+                    Button("Export as PNG") {
+                        exportManager.showExportPanel(for: drawingState, format: .png,
+                            size: NSScreen.main?.frame.size ?? CGSize(width: 1920, height: 1080))
+                    }
+                    Button("Export as PDF") {
+                        exportManager.showExportPanel(for: drawingState, format: .pdf,
+                            size: NSScreen.main?.frame.size ?? CGSize(width: 1920, height: 1080))
+                    }
+                    Button("Export as JPEG") {
+                        exportManager.showExportPanel(for: drawingState, format: .jpeg,
+                            size: NSScreen.main?.frame.size ?? CGSize(width: 1920, height: 1080))
+                    }
+                } label: {
+                    Image(systemName: "square.and.arrow.up")
+                        .font(.system(size: 17))
+                        .foregroundColor(.primary)
+                        .frame(width: 30, height: 26)
                 }
-                Button("Export as PDF") {
-                    exportManager.showExportPanel(
-                        for: drawingState,
-                        format: .pdf,
-                        size: NSScreen.main?.frame.size ?? CGSize(width: 1920, height: 1080)
-                    )
-                }
-                Button("Export as JPEG") {
-                    exportManager.showExportPanel(
-                        for: drawingState,
-                        format: .jpeg,
-                        size: NSScreen.main?.frame.size ?? CGSize(width: 1920, height: 1080)
-                    )
-                }
-            } label: {
-                Image(systemName: "square.and.arrow.up")
-                    .font(.system(size: 18))
-                    .foregroundColor(.primary)
-                    .frame(width: 32, height: 32)
-            }
-            .menuStyle(BorderlessButtonMenuStyle())
-            
-                // Clear all button
-                Button(action: { drawingState.clearAll() }) {
+                .menuStyle(.borderlessButton)
+
+                // Clear
+                Button { drawingState.clearAll() } label: {
                     Image(systemName: "trash")
-                        .font(.system(size: 16))
+                        .font(.system(size: 15))
                         .foregroundColor(.red)
-                        .frame(width: 28, height: 28)
+                        .frame(width: 26, height: 26)
                 }
-                .buttonStyle(PlainButtonStyle())
+                .buttonStyle(.plain)
             }
         }
-        }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 12)
+        .padding(.horizontal, 14)
+        .padding(.vertical, 10)
         .background(
             RoundedRectangle(cornerRadius: 16)
                 .fill(.regularMaterial)
                 .shadow(radius: 8)
         )
-        .frame(width: toolbarWidth, height: toolbarHeight)
+        .frame(width: toolbarWidth)
+        .fixedSize()                          // let height expand naturally
         .gesture(dragGesture)
-        .onAppear {
-            // Ensure toolbar stays within screen bounds
-            constrainToScreen()
-        }
+        .onAppear { constrainToScreen() }
     }
-    
-    private func toolButton(_ tool: DrawingTool, isSelected: Bool) -> some View {
-        Button(action: { 
+
+    // MARK: - Tool Button
+
+    private func toolButton(_ tool: DrawingTool) -> some View {
+        let selected = drawingState.selectedTool == tool
+        return Button {
             drawingState.selectedTool = tool
-            // Provide haptic feedback for tool selection
             NSHapticFeedbackManager.defaultPerformer.perform(.generic, performanceTime: .now)
-        }) {
+        } label: {
             VStack(spacing: 2) {
                 Image(systemName: tool.systemImage)
-                    .font(.system(size: 16, weight: isSelected ? .semibold : .regular))
-                    .foregroundColor(isSelected ? .white : .primary)
-                
-                // Tool name for new professional tools
+                    .font(.system(size: 15, weight: selected ? .semibold : .regular))
+                    .foregroundColor(selected ? .white : .primary)
                 if [.marker, .blurBrush, .laserPointer].contains(tool) {
                     Text(tool.displayName)
-                        .font(.system(size: 8, weight: .medium))
-                        .foregroundColor(isSelected ? .white : .secondary)
+                        .font(.system(size: 7, weight: .medium))
+                        .foregroundColor(selected ? .white : .secondary)
                         .lineLimit(1)
                 }
             }
-            .frame(width: 32, height: 28)
+            .frame(width: 30, height: 26)
             .background(
                 RoundedRectangle(cornerRadius: 6)
-                    .fill(isSelected ? Color.accentColor : Color.clear)
+                    .fill(selected ? Color.accentColor : Color.clear)
                     .overlay(
                         RoundedRectangle(cornerRadius: 6)
                             .stroke(Color.secondary.opacity(0.3), lineWidth: 0.5)
-                            .opacity(isSelected ? 0 : 1)
+                            .opacity(selected ? 0 : 1)
                     )
             )
         }
-        .buttonStyle(PlainButtonStyle())
-        .help(tool.description)  // Tooltip with tool description
+        .buttonStyle(.plain)
+        .help(tool.description)
     }
-    
+
+    @ViewBuilder
+    private func divider() -> some View {
+        Divider().frame(height: 22)
+    }
+
+    // MARK: - Drag — fixed: record start position once per drag
+
     private var dragGesture: some Gesture {
         DragGesture()
             .onChanged { value in
                 if !isDragging {
                     isDragging = true
+                    dragStartPosition = position
                 }
-                let newX = position.x + value.translation.x
-                let newY = position.y + value.translation.y
-                position = CGPoint(x: newX, y: newY)
+                position = CGPoint(
+                    x: dragStartPosition.x + value.translation.width,
+                    y: dragStartPosition.y + value.translation.height
+                )
                 constrainToScreen()
             }
-            .onEnded { _ in
-                isDragging = false
-            }
+            .onEnded { _ in isDragging = false }
     }
-    
-    /// Constrain toolbar position to screen bounds
+
     private func constrainToScreen() {
         guard let screen = NSScreen.main else { return }
-        let screenFrame = screen.visibleFrame
-        
-        let minX = screenFrame.minX + toolbarWidth / 2
-        let maxX = screenFrame.maxX - toolbarWidth / 2
-        let minY = screenFrame.minY + toolbarHeight / 2
-        let maxY = screenFrame.maxY - toolbarHeight / 2
-        
-        position.x = max(minX, min(maxX, position.x))
-        position.y = max(minY, min(maxY, position.y))
+        let f = screen.visibleFrame
+        let hw = toolbarWidth / 2
+        let hh: CGFloat = 50  // approximate half-height for clamping
+        position.x = max(f.minX + hw, min(f.maxX - hw, position.x))
+        position.y = max(f.minY + hh, min(f.maxY - hh, position.y))
     }
 }
 
 #Preview {
     FloatingToolbar(
         drawingState: DrawingState(),
-        position: .constant(CGPoint(x: 150, y: 100))
+        interactionMode: InteractionModeManager(),
+        position: .constant(CGPoint(x: 260, y: 100))
     )
-    .frame(width: 400, height: 200)
+    .padding()
 }

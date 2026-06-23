@@ -147,15 +147,12 @@ struct DrawingSettingsView: View {
                 HStack {
                     Text("Grid Size:")
                     Spacer()
-                    Slider(value: .constant(20), in: 10...50, step: 5)
+                    Slider(value: $settings.gridSize, in: 10...50, step: 5)
                         .frame(width: 150)
-                    Text("20px")
+                    Text("\(Int(settings.gridSize))px")
                         .frame(width: 40)
                 }
                 .disabled(!settings.snapToGrid)
-                
-                ColorPicker("Grid Color:", selection: .constant(Color.gray.opacity(0.3)))
-                    .disabled(!settings.snapToGrid)
             }
             
             Section("Performance") {
@@ -204,9 +201,9 @@ struct ExportSettingsView: View {
             }
             
             Section("Export Options") {
-                Toggle("Include Timestamp in Filename", isOn: .constant(true))
-                Toggle("Open Exported File Automatically", isOn: .constant(true))
-                Toggle("Show Export Success Notification", isOn: .constant(true))
+                Toggle("Include Timestamp in Filename", isOn: $settings.includeTimestampInFilename)
+                Toggle("Open Exported File Automatically", isOn: $settings.autoOpenExport)
+                Toggle("Show Export Success Notification", isOn: $settings.showExportNotification)
             }
         }
         .padding()
@@ -258,7 +255,7 @@ struct AdvancedSettingsView: View {
             
             Section("Debug Information") {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("Version: 1.0.0")
+                    Text("Version: \(Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "1.0.0")")
                         .font(.caption)
                         .foregroundColor(.secondary)
                     

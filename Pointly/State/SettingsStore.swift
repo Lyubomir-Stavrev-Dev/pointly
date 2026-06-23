@@ -67,9 +67,23 @@ class SettingsStore: ObservableObject {
     }
     
     @Published var exportQuality: Double {
-        didSet {
-            UserDefaults.standard.set(exportQuality, forKey: "exportQuality")
-        }
+        didSet { UserDefaults.standard.set(exportQuality, forKey: "exportQuality") }
+    }
+
+    @Published var gridSize: Double {
+        didSet { UserDefaults.standard.set(gridSize, forKey: "gridSize") }
+    }
+
+    @Published var includeTimestampInFilename: Bool {
+        didSet { UserDefaults.standard.set(includeTimestampInFilename, forKey: "includeTimestampInFilename") }
+    }
+
+    @Published var autoOpenExport: Bool {
+        didSet { UserDefaults.standard.set(autoOpenExport, forKey: "autoOpenExport") }
+    }
+
+    @Published var showExportNotification: Bool {
+        didSet { UserDefaults.standard.set(showExportNotification, forKey: "showExportNotification") }
     }
     
     // MARK: - Computed Properties
@@ -108,8 +122,12 @@ class SettingsStore: ObservableObject {
         self.exportFormat = UserDefaults.standard.string(forKey: "exportFormat") ?? "png"
         self.exportQuality = UserDefaults.standard.double(forKey: "exportQuality") != 0 ?
             UserDefaults.standard.double(forKey: "exportQuality") : 0.9
-        
-        // Set default values if first launch
+        self.gridSize = UserDefaults.standard.double(forKey: "gridSize") != 0 ?
+            UserDefaults.standard.double(forKey: "gridSize") : 20.0
+        self.includeTimestampInFilename = UserDefaults.standard.object(forKey: "includeTimestampInFilename") as? Bool ?? true
+        self.autoOpenExport = UserDefaults.standard.object(forKey: "autoOpenExport") as? Bool ?? true
+        self.showExportNotification = UserDefaults.standard.object(forKey: "showExportNotification") as? Bool ?? true
+
         registerDefaults()
     }
     
@@ -127,7 +145,11 @@ class SettingsStore: ObservableObject {
             "showToolbarOnStartup": true,
             "autoSaveAnnotations": false,
             "exportFormat": "png",
-            "exportQuality": 0.9
+            "exportQuality": 0.9,
+            "gridSize": 20.0,
+            "includeTimestampInFilename": true,
+            "autoOpenExport": true,
+            "showExportNotification": true,
         ]
         
         UserDefaults.standard.register(defaults: defaults)
@@ -146,6 +168,10 @@ class SettingsStore: ObservableObject {
         autoSaveAnnotations = false
         exportFormat = "png"
         exportQuality = 0.9
+        gridSize = 20.0
+        includeTimestampInFilename = true
+        autoOpenExport = true
+        showExportNotification = true
     }
     
     /// Export settings to a dictionary

@@ -1,73 +1,36 @@
 import AppKit
 import SwiftUI
 import UniformTypeIdentifiers
+import UserNotifications
 
-/// Manages exporting annotations to various formats
 class ExportManager: ObservableObject {
-    
-    /// Export formats supported by Pointly
+
     enum ExportFormat: String, CaseIterable {
         case png = "png"
         case pdf = "pdf"
         case jpeg = "jpeg"
-        
+
         var displayName: String {
             switch self {
-            case .png: return "PNG Image"
-            case .pdf: return "PDF Document"
+            case .png:  return "PNG Image"
+            case .pdf:  return "PDF Document"
             case .jpeg: return "JPEG Image"
             }
         }
-        
-        var fileExtension: String {
-            return rawValue
-        }
-        
+
+        var fileExtension: String { rawValue }
+
         var utType: UTType {
             switch self {
-            case .png: return .png
-            case .pdf: return .pdf
+            case .png:  return .png
+            case .pdf:  return .pdf
             case .jpeg: return .jpeg
             }
         }
     }
-    
-    /// Export the current drawing state to a file
-    /// - Parameters:
-    ///   - drawingState: The current drawing state to export
-    ///   - format: Export format (PNG, PDF, JPEG)
-    ///   - size: Canvas size for export
-    ///   - completion: Completion handler with success/failure result
-    func exportDrawing(
-        _ drawingState: DrawingState,
-        format: ExportFormat,
-        size: CGSize,
-        completion: @escaping (Result<URL, Error>) -> Void
-    ) {
-        DispatchQueue.global(qos: .userInitiated).async {
-            do {
-                let url = try self.createExportFile(
-                    drawingState: drawingState,
-                    format: format,
-                    size: size
-                )
-                
-                DispatchQueue.main.async {
-                    completion(.success(url))
-                }
-            } catch {
-                DispatchQueue.main.async {
-                    completion(.failure(error))
-                }
-            }
-        }
-    }
-    
-    /// Show save panel and export drawing
-    /// - Parameters:
-    ///   - drawingState: Current drawing state
-    ///   - format: Export format
-    ///   - size: Canvas size
+
+    // MARK: - Public API
+
     func showExportPanel(
         for drawingState: DrawingState,
         format: ExportFormat,
@@ -75,74 +38,71 @@ class ExportManager: ObservableObject {
     ) {
         let savePanel = NSSavePanel()
         savePanel.title = "Export Annotations"
-        savePanel.nameFieldStringValue = "Pointly Annotations.\(format.fileExtension)"
+        savePanel.nameFieldStringValue = defaultFilename(for: format)
         savePanel.allowedContentTypes = [format.utType]
         savePanel.canCreateDirectories = true
         savePanel.isExtensionHidden = false
-        
-        savePanel.begin { response in
-            guard response == .OK, let url = savePanel.url else { return }
-            
-            self.exportDrawing(drawingState, format: format, size: size) { result in
-                switch result {
-                case .success(let tempURL):
-                    do {
-                        // Move from temp location to user-selected location
-                        if FileManager.default.fileExists(atPath: url.path) {
-                            try FileManager.default.removeItem(at: url)
+
+        savePanel.begin { [weak self] response in
+            guard response == .OK, let url = savePanel.url, let self else { return }
+
+            DispatchQueue.global(qos: .userInitiated).async {
+                do {
+                    let tempURL = try self.createExportFile(drawingState: drawingState, format: format, size: size)
+
+                    DispatchQueue.main.async {
+                        do {
+                            if FileManager.default.fileExists(atPath: url.path) {
+                                try FileManager.default.removeItem(at: url)
+                            }
+                            try FileManager.default.moveItem(at: tempURL, to: url)
+
+                            if UserDefaults.standard.object(forKey: "showExportNotification") as? Bool ?? true {
+                                self.showNotification(title: "Export Successful",
+                                                      message: "Saved to \(url.lastPathComponent)")
+                            }
+                            if UserDefaults.standard.object(forKey: "autoOpenExport") as? Bool ?? true {
+                                NSWorkspace.shared.activateFileViewerSelecting([url])
+                            }
+                        } catch {
+                            self.showErrorAlert("Export failed: \(error.localizedDescription)")
                         }
-                        try FileManager.default.moveItem(at: tempURL, to: url)
-                        
-                        // Show success notification
-                        self.showNotification(
-                            title: "Export Successful",
-                            message: "Annotations saved to \(url.lastPathComponent)"
-                        )
-                        
-                        // Reveal in Finder
-                        NSWorkspace.shared.activateFileViewerSelecting([url])
-                        
-                    } catch {
+                    }
+                } catch {
+                    DispatchQueue.main.async {
                         self.showErrorAlert("Export failed: \(error.localizedDescription)")
                     }
-                    
-                case .failure(let error):
-                    self.showErrorAlert("Export failed: \(error.localizedDescription)")
                 }
             }
         }
     }
-    
-    // MARK: - Private Methods
-    
+
+    // MARK: - File Creation
+
     private func createExportFile(
         drawingState: DrawingState,
         format: ExportFormat,
         size: CGSize
     ) throws -> URL {
-        // Create a temporary directory for export
-        let tempDir = FileManager.default.temporaryDirectory
-        let fileName = "pointly-export-\(Date().timeIntervalSince1970).\(format.fileExtension)"
-        let tempURL = tempDir.appendingPathComponent(fileName)
-        
+        let fileName = "pointly-\(Int(Date().timeIntervalSince1970)).\(format.fileExtension)"
+        let tempURL = FileManager.default.temporaryDirectory.appendingPathComponent(fileName)
+
         switch format {
         case .png, .jpeg:
-            try createImageFile(drawingState: drawingState, format: format, size: size, url: tempURL)
+            try createImageFile(elements: drawingState.elements, format: format, size: size, url: tempURL)
         case .pdf:
-            try createPDFFile(drawingState: drawingState, size: size, url: tempURL)
+            try createPDFFile(elements: drawingState.elements, size: size, url: tempURL)
         }
-        
         return tempURL
     }
-    
+
     private func createImageFile(
-        drawingState: DrawingState,
+        elements: [DrawingElement],
         format: ExportFormat,
         size: CGSize,
         url: URL
     ) throws {
-        // Create image representation
-        let rep = NSBitmapImageRep(
+        guard let rep = NSBitmapImageRep(
             bitmapDataPlanes: nil,
             pixelsWide: Int(size.width),
             pixelsHigh: Int(size.height),
@@ -153,187 +113,249 @@ class ExportManager: ObservableObject {
             colorSpaceName: .deviceRGB,
             bytesPerRow: 0,
             bitsPerPixel: 0
-        )
-        
-        guard let rep = rep else {
-            throw ExportError.imageCreationFailed
-        }
-        
-        // Create graphics context
-        let context = NSGraphicsContext(bitmapImageRep: rep)
+        ) else { throw ExportError.imageCreationFailed }
+
         NSGraphicsContext.saveGraphicsState()
-        NSGraphicsContext.current = context
-        
-        // Clear background (white for JPEG, transparent for PNG)
+        NSGraphicsContext.current = NSGraphicsContext(bitmapImageRep: rep)
+
+        // Flip coordinate system: AppKit bitmap has origin at bottom-left,
+        // but overlay uses top-left origin (SwiftUI/NSWindow default).
+        if let cgCtx = NSGraphicsContext.current?.cgContext {
+            cgCtx.translateBy(x: 0, y: size.height)
+            cgCtx.scaleBy(x: 1, y: -1)
+        }
+
         if format == .jpeg {
             NSColor.white.setFill()
-        } else {
-            NSColor.clear.setFill()
+            NSRect(origin: .zero, size: size).fill()
         }
-        NSRect(origin: .zero, size: size).fill()
-        
-        // Draw all elements
-        drawElements(drawingState.elements, in: NSRect(origin: .zero, size: size))
-        
+
+        drawElements(elements, in: NSRect(origin: .zero, size: size))
         NSGraphicsContext.restoreGraphicsState()
-        
-        // Save to file
-        let imageType: NSBitmapImageRep.FileType = format == .png ? .png : .jpeg
-        guard let data = rep.representation(using: imageType, properties: [:]) else {
+
+        let quality = UserDefaults.standard.double(forKey: "exportQuality")
+        let props: [NSBitmapImageRep.PropertyKey: Any] = format == .jpeg
+            ? [.compressionFactor: quality > 0 ? quality : 0.9]
+            : [:]
+        let fileType: NSBitmapImageRep.FileType = format == .png ? .png : .jpeg
+        guard let data = rep.representation(using: fileType, properties: props) else {
             throw ExportError.imageEncodingFailed
         }
-        
         try data.write(to: url)
     }
-    
-    private func createPDFFile(
-        drawingState: DrawingState,
-        size: CGSize,
-        url: URL
-    ) throws {
-        // Create PDF context
-        guard let pdfContext = CGContext(url as CFURL, mediaBox: nil, nil) else {
+
+    private func createPDFFile(elements: [DrawingElement], size: CGSize, url: URL) throws {
+        var mediaBox = CGRect(origin: .zero, size: size)
+        guard let pdfContext = CGContext(url as CFURL, mediaBox: &mediaBox, nil) else {
             throw ExportError.pdfCreationFailed
         }
-        
-        let mediaBox = CGRect(origin: .zero, size: size)
-        pdfContext.beginPDFPage(nil)
-        
-        // Convert to NSGraphicsContext for easier drawing
+
+        pdfContext.beginPDFPage([kCGPDFContextMediaBox: NSValue(rect: NSRect(origin: .zero, size: size))] as CFDictionary)
+
         let nsContext = NSGraphicsContext(cgContext: pdfContext, flipped: false)
         NSGraphicsContext.saveGraphicsState()
         NSGraphicsContext.current = nsContext
-        
-        // Draw all elements
-        drawElements(drawingState.elements, in: mediaBox)
-        
+
+        // Flip to match top-left origin
+        pdfContext.translateBy(x: 0, y: size.height)
+        pdfContext.scaleBy(x: 1, y: -1)
+
+        drawElements(elements, in: NSRect(origin: .zero, size: size))
+
         NSGraphicsContext.restoreGraphicsState()
         pdfContext.endPDFPage()
         pdfContext.closePDF()
     }
-    
+
+    // MARK: - Element Rendering
+
     private func drawElements(_ elements: [DrawingElement], in rect: NSRect) {
         for element in elements {
             drawElement(element, in: rect)
         }
     }
-    
+
     private func drawElement(_ element: DrawingElement, in rect: NSRect) {
         guard !element.points.isEmpty else { return }
-        
-        // Convert SwiftUI Color to NSColor
         let nsColor = NSColor(element.color)
-        nsColor.withAlphaComponent(element.opacity).setStroke()
-        
-        let path = NSBezierPath()
-        path.lineWidth = element.thickness
-        path.lineCapStyle = .round
-        path.lineJoinStyle = .round
-        
+
         switch element.tool {
         case .pen, .highlighter:
-            if element.points.count == 1 {
-                // Single point - draw as circle
-                let point = element.points[0]
-                let rect = NSRect(
-                    x: point.x - element.thickness / 2,
-                    y: point.y - element.thickness / 2,
-                    width: element.thickness,
-                    height: element.thickness
-                )
-                path.appendOval(in: rect)
-                path.fill()
-            } else {
-                // Multiple points - draw as path
-                path.move(to: element.points[0])
-                for point in element.points.dropFirst() {
-                    path.line(to: point)
-                }
-                path.stroke()
-            }
-            
+            nsColor.withAlphaComponent(element.opacity).setStroke()
+            let path = strokePath(for: element)
+            path.lineWidth = element.thickness
+            path.lineCapStyle = .round
+            path.lineJoinStyle = .round
+            path.stroke()
+
+        case .marker:
+            drawMarker(element, color: nsColor)
+
+        case .blurBrush:
+            drawBlurBrush(element, color: nsColor)
+
         case .rectangle:
-            if element.points.count >= 2 {
-                let start = element.points[0]
-                let end = element.points.last!
-                let rect = NSRect(
-                    x: min(start.x, end.x),
-                    y: min(start.y, end.y),
-                    width: abs(end.x - start.x),
-                    height: abs(end.y - start.y)
-                )
-                path.appendRect(rect)
-                path.stroke()
+            guard element.points.count >= 2 else { return }
+            let r = shapeRect(for: element)
+            let path = NSBezierPath(rect: r)
+            path.lineWidth = element.thickness
+            if element.isFilled {
+                nsColor.withAlphaComponent(element.opacity * 0.3).setFill()
+                path.fill()
             }
-            
+            nsColor.withAlphaComponent(element.opacity).setStroke()
+            path.stroke()
+
         case .ellipse:
-            if element.points.count >= 2 {
-                let start = element.points[0]
-                let end = element.points.last!
-                let rect = NSRect(
-                    x: min(start.x, end.x),
-                    y: min(start.y, end.y),
-                    width: abs(end.x - start.x),
-                    height: abs(end.y - start.y)
-                )
-                path.appendOval(in: rect)
-                path.stroke()
+            guard element.points.count >= 2 else { return }
+            let r = shapeRect(for: element)
+            let path = NSBezierPath(ovalIn: r)
+            path.lineWidth = element.thickness
+            if element.isFilled {
+                nsColor.withAlphaComponent(element.opacity * 0.3).setFill()
+                path.fill()
             }
-            
-        case .line, .arrow:
-            if element.points.count >= 2 {
-                let start = element.points[0]
-                let end = element.points.last!
-                path.move(to: start)
-                path.line(to: end)
-                path.stroke()
-                
-                if element.tool == .arrow {
-                    // Draw arrow head
-                    drawArrowHead(from: start, to: end, thickness: element.thickness)
-                }
-            }
-            
+            nsColor.withAlphaComponent(element.opacity).setStroke()
+            path.stroke()
+
+        case .line:
+            guard element.points.count >= 2 else { return }
+            nsColor.withAlphaComponent(element.opacity).setStroke()
+            let path = NSBezierPath()
+            path.lineWidth = element.thickness
+            path.lineCapStyle = .round
+            path.move(to: element.points[0])
+            path.line(to: element.points.last!)
+            path.stroke()
+
+        case .arrow:
+            guard element.points.count >= 2 else { return }
+            nsColor.withAlphaComponent(element.opacity).setStroke()
+            drawArrow(from: element.points[0], to: element.points.last!, thickness: element.thickness)
+
+        case .text:
+            drawText(element, color: nsColor)
+
         default:
             break
         }
     }
-    
-    private func drawArrowHead(from start: CGPoint, to end: CGPoint, thickness: CGFloat) {
+
+    // MARK: - Tool-specific Drawing
+
+    private func drawMarker(_ element: DrawingElement, color: NSColor) {
+        guard element.points.count > 1 else { return }
+        let offsets: [(CGFloat, CGFloat, Double)] = [
+            (0, 0, 0.55), (1.2, 0.5, 0.30), (-0.8, 1.0, 0.25), (0.5, -1.2, 0.20)
+        ]
+        for (dx, dy, alpha) in offsets {
+            let path = NSBezierPath()
+            path.lineWidth = element.thickness * 1.4
+            path.lineCapStyle = .round
+            path.lineJoinStyle = .round
+            path.move(to: CGPoint(x: element.points[0].x + dx, y: element.points[0].y + dy))
+            for pt in element.points.dropFirst() {
+                path.line(to: CGPoint(x: pt.x + dx, y: pt.y + dy))
+            }
+            color.withAlphaComponent(alpha).setStroke()
+            path.stroke()
+        }
+    }
+
+    private func drawBlurBrush(_ element: DrawingElement, color: NSColor) {
+        let blurRadius = element.blurRadius ?? element.thickness * 2
+        let rings = 5
+        for i in 0..<rings {
+            let t = CGFloat(i) / CGFloat(rings)
+            let radius = blurRadius * (0.3 + t * 0.7)
+            let alpha = element.opacity * Double(1.0 - t) * 0.35
+            color.withAlphaComponent(alpha).setFill()
+            color.withAlphaComponent(alpha).setStroke()
+            if element.points.count == 1, let pt = element.points.first {
+                NSBezierPath(ovalIn: NSRect(x: pt.x - radius, y: pt.y - radius,
+                                            width: radius * 2, height: radius * 2)).fill()
+            } else if element.points.count > 1 {
+                let path = NSBezierPath()
+                path.lineWidth = radius * 2
+                path.lineCapStyle = .round
+                path.move(to: element.points[0])
+                for pt in element.points.dropFirst() { path.line(to: pt) }
+                path.stroke()
+            }
+        }
+    }
+
+    private func drawText(_ element: DrawingElement, color: NSColor) {
+        guard let text = element.text, !text.isEmpty, let pt = element.points.first else { return }
+        let fontSize = max(14, element.thickness * 4)
+        let attrs: [NSAttributedString.Key: Any] = [
+            .font: NSFont.systemFont(ofSize: fontSize, weight: .medium),
+            .foregroundColor: color.withAlphaComponent(element.opacity)
+        ]
+        text.draw(at: pt, withAttributes: attrs)
+    }
+
+    private func drawArrow(from start: CGPoint, to end: CGPoint, thickness: CGFloat) {
+        let path = NSBezierPath()
+        path.lineWidth = thickness
+        path.lineCapStyle = .round
+        path.move(to: start)
+        path.line(to: end)
+
         let angle = atan2(end.y - start.y, end.x - start.x)
-        let arrowLength = thickness * 3
+        let arrowLen = thickness * 3
         let arrowAngle: CGFloat = .pi / 6
-        
-        let arrowPath = NSBezierPath()
-        arrowPath.lineWidth = thickness
-        arrowPath.lineCapStyle = .round
-        
-        let point1 = CGPoint(
-            x: end.x - arrowLength * cos(angle - arrowAngle),
-            y: end.y - arrowLength * sin(angle - arrowAngle)
-        )
-        
-        let point2 = CGPoint(
-            x: end.x - arrowLength * cos(angle + arrowAngle),
-            y: end.y - arrowLength * sin(angle + arrowAngle)
-        )
-        
-        arrowPath.move(to: end)
-        arrowPath.line(to: point1)
-        arrowPath.move(to: end)
-        arrowPath.line(to: point2)
-        arrowPath.stroke()
+        let p1 = CGPoint(x: end.x - arrowLen * cos(angle - arrowAngle),
+                         y: end.y - arrowLen * sin(angle - arrowAngle))
+        let p2 = CGPoint(x: end.x - arrowLen * cos(angle + arrowAngle),
+                         y: end.y - arrowLen * sin(angle + arrowAngle))
+        path.move(to: end); path.line(to: p1)
+        path.move(to: end); path.line(to: p2)
+        path.stroke()
     }
-    
+
+    private func strokePath(for element: DrawingElement) -> NSBezierPath {
+        let path = NSBezierPath()
+        guard element.points.count > 1 else {
+            if let pt = element.points.first {
+                let r = element.thickness / 2
+                path.appendOval(in: NSRect(x: pt.x - r, y: pt.y - r, width: r * 2, height: r * 2))
+            }
+            return path
+        }
+        path.move(to: element.points[0])
+        for pt in element.points.dropFirst() { path.line(to: pt) }
+        return path
+    }
+
+    private func shapeRect(for element: DrawingElement) -> NSRect {
+        let start = element.points[0], end = element.points.last!
+        return NSRect(x: min(start.x, end.x), y: min(start.y, end.y),
+                      width: abs(end.x - start.x), height: abs(end.y - start.y))
+    }
+
+    // MARK: - Notifications
+
+    private func defaultFilename(for format: ExportFormat) -> String {
+        let useTimestamp = UserDefaults.standard.object(forKey: "includeTimestampInFilename") as? Bool ?? true
+        if useTimestamp {
+            let f = DateFormatter()
+            f.dateFormat = "yyyy-MM-dd HH-mm-ss"
+            return "Pointly \(f.string(from: Date())).\(format.fileExtension)"
+        }
+        return "Pointly Annotations.\(format.fileExtension)"
+    }
+
     private func showNotification(title: String, message: String) {
-        let notification = NSUserNotification()
-        notification.title = title
-        notification.informativeText = message
-        notification.soundName = NSUserNotificationDefaultSoundName
-        
-        NSUserNotificationCenter.default.deliver(notification)
+        let content = UNMutableNotificationContent()
+        content.title = title
+        content.body = message
+        content.sound = .default
+        UNUserNotificationCenter.current().add(
+            UNNotificationRequest(identifier: UUID().uuidString, content: content, trigger: nil)
+        )
     }
-    
+
     private func showErrorAlert(_ message: String) {
         DispatchQueue.main.async {
             let alert = NSAlert()
@@ -345,23 +367,17 @@ class ExportManager: ObservableObject {
     }
 }
 
-// MARK: - Export Errors
+// MARK: - Errors
+
 enum ExportError: LocalizedError {
-    case imageCreationFailed
-    case imageEncodingFailed
-    case pdfCreationFailed
-    case fileWriteFailed
-    
+    case imageCreationFailed, imageEncodingFailed, pdfCreationFailed, fileWriteFailed
+
     var errorDescription: String? {
         switch self {
-        case .imageCreationFailed:
-            return "Failed to create image representation"
-        case .imageEncodingFailed:
-            return "Failed to encode image data"
-        case .pdfCreationFailed:
-            return "Failed to create PDF document"
-        case .fileWriteFailed:
-            return "Failed to write file to disk"
+        case .imageCreationFailed: return "Failed to create image representation"
+        case .imageEncodingFailed: return "Failed to encode image data"
+        case .pdfCreationFailed:   return "Failed to create PDF document"
+        case .fileWriteFailed:     return "Failed to write file to disk"
         }
     }
 }

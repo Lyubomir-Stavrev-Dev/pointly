@@ -11,27 +11,33 @@ struct OverlayView: View {
     @State private var canvasSize = CGSize.zero
     @State private var metalRenderer: MetalRenderer?
 
-    // Mode indicator
     @State private var showModeIndicator = false
     @State private var modeIndicatorOpacity = 0.0
 
-    // Text tool state
     @State private var textInputPosition: CGPoint? = nil
     @State private var pendingText = ""
 
     var body: some View {
         ZStack {
+            // Drawing / interact layer
             Color.clear
                 .contentShape(Rectangle())
                 .gesture(interactionMode.currentMode == .draw ? drawingGesture : nil)
                 .allowsHitTesting(interactionMode.currentMode == .draw)
+                // Double-tap to toggle toolbar — only in interact mode to avoid draw conflicts
+                .onTapGesture(count: 2) {
+                    guard interactionMode.currentMode == .interact else { return }
+                    withAnimation(.easeInOut(duration: 0.3)) { showToolbar.toggle() }
+                }
 
+            // Canvas
             if let renderer = metalRenderer {
                 MetalDrawingCanvas(state: drawingState, renderer: renderer)
             } else {
                 DrawingCanvas(state: drawingState)
             }
 
+            // Mode indicator HUD
             if showModeIndicator {
                 VStack {
                     Spacer()
@@ -41,8 +47,7 @@ struct OverlayView: View {
                             .opacity(modeIndicatorOpacity)
                         Spacer()
                     }
-                    Spacer()
-                        .frame(height: 100)
+                    Spacer().frame(height: 100)
                 }
             }
 
@@ -65,6 +70,7 @@ struct OverlayView: View {
                 .position(pos)
             }
 
+            // Floating toolbar
             if showToolbar {
                 VStack {
                     Spacer()
@@ -72,6 +78,7 @@ struct OverlayView: View {
                         Spacer()
                         FloatingToolbar(
                             drawingState: drawingState,
+                            interactionMode: interactionMode,
                             position: $toolbarPosition
                         )
                         Spacer()
@@ -99,11 +106,6 @@ struct OverlayView: View {
         .onReceive(NotificationCenter.default.publisher(for: .interactionModeChanged)) { notification in
             handleModeChange(notification)
         }
-        .onTapGesture(count: 2) {
-            withAnimation(.easeInOut(duration: 0.3)) {
-                showToolbar.toggle()
-            }
-        }
         .onKeyPress(.tab) {
             interactionMode.toggleMode()
             return .handled
@@ -112,6 +114,11 @@ struct OverlayView: View {
             if textInputPosition != nil {
                 textInputPosition = nil
                 pendingText = ""
+            } else if isDrawing {
+                // Cancel in-progress stroke before switching mode
+                drawingState.cancelCurrentStroke()
+                isDrawing = false
+                interactionMode.switchTo(mode: .interact)
             } else if interactionMode.currentMode == .draw {
                 interactionMode.switchTo(mode: .interact)
             }
@@ -119,12 +126,22 @@ struct OverlayView: View {
         }
     }
 
+    // MARK: - Drawing Gesture
+
     private var drawingGesture: some Gesture {
         DragGesture(minimumDistance: 0)
             .onChanged { value in
                 guard interactionMode.currentMode == .draw else { return }
-                // Text tool: don't draw strokes
+
+                // Eraser: directly erase at cursor position
+                if drawingState.selectedTool == .eraser {
+                    drawingState.eraseAt(value.location)
+                    return
+                }
+
+                // Text tool: wait for tap-end, not drag
                 if drawingState.selectedTool == .text { return }
+
                 if !isDrawing {
                     isDrawing = true
                     drawingState.startDrawing(at: value.location)
@@ -134,44 +151,56 @@ struct OverlayView: View {
             }
             .onEnded { value in
                 guard interactionMode.currentMode == .draw else { return }
+
+                if drawingState.selectedTool == .eraser {
+                    return
+                }
+
                 if drawingState.selectedTool == .text {
-                    // Show text input on tap (minimal drag)
-                    let dist = sqrt(pow(value.translation.width, 2) + pow(value.translation.height, 2))
+                    let dist = hypot(value.translation.width, value.translation.height)
                     if dist < 8 {
                         textInputPosition = value.startLocation
                         pendingText = ""
                     }
                     return
                 }
+
                 drawingState.finishStroke()
                 isDrawing = false
             }
     }
 
+    // MARK: - Metal Init
+
     private func initializeMetalRenderer() {
         do {
             metalRenderer = try MetalRenderer()
-            print("✅ Metal renderer initialized")
         } catch {
-            print("⚠️ Metal renderer unavailable, using Core Graphics")
+            // Metal unavailable — falls back to Core Graphics DrawingCanvas
         }
     }
 
+    // MARK: - Mode Change Handler
+
     private func handleModeChange(_ notification: Notification) {
-        guard let mode = notification.userInfo?["mode"] as? InteractionModeManager.InteractionMode else { return }
         showModeIndicator = true
         withAnimation(.easeInOut(duration: 0.3)) { modeIndicatorOpacity = 1.0 }
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
             withAnimation(.easeInOut(duration: 0.5)) { modeIndicatorOpacity = 0.0 }
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { showModeIndicator = false }
         }
-        updateCursorForMode(mode)
+        updateCursor()
     }
 
-    private func updateCursorForMode(_ mode: InteractionModeManager.InteractionMode) {
-        switch mode {
+    private func updateCursor() {
+        switch interactionMode.currentMode {
         case .interact: NSCursor.arrow.set()
-        case .draw:     NSCursor.crosshair.set()
+        case .draw:
+            if drawingState.selectedTool == .text {
+                NSCursor.iBeam.set()
+            } else {
+                NSCursor.crosshair.set()
+            }
         }
     }
 }
@@ -252,8 +281,9 @@ struct MetalView: NSViewRepresentable {
 
         func draw(in view: MTKView) {
             guard let drawable = view.currentDrawable else { return }
-            let viewportSize = CGSize(width: view.drawableSize.width, height: view.drawableSize.height)
-            renderer.render(elements: drawingState.elements, to: drawable, viewportSize: viewportSize)
+            renderer.render(elements: drawingState.elements,
+                            to: drawable,
+                            viewportSize: CGSize(width: view.drawableSize.width, height: view.drawableSize.height))
         }
     }
 }

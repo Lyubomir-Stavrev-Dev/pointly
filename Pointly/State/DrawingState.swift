@@ -224,6 +224,7 @@ class DrawingState: ObservableObject {
     // Current drawing state
     private var currentStroke: [CGPoint] = []
     private var isDrawing = false
+    private var tempElementID: UUID? = nil   // tracks in-progress preview element
     
     // Computed properties for undo/redo availability
     var canUndo: Bool {
@@ -235,7 +236,11 @@ class DrawingState: ObservableObject {
     }
     
     init() {
-        // Initialize with default state
+        // Apply saved default color and thickness from Settings
+        let colorHex = UserDefaults.standard.string(forKey: "defaultPenColor") ?? "#FF3B30"
+        selectedColor = Color(hex: colorHex) ?? Color(red: 1.0, green: 0.231, blue: 0.188)
+        let savedThickness = UserDefaults.standard.double(forKey: "defaultThickness")
+        strokeThickness = savedThickness > 0 ? CGFloat(savedThickness) : 3.0
         saveStateForUndo()
     }
     
@@ -262,7 +267,8 @@ class DrawingState: ObservableObject {
         var result = point
         // Snap to grid
         if UserDefaults.standard.bool(forKey: "snapToGrid") {
-            let gridSize: CGFloat = 20
+            let saved = UserDefaults.standard.double(forKey: "gridSize")
+            let gridSize: CGFloat = saved > 0 ? CGFloat(saved) : 20
             result = CGPoint(
                 x: round(result.x / gridSize) * gridSize,
                 y: round(result.y / gridSize) * gridSize
@@ -317,6 +323,9 @@ class DrawingState: ObservableObject {
     func finishStroke() {
         guard isDrawing && !currentStroke.isEmpty else { return }
 
+        // Remove the preview/temp element before appending the final committed element
+        removeTempElement()
+
         let element = createDrawingElement()
         elements.append(element)
         currentStroke.removeAll()
@@ -345,16 +354,16 @@ class DrawingState: ObservableObject {
     /// Cancel the current in-progress stroke without adding it to elements
     func cancelCurrentStroke() {
         guard isDrawing else { return }
-        // Remove the temp element added by updateCurrentElement
-        if let last = elements.last, last.timestamp.timeIntervalSinceNow > -0.5 {
-            elements.removeLast()
-        }
-        // Remove the undo state saved at startDrawing
-        if !undoStack.isEmpty {
-            undoStack.removeLast()
-        }
+        removeTempElement()
+        if !undoStack.isEmpty { undoStack.removeLast() }
         currentStroke.removeAll()
         isDrawing = false
+    }
+
+    private func removeTempElement() {
+        guard let id = tempElementID else { return }
+        elements.removeAll { $0.id == id }
+        tempElementID = nil
     }
 
     private func createDrawingElement() -> DrawingElement {
@@ -431,14 +440,9 @@ class DrawingState: ObservableObject {
     }
     
     private func updateCurrentElement() {
-        // Remove the last temporary element if it exists
-        if let lastElement = elements.last,
-           lastElement.timestamp.timeIntervalSinceNow > -0.1 {
-            elements.removeLast()
-        }
-        
-        // Add updated current stroke as temporary element
+        removeTempElement()
         let tempElement = createDrawingElement()
+        tempElementID = tempElement.id
         elements.append(tempElement)
     }
     
