@@ -1,16 +1,33 @@
 import SwiftUI
+import AppKit
 
 // MARK: - Brand
 
 private let brandGradient = LinearGradient(
     colors: [
-        Color(hex: "#F4644D") ?? .orange ?? Color(red: 0.957, green: 0.392, blue: 0.302),
+        Color(hex: "#F4644D") ?? .orange,
         Color(hex: "#FF8C42") ?? .orange,
-        Color(hex: "#E9458C") ?? Color(red: 0.914, green: 0.271, blue: 0.549)
+        Color(hex: "#E9458C") ?? .pink
     ],
     startPoint: .topLeading,
     endPoint: .bottomTrailing
 )
+
+private let settingsTint = Color(red: 0.06, green: 0.06, blue: 0.14)
+
+// MARK: - NSVisualEffectView wrapper
+
+private struct GlassBackground: NSViewRepresentable {
+    var material: NSVisualEffectView.Material = .hudWindow
+    func makeNSView(context: Context) -> NSVisualEffectView {
+        let v = NSVisualEffectView()
+        v.material = material
+        v.blendingMode = .behindWindow
+        v.state = .active
+        return v
+    }
+    func updateNSView(_ nsView: NSVisualEffectView, context: Context) {}
+}
 
 // MARK: - SettingsView
 
@@ -22,11 +39,33 @@ struct SettingsView: View {
     var body: some View {
         HStack(spacing: 0) {
             sidebar
-            Divider()
+            // Thin gradient divider
+            LinearGradient(
+                colors: [.white.opacity(0.12), .white.opacity(0.03)],
+                startPoint: .top, endPoint: .bottom
+            )
+            .frame(width: 1)
             content
         }
-        .frame(width: 620, height: 480)
-        .background(.regularMaterial)
+        .frame(width: 640, height: 500)
+        .background(
+            ZStack {
+                GlassBackground()
+                settingsTint.opacity(0.45)
+            }
+            .overlay(
+                RoundedRectangle(cornerRadius: 12)
+                    .strokeBorder(
+                        LinearGradient(
+                            colors: [.white.opacity(0.15), .white.opacity(0.04)],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        ),
+                        lineWidth: 0.8
+                    )
+            )
+        )
+        .preferredColorScheme(.dark)
         .alert("Reset Settings", isPresented: $showResetAlert) {
             Button("Cancel", role: .cancel) {}
             Button("Reset", role: .destructive) { settings.resetToDefaults() }
@@ -39,12 +78,17 @@ struct SettingsView: View {
 
     private var sidebar: some View {
         VStack(spacing: 0) {
+            // Window drag zone (replaces hidden title bar)
+            SettingsDragHandle()
+                .frame(height: 28)
+
             // Logo / header
-            VStack(spacing: 6) {
+            VStack(spacing: 8) {
                 ZStack {
                     Circle()
                         .fill(brandGradient)
-                        .frame(width: 44, height: 44)
+                        .frame(width: 46, height: 46)
+                        .shadow(color: (Color(hex: "#F4644D") ?? .orange).opacity(0.5), radius: 12, x: 0, y: 4)
                     Image(systemName: "pencil.tip.crop.circle.fill")
                         .font(.system(size: 22, weight: .semibold))
                         .foregroundColor(.white)
@@ -54,10 +98,10 @@ struct SettingsView: View {
                     .foregroundStyle(brandGradient)
             }
             .padding(.top, 28)
-            .padding(.bottom, 20)
+            .padding(.bottom, 22)
 
             // Nav items
-            VStack(spacing: 4) {
+            VStack(spacing: 3) {
                 ForEach(SettingsTab.allCases) { tab in
                     sidebarItem(tab)
                 }
@@ -68,11 +112,11 @@ struct SettingsView: View {
 
             Text("v\(Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "1.0")")
                 .font(.system(size: 10))
-                .foregroundColor(.secondary)
+                .foregroundColor(.white.opacity(0.3))
                 .padding(.bottom, 16)
         }
-        .frame(width: 148)
-        .background(.ultraThinMaterial)
+        .frame(width: 168)
+        .background(Color.white.opacity(0.04))
     }
 
     @ViewBuilder
@@ -82,22 +126,24 @@ struct SettingsView: View {
             HStack(spacing: 10) {
                 ZStack {
                     RoundedRectangle(cornerRadius: 7)
-                        .fill(isActive ? AnyShapeStyle(brandGradient) : AnyShapeStyle(Color.secondary.opacity(0.12)))
+                        .fill(isActive ? AnyShapeStyle(brandGradient) : AnyShapeStyle(Color.white.opacity(0.08)))
                         .frame(width: 28, height: 28)
+                        .shadow(color: isActive ? (Color(hex: "#F4644D") ?? .orange).opacity(0.4) : .clear,
+                                radius: 6, x: 0, y: 2)
                     Image(systemName: tab.icon)
                         .font(.system(size: 12, weight: .semibold))
-                        .foregroundColor(isActive ? .white : .primary)
+                        .foregroundColor(isActive ? .white : .white.opacity(0.55))
                 }
                 Text(tab.label)
                     .font(.system(size: 12, weight: isActive ? .semibold : .regular))
-                    .foregroundColor(isActive ? .primary : .secondary)
+                    .foregroundColor(isActive ? .white : .white.opacity(0.55))
                 Spacer()
             }
             .padding(.horizontal, 8)
             .padding(.vertical, 6)
             .background(
                 RoundedRectangle(cornerRadius: 9)
-                    .fill(isActive ? Color.primary.opacity(0.06) : Color.clear)
+                    .fill(isActive ? Color.white.opacity(0.08) : Color.clear)
             )
         }
         .buttonStyle(.plain)
@@ -124,13 +170,13 @@ struct SettingsView: View {
     }
 
     private var contentHeader: some View {
-        VStack(alignment: .leading, spacing: 2) {
+        VStack(alignment: .leading, spacing: 6) {
             Text(selectedTab.label)
                 .font(.system(size: 22, weight: .bold))
                 .foregroundStyle(brandGradient)
             Rectangle()
-                .fill(brandGradient)
-                .frame(height: 2)
+                .fill(brandGradient.opacity(0.6))
+                .frame(height: 1.5)
                 .cornerRadius(1)
         }
     }
@@ -173,7 +219,7 @@ private struct SettingsCard<Content: View>: View {
             HStack {
                 Text(title.uppercased())
                     .font(.system(size: 9, weight: .bold, design: .rounded))
-                    .foregroundColor(.secondary)
+                    .foregroundColor(.white.opacity(0.35))
                     .tracking(1.2)
                 Spacer()
             }
@@ -182,10 +228,10 @@ private struct SettingsCard<Content: View>: View {
         .padding(16)
         .background(
             RoundedRectangle(cornerRadius: 14)
-                .fill(.ultraThinMaterial)
+                .fill(Color.white.opacity(0.07))
                 .overlay(
                     RoundedRectangle(cornerRadius: 14)
-                        .stroke(Color.primary.opacity(0.06), lineWidth: 1)
+                        .strokeBorder(Color.white.opacity(0.1), lineWidth: 0.8)
                 )
         )
     }
@@ -199,6 +245,7 @@ private struct SettingsRow<Content: View>: View {
         HStack {
             Text(label)
                 .font(.system(size: 13))
+                .foregroundColor(.white.opacity(0.85))
             Spacer()
             trailing
         }
@@ -230,7 +277,7 @@ private struct GeneralContent: View {
                                   ? "circle.inset.filled" : "circle")
                                 .foregroundStyle(settings.startupBehavior == tag
                                                  ? AnyShapeStyle(brandGradient)
-                                                 : AnyShapeStyle(Color.secondary))
+                                                 : AnyShapeStyle(Color.white.opacity(0.35)))
                             Text(title).font(.system(size: 13))
                             Spacer()
                         }
@@ -247,7 +294,7 @@ private struct GeneralContent: View {
                 VStack(alignment: .leading, spacing: 8) {
                     Text("Pointly needs Screen Recording permission to draw over other apps.")
                         .font(.system(size: 12))
-                        .foregroundColor(.secondary)
+                        .foregroundColor(.white.opacity(0.5))
                     Button("Open System Settings") {
                         NSWorkspace.shared.open(
                             URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture")!)
@@ -273,7 +320,7 @@ private struct AppearanceContent: View {
                         Button(label) { settings.toolbarTheme = tag }
                             .buttonStyle(.plain)
                             .font(.system(size: 12, weight: isSelected ? .semibold : .regular))
-                            .foregroundColor(isSelected ? .white : .primary)
+                            .foregroundColor(isSelected ? .white : .white.opacity(0.5))
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 7)
                             .background(
@@ -288,7 +335,7 @@ private struct AppearanceContent: View {
                     }
                 }
                 .padding(3)
-                .background(RoundedRectangle(cornerRadius: 11).fill(Color.secondary.opacity(0.1)))
+                .background(RoundedRectangle(cornerRadius: 11).fill(Color.white.opacity(0.08)))
             }
 
             SettingsCard(title: "Default Drawing") {
@@ -305,7 +352,7 @@ private struct AppearanceContent: View {
                             .frame(width: 130)
                         Text("\(Int(settings.defaultThickness))px")
                             .font(.system(size: 12, design: .monospaced))
-                            .foregroundColor(.secondary)
+                            .foregroundColor(.white.opacity(0.5))
                             .frame(width: 34, alignment: .trailing)
                     }
                 }
@@ -346,7 +393,7 @@ private struct DrawingContent: View {
                             .frame(width: 130)
                         Text("\(Int(settings.gridSize))px")
                             .font(.system(size: 12, design: .monospaced))
-                            .foregroundColor(.secondary)
+                            .foregroundColor(.white.opacity(0.5))
                             .frame(width: 40, alignment: .trailing)
                     }
                 }
@@ -363,7 +410,7 @@ private struct DrawingContent: View {
                             .font(.system(size: 12, weight: .medium))
                         Text("Optimised for Retina & 4K displays · < 10ms latency")
                             .font(.system(size: 11))
-                            .foregroundColor(.secondary)
+                            .foregroundColor(.white.opacity(0.45))
                     }
                 }
             }
@@ -387,7 +434,7 @@ private struct ExportContent: View {
                                   ? "circle.inset.filled" : "circle")
                                 .foregroundStyle(settings.exportFormat == tag
                                                  ? AnyShapeStyle(brandGradient)
-                                                 : AnyShapeStyle(Color.secondary))
+                                                 : AnyShapeStyle(Color.white.opacity(0.35)))
                             Text(label).font(.system(size: 13))
                             Spacer()
                         }
@@ -405,13 +452,13 @@ private struct ExportContent: View {
                             .frame(width: 130)
                         Text("\(Int(settings.exportQuality * 100))%")
                             .font(.system(size: 12, design: .monospaced))
-                            .foregroundColor(.secondary)
+                            .foregroundColor(.white.opacity(0.5))
                             .frame(width: 38, alignment: .trailing)
                     }
                 }
                 Text("Higher quality = larger file size")
                     .font(.system(size: 11))
-                    .foregroundColor(.secondary)
+                    .foregroundColor(.white.opacity(0.35))
             }
 
             SettingsCard(title: "Options") {
@@ -447,7 +494,7 @@ private struct AdvancedContent: View {
                 VStack(alignment: .leading, spacing: 8) {
                     Text("Restore all preferences to their default values.")
                         .font(.system(size: 12))
-                        .foregroundColor(.secondary)
+                        .foregroundColor(.white.opacity(0.5))
                     Button("Reset to Defaults") { showReset = true }
                         .buttonStyle(BrandButtonStyle(destructive: true))
                 }
@@ -470,11 +517,11 @@ private struct AdvancedContent: View {
         HStack {
             Text(label)
                 .font(.system(size: 12))
-                .foregroundColor(.secondary)
+                .foregroundColor(.white.opacity(0.45))
             Spacer()
             Text(value)
                 .font(.system(size: 12, design: .monospaced))
-                .foregroundColor(.primary)
+                .foregroundColor(.white.opacity(0.85))
         }
     }
 
@@ -529,22 +576,35 @@ private struct BrandButtonStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
             .font(.system(size: 12, weight: .semibold))
-            .foregroundColor(destructive ? .white : outline ? Color(hex: "#F4644D") ?? .orange : .white)
+            .foregroundColor(destructive ? .white : outline ? (Color(hex: "#FF8C42") ?? .orange) : .white)
             .padding(.horizontal, 14)
             .padding(.vertical, 7)
             .background(
                 Group {
                     if destructive {
-                        RoundedRectangle(cornerRadius: 8).fill(Color.red.opacity(0.8))
+                        RoundedRectangle(cornerRadius: 8)
+                            .fill(Color.red.opacity(0.7))
                     } else if outline {
                         RoundedRectangle(cornerRadius: 8)
-                            .stroke(Color(hex: "#F4644D") ?? .orange, lineWidth: 1.5)
+                            .strokeBorder(Color(hex: "#FF8C42") ?? .orange, lineWidth: 1.5)
                     } else {
                         RoundedRectangle(cornerRadius: 8).fill(brandGradient)
                     }
                 }
             )
             .opacity(configuration.isPressed ? 0.75 : 1)
+    }
+}
+
+// MARK: - Window Drag Handle
+
+private struct SettingsDragHandle: NSViewRepresentable {
+    func makeNSView(context: Context) -> DragView { DragView() }
+    func updateNSView(_ v: DragView, context: Context) {}
+
+    class DragView: NSView {
+        override func mouseDown(with event: NSEvent) { window?.performDrag(with: event) }
+        override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
     }
 }
 
@@ -559,16 +619,18 @@ struct HotkeyRecorderView: View {
         HStack(spacing: 8) {
             Text(isRecording ? "Press shortcut…" : hotkey)
                 .font(.system(size: 12, design: .monospaced))
+                .foregroundColor(.white.opacity(0.85))
                 .padding(.horizontal, 10)
                 .padding(.vertical, 5)
                 .background(
                     RoundedRectangle(cornerRadius: 6)
                         .fill(isRecording
-                              ? Color(hex: "#F4644D") ?? .orange.opacity(0.12)
-                              : Color.secondary.opacity(0.1))
+                              ? (Color(hex: "#F4644D") ?? .orange).opacity(0.15)
+                              : Color.white.opacity(0.08))
                         .overlay(
                             RoundedRectangle(cornerRadius: 6)
-                                .stroke(isRecording ? Color(hex: "#F4644D") ?? .orange : Color.clear, lineWidth: 1)
+                                .stroke(isRecording ? Color(hex: "#F4644D") ?? .orange : Color.white.opacity(0.12),
+                                        lineWidth: 1)
                         )
                 )
 

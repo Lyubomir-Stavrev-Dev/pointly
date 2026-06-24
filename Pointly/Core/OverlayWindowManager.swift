@@ -29,6 +29,9 @@ class OverlayWindowManager: ObservableObject {
         NotificationCenter.default.addObserver(
             self, selector: #selector(applyToolbarTheme),
             name: .toolbarThemeChanged, object: nil)
+        NotificationCenter.default.addObserver(
+            self, selector: #selector(appDidResignActive),
+            name: NSApplication.didResignActiveNotification, object: nil)
     }
 
     // MARK: - Canvas windows (one per screen, drawing surface only)
@@ -130,12 +133,16 @@ class OverlayWindowManager: ObservableObject {
         panel.ignoresMouseEvents = false
         panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
         panel.isMovable          = true   // lets performDrag work
+        panel.hidesOnDeactivate  = false  // stay visible when another app gets focus
         let hostingView = FirstMouseHostingView(rootView:
             ToolbarPanelView(
                 drawingState: sharedDrawingState,
                 interactionMode: sharedInteractionMode,
                 onSizeChange: { [weak self, weak panel] size in
                     self?.fitPanel(panel, to: size)
+                },
+                onClose: { [weak self] in
+                    self?.toggleOverlay()
                 }
             ))
         panel.contentView = hostingView
@@ -172,6 +179,11 @@ class OverlayWindowManager: ObservableObject {
     }
 
     // MARK: - Screen changes
+
+    @objc private func appDidResignActive() {
+        guard isOverlayActive else { return }
+        toolbarPanel?.orderFrontRegardless()
+    }
 
     @objc private func screensChanged() {
         let liveIDs = Set(NSScreen.screens.map { displayID(for: $0) })
@@ -335,6 +347,6 @@ private final class CanvasWindow: NSWindow {
 // Without this, NSHostingView consumes the first click just to activate, and
 // the user has to click every button twice.
 
-private final class FirstMouseHostingView<Content: View>: NSHostingView<Content> {
+final class FirstMouseHostingView<Content: View>: NSHostingView<Content> {
     override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
 }

@@ -1,11 +1,41 @@
 import SwiftUI
 import AppKit
 
+// MARK: - Brand gradient (toolbar-local copy)
+
+private let brandGradient = LinearGradient(
+    colors: [
+        Color(hex: "#F4644D") ?? .orange,
+        Color(hex: "#FF8C42") ?? .orange,
+        Color(hex: "#E9458C") ?? .pink
+    ],
+    startPoint: .topLeading,
+    endPoint: .bottomTrailing
+)
+
+private let panelTint = Color(red: 0.06, green: 0.06, blue: 0.14)
+
+private struct VisualEffectBackground: NSViewRepresentable {
+    var cornerRadius: CGFloat = 22
+    func makeNSView(context: Context) -> NSVisualEffectView {
+        let v = NSVisualEffectView()
+        v.material = .hudWindow
+        v.blendingMode = .behindWindow
+        v.state = .active
+        v.wantsLayer = true
+        v.layer?.cornerRadius = cornerRadius
+        v.layer?.masksToBounds = true
+        return v
+    }
+    func updateNSView(_ nsView: NSVisualEffectView, context: Context) {}
+}
+
 struct FloatingToolbar: View {
     @ObservedObject var drawingState: DrawingState
     @ObservedObject var interactionMode: InteractionModeManager
 
     @State private var isExpanded = false
+    @State private var isHoveringModeButton = false
     @StateObject private var exportManager = ExportManager()
 
     var body: some View {
@@ -48,30 +78,30 @@ struct FloatingToolbar: View {
 
             divider()
 
-            // Color picker
-            ColorPicker("", selection: $drawingState.selectedColor)
-                .labelsHidden()
-                .frame(width: 32, height: 32)
+            // Color palette
+            colorPaletteView
                 .disabled(!drawingState.selectedTool.supportsColor)
-                .opacity(drawingState.selectedTool.supportsColor ? 1 : 0.35)
-                .padding(.vertical, 6)
-                .help("Stroke color")
+                .opacity(drawingState.selectedTool.supportsColor ? 1 : 0.25)
 
             divider()
 
             // Undo / Redo
             toolGrid2(
                 left: {
-                    iconButton(icon: "arrow.uturn.backward",
-                               tint: drawingState.canUndo ? .primary : .secondary.opacity(0.3),
-                               help: "Undo") { drawingState.undo() }
-                        .disabled(!drawingState.canUndo)
+                    iconButton(
+                        icon: "arrow.uturn.backward",
+                        tint: drawingState.canUndo ? .white : .white.opacity(0.2),
+                        help: "Undo"
+                    ) { drawingState.undo() }
+                    .disabled(!drawingState.canUndo)
                 },
                 right: {
-                    iconButton(icon: "arrow.uturn.forward",
-                               tint: drawingState.canRedo ? .primary : .secondary.opacity(0.3),
-                               help: "Redo") { drawingState.redo() }
-                        .disabled(!drawingState.canRedo)
+                    iconButton(
+                        icon: "arrow.uturn.forward",
+                        tint: drawingState.canRedo ? .white : .white.opacity(0.2),
+                        help: "Redo"
+                    ) { drawingState.redo() }
+                    .disabled(!drawingState.canRedo)
                 }
             )
 
@@ -79,7 +109,7 @@ struct FloatingToolbar: View {
             toolGrid2(
                 left: { exportMenuButton },
                 right: {
-                    iconButton(icon: "trash", tint: .red, help: "Clear all") {
+                    iconButton(icon: "trash", tint: Color(hex: "#F4644D") ?? .red, help: "Clear all") {
                         drawingState.clearAll()
                     }
                 }
@@ -88,9 +118,24 @@ struct FloatingToolbar: View {
         .padding(.horizontal, 8)
         .padding(.vertical, 10)
         .background(
-            RoundedRectangle(cornerRadius: 22)
-                .fill(.regularMaterial)
-                .shadow(color: .black.opacity(0.2), radius: 16, x: 0, y: 6)
+            ZStack {
+                VisualEffectBackground()
+                panelTint.opacity(0.28)
+            }
+            .clipShape(RoundedRectangle(cornerRadius: 22))
+            .overlay(
+                RoundedRectangle(cornerRadius: 22)
+                    .strokeBorder(
+                        LinearGradient(
+                            colors: [.white.opacity(0.18), .white.opacity(0.05)],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        ),
+                        lineWidth: 0.8
+                    )
+            )
+            .shadow(color: .black.opacity(0.5), radius: 28, x: 0, y: 10)
+            .shadow(color: (Color(hex: "#F4644D") ?? .orange).opacity(0.12), radius: 18, x: 0, y: 4)
         )
         .contentShape(RoundedRectangle(cornerRadius: 22))
         .fixedSize()
@@ -99,67 +144,159 @@ struct FloatingToolbar: View {
     // MARK: - Drag Handle
 
     private var dragHandle: some View {
-        VStack(spacing: 3.5) {
-            ForEach(0..<3, id: \.self) { _ in
-                Capsule()
-                    .fill(Color.secondary.opacity(0.45))
-                    .frame(width: 22, height: 2.5)
+        ZStack {
+            // Drag lines — centred in the row
+            VStack(spacing: 3.5) {
+                ForEach(0..<3, id: \.self) { _ in
+                    Capsule()
+                        .fill(Color.white.opacity(0.25))
+                        .frame(width: 22, height: 2.5)
+                }
+            }
+            .overlay(WindowDragHandle())
+
+            // Minimize button — top-right corner
+            HStack {
+                Spacer()
+                Button { interactionMode.switchTo(mode: .interact) } label: {
+                    Image(systemName: "minus")
+                        .font(.system(size: 9, weight: .semibold))
+                        .foregroundColor(.white.opacity(0.35))
+                        .frame(width: 18, height: 18)
+                        .background(Circle().fill(Color.white.opacity(0.08)))
+                }
+                .buttonStyle(.plain)
+                .help("Minimize (Esc)")
             }
         }
         .frame(width: 72, height: 28)
         .contentShape(Rectangle())
-        .overlay(WindowDragHandle())
-        .help("Drag to move")
     }
 
     // MARK: - Mode Button
 
     private var modeButton: some View {
-        Button { interactionMode.toggleMode() } label: {
+        let isDrawMode = interactionMode.currentMode == .draw
+        // On hover, preview the destination mode so the user knows what the click does.
+        let previewMode = isHoveringModeButton
+        let icon = previewMode
+            ? InteractionModeManager.InteractionMode.interact.systemImage
+            : interactionMode.currentMode.systemImage
+        let label = previewMode
+            ? InteractionModeManager.InteractionMode.interact.displayName
+            : interactionMode.currentMode.displayName
+
+        return Button { interactionMode.toggleMode() } label: {
             HStack(spacing: 6) {
-                Image(systemName: interactionMode.currentMode.systemImage)
-                    .font(.system(size: 13, weight: .medium))
-                Text(interactionMode.currentMode.displayName)
+                Image(systemName: icon)
+                    .font(.system(size: 13, weight: .semibold))
+                Text(label)
                     .font(.system(size: 9, weight: .bold))
                     .lineLimit(1)
             }
             .frame(maxWidth: .infinity)
             .frame(height: 34)
+            .foregroundColor(.white.opacity(previewMode ? 0.7 : 1.0))
             .background(
                 RoundedRectangle(cornerRadius: 10)
-                    .fill(interactionMode.currentMode == .draw
-                          ? Color.accentColor
-                          : Color.secondary.opacity(0.15))
+                    .fill(isDrawMode && !previewMode
+                          ? AnyShapeStyle(brandGradient)
+                          : AnyShapeStyle(Color.white.opacity(previewMode ? 0.06 : 0.08)))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 10)
+                            .strokeBorder(
+                                isDrawMode && !previewMode
+                                    ? AnyShapeStyle(Color.clear)
+                                    : AnyShapeStyle(Color.white.opacity(0.15)),
+                                lineWidth: 0.8
+                            )
+                    )
             )
-            .foregroundColor(interactionMode.currentMode == .draw ? .white : .primary)
+            .animation(.easeInOut(duration: 0.18), value: previewMode)
         }
         .buttonStyle(.plain)
-        .help("Toggle Draw / Interact (Tab)")
+        .onHover { isHoveringModeButton = $0 }
+        .help("Switch to Interact mode (Esc)")
     }
 
-    // MARK: - Select Tool Button
+    // MARK: - Color Palette
 
-    private var selectToolButton: some View {
-        let selected = drawingState.selectedTool == .select
-        return Button {
-            drawingState.selectedTool = .select
-        } label: {
-            HStack(spacing: 6) {
-                Image(systemName: "lasso")
-                    .font(.system(size: 13, weight: selected ? .semibold : .regular))
-                Text("Select")
-                    .font(.system(size: 9, weight: .bold))
+    private static let paletteColors: [Color] = [
+        // Neutrals
+        .white,
+        Color(hex: "#9CA3AF") ?? .gray,
+        // Brand gradient range
+        Color(hex: "#F4644D") ?? .orange,
+        Color(hex: "#FF8C42") ?? .orange,
+        Color(hex: "#E9458C") ?? .pink,
+        Color(hex: "#FFD166") ?? .yellow,
+        // Cool & vibrant
+        Color(hex: "#4FACFE") ?? .blue,
+        Color(hex: "#A78BFA") ?? .purple,
+        Color(hex: "#34D399") ?? .green,
+        Color(hex: "#F472B6") ?? .pink,
+        // Dark
+        Color(hex: "#1E1B4B") ?? .indigo,
+        Color(hex: "#111827") ?? .black,
+    ]
+
+    private var colorPaletteView: some View {
+        VStack(spacing: 5) {
+            // 4 cols × 3 rows of swatches
+            let cols = 4
+            let colors = Self.paletteColors
+            let rows = stride(from: 0, to: colors.count, by: cols).map {
+                Array(colors[$0 ..< min($0 + cols, colors.count)])
             }
-            .frame(maxWidth: .infinity)
-            .frame(height: 30)
-            .foregroundColor(selected ? .white : .primary)
-            .background(
-                RoundedRectangle(cornerRadius: 8)
-                    .fill(selected ? Color.accentColor : Color.secondary.opacity(0.12))
-            )
+            ForEach(rows.indices, id: \.self) { ri in
+                HStack(spacing: 5) {
+                    ForEach(rows[ri].indices, id: \.self) { ci in
+                        colorSwatch(rows[ri][ci])
+                    }
+                }
+            }
+
+            // Custom picker as last row – small circle with gradient ring
+            HStack(spacing: 5) {
+                Spacer()
+                ColorPicker("", selection: $drawingState.selectedColor)
+                    .labelsHidden()
+                    .frame(width: 16, height: 16)
+                    .clipShape(Circle())
+                    .help("Custom color")
+                Spacer()
+            }
+            .padding(.top, 1)
         }
-        .buttonStyle(.plain)
-        .help("Select, move, and resize annotations (Lasso)")
+        .padding(.vertical, 5)
+    }
+
+    private func colorSwatch(_ color: Color) -> some View {
+        let selected = colorMatches(color, drawingState.selectedColor)
+        return Circle()
+            .fill(color)
+            .frame(width: 14, height: 14)
+            .overlay(
+                Circle()
+                    .strokeBorder(
+                        selected
+                            ? AnyShapeStyle(brandGradient)
+                            : AnyShapeStyle(Color.white.opacity(color == .white ? 0.5 : 0.15)),
+                        lineWidth: selected ? 2 : 0.8
+                    )
+            )
+            .scaleEffect(selected ? 1.25 : 1.0)
+            .shadow(color: selected ? color.opacity(0.6) : .clear, radius: 4)
+            .animation(.spring(response: 0.2, dampingFraction: 0.7), value: selected)
+            .onTapGesture { drawingState.selectedColor = color }
+    }
+
+    private func colorMatches(_ a: Color, _ b: Color) -> Bool {
+        guard let ca = NSColor(a).usingColorSpace(.displayP3),
+              let cb = NSColor(b).usingColorSpace(.displayP3) else { return false }
+        return abs(ca.redComponent   - cb.redComponent)   < 0.025 &&
+               abs(ca.greenComponent - cb.greenComponent) < 0.025 &&
+               abs(ca.blueComponent  - cb.blueComponent)  < 0.025
     }
 
     // MARK: - Section label
@@ -169,8 +306,8 @@ struct FloatingToolbar: View {
         HStack {
             Text(title)
                 .font(.system(size: 8, weight: .bold, design: .rounded))
-                .foregroundColor(.secondary)
-                .tracking(1.0)
+                .foregroundColor(.white.opacity(0.35))
+                .tracking(1.2)
             Spacer()
         }
         .padding(.top, 6)
@@ -221,11 +358,17 @@ struct FloatingToolbar: View {
         } label: {
             Image(systemName: tool.systemImage)
                 .font(.system(size: 14, weight: selected ? .semibold : .regular))
-                .foregroundColor(selected ? .white : .primary)
+                .foregroundColor(selected ? .white : .white.opacity(0.55))
                 .frame(width: 32, height: 32)
                 .background(
                     RoundedRectangle(cornerRadius: 8)
-                        .fill(selected ? Color.accentColor : Color.clear)
+                        .fill(selected
+                              ? AnyShapeStyle(brandGradient)
+                              : AnyShapeStyle(Color.white.opacity(0.0)))
+                        .shadow(
+                            color: selected ? (Color(hex: "#F4644D") ?? .orange).opacity(0.5) : .clear,
+                            radius: 6, x: 0, y: 2
+                        )
                 )
         }
         .buttonStyle(.plain)
@@ -244,11 +387,17 @@ struct FloatingToolbar: View {
         } label: {
             Image(systemName: icon)
                 .font(.system(size: 14, weight: selected ? .semibold : .regular))
-                .foregroundColor(selected ? .white : .primary)
+                .foregroundColor(selected ? .white : .white.opacity(0.55))
                 .frame(width: 32, height: 32)
                 .background(
                     RoundedRectangle(cornerRadius: 8)
-                        .fill(selected ? Color.accentColor : Color.clear)
+                        .fill(selected
+                              ? AnyShapeStyle(brandGradient)
+                              : AnyShapeStyle(Color.white.opacity(0.0)))
+                        .shadow(
+                            color: selected ? (Color(hex: "#F4644D") ?? .orange).opacity(0.5) : .clear,
+                            radius: 6, x: 0, y: 2
+                        )
                 )
         }
         .buttonStyle(.plain)
@@ -282,46 +431,13 @@ struct FloatingToolbar: View {
         }
     }
 
-    // MARK: - Thickness Stepper
-
-    private var thicknessStepper: some View {
-        HStack(spacing: 0) {
-            Button {
-                drawingState.strokeThickness = max(1, drawingState.strokeThickness - 1)
-            } label: {
-                Image(systemName: "minus")
-                    .font(.system(size: 10, weight: .medium))
-                    .frame(width: 20, height: 32)
-            }
-            .buttonStyle(.plain)
-
-            Text("\(Int(drawingState.strokeThickness))")
-                .font(.system(size: 10, weight: .semibold, design: .monospaced))
-                .foregroundColor(.secondary)
-                .frame(width: 18, height: 32)
-
-            Button {
-                drawingState.strokeThickness = min(10, drawingState.strokeThickness + 1)
-            } label: {
-                Image(systemName: "plus")
-                    .font(.system(size: 10, weight: .medium))
-                    .frame(width: 20, height: 32)
-            }
-            .buttonStyle(.plain)
-        }
-        .background(RoundedRectangle(cornerRadius: 8).fill(Color.secondary.opacity(0.1)))
-        .opacity(drawingState.selectedTool.supportsThickness ? 1 : 0.35)
-        .disabled(!drawingState.selectedTool.supportsThickness)
-        .help("Stroke thickness")
-    }
-
     // MARK: - Divider
 
     @ViewBuilder
     private func divider() -> some View {
         Rectangle()
-            .fill(Color.secondary.opacity(0.2))
-            .frame(height: 1)
+            .fill(Color.white.opacity(0.08))
+            .frame(height: 0.8)
             .padding(.vertical, 4)
     }
 
@@ -344,7 +460,7 @@ struct FloatingToolbar: View {
         } label: {
             Image(systemName: "square.and.arrow.up")
                 .font(.system(size: 14))
-                .foregroundColor(.primary)
+                .foregroundColor(.white.opacity(0.7))
                 .frame(width: 32, height: 32)
         }
         .menuStyle(.borderlessButton)

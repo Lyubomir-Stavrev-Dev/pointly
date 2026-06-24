@@ -278,7 +278,7 @@ enum TextureType: String, CaseIterable {
 class DrawingState: ObservableObject {
     // Published properties for UI binding
     @Published var selectedTool: DrawingTool = .pen
-    @Published var selectedColor: Color = Color(red: 1.0, green: 0.231, blue: 0.188) // #FF3B30
+    @Published var selectedColor: Color = Color(hex: "#F4644D") ?? Color(red: 0.957, green: 0.392, blue: 0.302)
     @Published var strokeThickness: CGFloat = 3.0
     @Published var isFilled: Bool = false
     @Published var selectedElementIDs: Set<UUID> = []
@@ -317,8 +317,8 @@ class DrawingState: ObservableObject {
 
     init() {
         // Apply saved default color and thickness from Settings
-        let colorHex = UserDefaults.standard.string(forKey: "defaultPenColor") ?? "#FF3B30"
-        selectedColor = Color(hex: colorHex) ?? Color(red: 1.0, green: 0.231, blue: 0.188)
+        let colorHex = UserDefaults.standard.string(forKey: "defaultPenColor") ?? "#F4644D"
+        selectedColor = Color(hex: colorHex) ?? (Color(hex: "#F4644D") ?? Color(red: 0.957, green: 0.392, blue: 0.302))
         let savedThickness = UserDefaults.standard.double(forKey: "defaultThickness")
         strokeThickness = savedThickness > 0 ? CGFloat(savedThickness) : 3.0
         saveStateForUndo()

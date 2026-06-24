@@ -12,6 +12,23 @@ private let barGradient = LinearGradient(
     endPoint: .top
 )
 
+private let sizeBarTint = Color(red: 0.06, green: 0.06, blue: 0.14)
+
+private struct SizeBarVisualEffect: NSViewRepresentable {
+    var cornerRadius: CGFloat = 20
+    func makeNSView(context: Context) -> NSVisualEffectView {
+        let v = NSVisualEffectView()
+        v.material = .hudWindow
+        v.blendingMode = .behindWindow
+        v.state = .active
+        v.wantsLayer = true
+        v.layer?.cornerRadius = cornerRadius
+        v.layer?.masksToBounds = true
+        return v
+    }
+    func updateNSView(_ nsView: NSVisualEffectView, context: Context) {}
+}
+
 // MARK: - SizeBar
 
 /// Adaptive vertical size control that lives to the right of the toolbar pill.
@@ -65,8 +82,9 @@ struct SizeBar: View {
                     // Category label
                     Text(cfg.label)
                         .font(.system(size: 7, weight: .bold, design: .rounded))
-                        .foregroundColor(.secondary)
-                        .tracking(0.8)
+                        .foregroundColor(.white.opacity(0.35))
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.7)
                         .id(cfg.label)
                         .transition(.opacity)
                 }
@@ -75,11 +93,26 @@ struct SizeBar: View {
                 .padding(.vertical, 14)
                 .padding(.horizontal, 8)
                 .background(
-                    RoundedRectangle(cornerRadius: 20)
-                        .fill(.regularMaterial)
-                        .shadow(color: .black.opacity(0.2), radius: 14, x: 0, y: 5)
+                    ZStack {
+                        SizeBarVisualEffect()
+                        sizeBarTint.opacity(0.28)
+                    }
+                    .clipShape(RoundedRectangle(cornerRadius: 20))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 20)
+                            .strokeBorder(
+                                LinearGradient(
+                                    colors: [.white.opacity(0.18), .white.opacity(0.05)],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                ),
+                                lineWidth: 0.8
+                            )
+                    )
+                    .shadow(color: .black.opacity(0.5), radius: 20, x: 0, y: 8)
+                    .shadow(color: (Color(hex: "#F4644D") ?? .orange).opacity(0.1), radius: 12, x: 0, y: 3)
                 )
-                .frame(width: 34)
+                .frame(width: 38)
             }
         }
     }
@@ -104,7 +137,7 @@ struct VerticalSizeSlider: View {
             ZStack(alignment: .bottom) {
                 // Track background
                 RoundedRectangle(cornerRadius: w / 2)
-                    .fill(Color.secondary.opacity(0.14))
+                    .fill(Color.white.opacity(0.1))
                     .frame(width: w, height: h)
 
                 // Gradient fill — rises from the bottom

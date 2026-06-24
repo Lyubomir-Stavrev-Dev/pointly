@@ -144,14 +144,19 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         guard !UserDefaults.standard.bool(forKey: "hasSeenOnboarding") else { return }
 
         let window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 460, height: 420),
-            styleMask: [.titled, .closable],
+            contentRect: NSRect(x: 0, y: 0, width: 520, height: 580),
+            styleMask: [.titled, .closable, .fullSizeContentView],
             backing: .buffered,
             defer: false
         )
-        window.title = "Welcome to Pointly"
+        window.title = ""
+        window.titlebarAppearsTransparent = true
+        window.titleVisibility = .hidden
+        window.isOpaque = false
+        window.backgroundColor = .clear
+        window.appearance = NSAppearance(named: .darkAqua)
         window.isReleasedWhenClosed = false
-        window.contentView = NSHostingView(rootView: OnboardingView {
+        window.contentView = FirstMouseHostingView(rootView: OnboardingView {
             self.onboardingWindow?.orderOut(nil)
         })
         window.center()
@@ -163,15 +168,20 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     @objc private func openSettings() {
         if settingsWindow == nil {
             let window = NSWindow(
-                contentRect: NSRect(x: 0, y: 0, width: 600, height: 500),
-                styleMask: [.titled, .closable, .resizable],
+                contentRect: NSRect(x: 0, y: 0, width: 640, height: 500),
+                styleMask: [.titled, .closable, .resizable, .fullSizeContentView],
                 backing: .buffered,
                 defer: false
             )
-            window.title = "Pointly Settings"
-            window.contentView = NSHostingView(rootView: SettingsView())
-            window.center()
+            window.title = ""
+            window.titlebarAppearsTransparent = true
+            window.titleVisibility = .hidden
+            window.isOpaque = false
+            window.backgroundColor = .clear
+            window.appearance = NSAppearance(named: .darkAqua)
             window.isReleasedWhenClosed = false
+            window.contentView = FirstMouseHostingView(rootView: SettingsView())
+            window.center()
             settingsWindow = window
         }
         settingsWindow?.makeKeyAndOrderFront(nil)
