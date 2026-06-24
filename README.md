@@ -1,84 +1,51 @@
 # Pointly
 
-A premium cross-platform annotation & presentation tool for macOS.
+A screen annotation tool for macOS — floating toolbar, live drawing, spotlight, and more.
 
-## Overview
+## Download
 
-Pointly enables smooth, professional screen annotation with a floating toolbar and modern UI. Perfect for presentations, education, design reviews, and streaming.
+[![Download](https://img.shields.io/badge/⬇%20Download-Pointly%20v1.0.0-FF6B6B?style=for-the-badge)](https://github.com/Lyubomir-Stavrev-Dev/pointly/releases/latest/download/Pointly-v1.0.0-macOS.zip)
+
+> **macOS 14+** · Unzip → drag **Pointly.app** to `/Applications` · Right-click → Open on first launch to bypass Gatekeeper
+
+---
 
 ## Features
 
-### MVP (Alpha/Beta)
-- ✅ Floating overlay toolbar
-- ✅ Pen tool with smooth drawing
-- ✅ Highlighter with transparency
-- ✅ Eraser functionality
-- ✅ Shape tools (rectangle, ellipse, arrow, line)
-- ✅ Text labels
-- ✅ Undo/redo support
-- ✅ Color & thickness customization
-- ⏳ Export annotations (coming soon)
+| Tool | What it does |
+|---|---|
+| **Pen** | Smooth freehand drawing |
+| **Highlighter** | Semi-transparent highlight |
+| **Marker** | Textured marker strokes |
+| **Eraser** | Remove annotations |
+| **Laser Pointer** | Animated glow pointer that fades |
+| **Spotlight** | Darkens screen except cursor area |
+| **Text** | Click to place text labels |
+| **Shapes** | Rectangle, ellipse, triangle, diamond — outline or filled |
+| **Arrow / Line** | Straight arrows and lines |
+| **Select** | Rubber-band select, move, resize, delete |
+| **Cursor** | Click through the overlay to apps behind |
 
-### Architecture
-
-```
-Pointly/
-├── Sources/
-│   ├── main.swift              # App entry point & menu bar
-│   ├── Core/
-│   │   └── OverlayWindowManager.swift  # Window overlay system
-│   ├── UI/
-│   │   ├── OverlayView.swift           # Main overlay interface
-│   │   ├── FloatingToolbar.swift      # Draggable toolbar
-│   │   ├── DrawingCanvas.swift        # Canvas rendering
-│   │   └── SettingsView.swift         # Preferences window
-│   └── State/
-│       └── DrawingState.swift         # Combine-based state management
-├── Tests/
-└── Resources/
-```
+- Adaptive **Size Bar** — controls thickness, blur radius, spotlight size, or font size depending on the active tool
+- **Undo / Redo** — full history
+- **Export** — PNG, PDF, or JPEG
+- Toggle overlay with **⌘⇧P** or the menu bar icon
+- **Escape** toggles Draw ↔ Interact mode
+- **Backspace** deletes selected annotations
 
 ## Requirements
 
-- macOS 13.0+ (Ventura)
-- Xcode 15.0+
-- Swift 5.9+
-- Screen Recording permission
+- macOS 14.0 (Sonoma) or later
+- Screen Recording permission (prompted on first launch)
 
-## Development
-
-### Setup
+## Build from source
 
 ```bash
+git clone https://github.com/Lyubomir-Stavrev-Dev/pointly.git
 cd pointly
-swift package resolve
-swift build
+bash create_app_bundle.sh
+open Pointly.app
 ```
-
-### Running
-
-```bash
-swift run Pointly
-```
-
-### Testing
-
-```bash
-swift test
-```
-
-## Design Specifications
-
-- **Default pen color**: `#FF3B30` (Apple Red)
-- **Highlighter opacity**: 40%
-- **Stroke thickness**: 1-10px range
-- **Drawing latency target**: < 10ms on Retina/4K
-- **Icons**: SF Symbols (system native)
-- **Toolbar**: Rounded corners, material background
-
-## Permissions
-
-Pointly requires **Screen Recording** permission in System Preferences > Security & Privacy > Privacy > Screen Recording to function properly.
 
 ## License
 
