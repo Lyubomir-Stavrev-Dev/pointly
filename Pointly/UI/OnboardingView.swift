@@ -481,7 +481,7 @@ private struct ModesIllustration: View {
 
 private struct ToolsIllustration: View {
     @State private var selectedIndex = 0
-    @State private var strokeProgress: CGFloat = 0
+    @State private var progress: CGFloat = 0
 
     private let tools: [(icon: String, name: String)] = [
         ("pencil.tip",      "Pen"),
@@ -523,33 +523,104 @@ private struct ToolsIllustration: View {
                 }
             }
 
-            // Animated stroke preview
-            ZStack(alignment: .leading) {
+            // Tool-specific animated preview
+            ZStack {
                 RoundedRectangle(cornerRadius: 8)
                     .fill(Color.white.opacity(0.04))
-                    .frame(width: 200, height: 38)
+                    .frame(width: 200, height: 44)
 
-                Path { p in
-                    p.move(to: CGPoint(x: 16, y: 19))
-                    p.addCurve(
-                        to: CGPoint(x: 184, y: 19),
-                        control1: CGPoint(x: 64,  y: 6),
-                        control2: CGPoint(x: 136, y: 32)
-                    )
-                }
-                .trim(from: 0, to: strokeProgress)
-                .stroke(obGradient, style: StrokeStyle(lineWidth: 3, lineCap: .round, lineJoin: .round))
-                .frame(width: 200, height: 38)
+                toolPreview(for: selectedIndex, progress: progress)
+                    .frame(width: 200, height: 44)
+                    .id(selectedIndex)
+                    .transition(.opacity)
             }
+            .animation(.easeInOut(duration: 0.2), value: selectedIndex)
         }
         .task {
             while true {
-                strokeProgress = 0
-                withAnimation(.easeInOut(duration: 0.9)) { strokeProgress = 1 }
-                try? await Task.sleep(nanoseconds: 1_200_000_000)
+                progress = 0
+                withAnimation(.easeInOut(duration: 0.85)) { progress = 1 }
+                try? await Task.sleep(nanoseconds: 1_300_000_000)
                 selectedIndex = (selectedIndex + 1) % tools.count
-                try? await Task.sleep(nanoseconds: 300_000_000)
+                try? await Task.sleep(nanoseconds: 250_000_000)
             }
+        }
+    }
+
+    @ViewBuilder
+    private func toolPreview(for index: Int, progress: CGFloat) -> some View {
+        switch index {
+        case 0: // Pen — thin organic curve
+            Path { p in
+                p.move(to: CGPoint(x: 14, y: 22))
+                p.addCurve(to: CGPoint(x: 186, y: 22),
+                           control1: CGPoint(x: 60, y: 6),
+                           control2: CGPoint(x: 130, y: 38))
+            }
+            .trim(from: 0, to: progress)
+            .stroke(obGradient, style: StrokeStyle(lineWidth: 2.5, lineCap: .round, lineJoin: .round))
+
+        case 1: // Highlighter — thick translucent sweep
+            Path { p in
+                p.move(to: CGPoint(x: 14, y: 22))
+                p.addLine(to: CGPoint(x: 186, y: 22))
+            }
+            .trim(from: 0, to: progress)
+            .stroke(
+                LinearGradient(colors: [(Color(hex: "#FFD166") ?? .yellow).opacity(0.55),
+                                        (Color(hex: "#FF8C42") ?? .orange).opacity(0.45)],
+                               startPoint: .leading, endPoint: .trailing),
+                style: StrokeStyle(lineWidth: 14, lineCap: .round)
+            )
+
+        case 2: // Marker — bold solid stroke
+            Path { p in
+                p.move(to: CGPoint(x: 14, y: 26))
+                p.addCurve(to: CGPoint(x: 186, y: 18),
+                           control1: CGPoint(x: 72, y: 10),
+                           control2: CGPoint(x: 130, y: 34))
+            }
+            .trim(from: 0, to: progress)
+            .stroke(obGradient, style: StrokeStyle(lineWidth: 7, lineCap: .round, lineJoin: .round))
+
+        case 3: // Eraser — dashed ghost line
+            Path { p in
+                p.move(to: CGPoint(x: 14, y: 22))
+                p.addLine(to: CGPoint(x: 186, y: 22))
+            }
+            .trim(from: 0, to: progress)
+            .stroke(Color.white.opacity(0.25),
+                    style: StrokeStyle(lineWidth: 3, lineCap: .round, dash: [8, 6]))
+
+        case 4: // Text — typed label fading in
+            Text("Hello, world!")
+                .font(.system(size: 14, weight: .medium, design: .rounded))
+                .foregroundStyle(obGradient)
+                .opacity(progress)
+                .scaleEffect(0.8 + progress * 0.2, anchor: .leading)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.leading, 16)
+
+        case 5: // Arrow — line + arrowhead
+            ZStack {
+                Path { p in
+                    p.move(to: CGPoint(x: 14, y: 22))
+                    p.addLine(to: CGPoint(x: 166, y: 22))
+                }
+                .trim(from: 0, to: progress)
+                .stroke(obGradient, style: StrokeStyle(lineWidth: 2.5, lineCap: .round))
+
+                Path { p in
+                    p.move(to: CGPoint(x: 152, y: 11))
+                    p.addLine(to: CGPoint(x: 186, y: 22))
+                    p.addLine(to: CGPoint(x: 152, y: 33))
+                }
+                .trim(from: 0, to: max(0, progress * 2 - 0.8))
+                .stroke(obGradient, style: StrokeStyle(lineWidth: 2.5, lineCap: .round, lineJoin: .round))
+            }
+
+        default:
+            EmptyView()
         }
     }
 }
