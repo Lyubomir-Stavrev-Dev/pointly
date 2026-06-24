@@ -33,6 +33,7 @@ private struct VisualEffectBackground: NSViewRepresentable {
 struct FloatingToolbar: View {
     @ObservedObject var drawingState: DrawingState
     @ObservedObject var interactionMode: InteractionModeManager
+    @ObservedObject private var pro = ProManager.shared
 
     @State private var isExpanded = false
     @State private var isHoveringModeButton = false
@@ -352,27 +353,45 @@ struct FloatingToolbar: View {
 
     @ViewBuilder
     private func regularToolButton(_ tool: DrawingTool) -> some View {
-        let selected = drawingState.selectedTool == tool && !tool.isShape
+        let locked   = pro.isLocked(tool)
+        let selected = !locked && drawingState.selectedTool == tool && !tool.isShape
         Button {
-            drawingState.selectedTool = tool
+            if locked {
+                NotificationCenter.default.post(name: .showPaywall, object: tool)
+            } else {
+                drawingState.selectedTool = tool
+            }
         } label: {
-            Image(systemName: tool.systemImage)
-                .font(.system(size: 14, weight: selected ? .semibold : .regular))
-                .foregroundColor(selected ? .white : .white.opacity(0.55))
-                .frame(width: 32, height: 32)
-                .background(
-                    RoundedRectangle(cornerRadius: 8)
-                        .fill(selected
-                              ? AnyShapeStyle(brandGradient)
-                              : AnyShapeStyle(Color.white.opacity(0.0)))
-                        .shadow(
-                            color: selected ? (Color(hex: "#F4644D") ?? .orange).opacity(0.5) : .clear,
-                            radius: 6, x: 0, y: 2
-                        )
-                )
+            ZStack(alignment: .topTrailing) {
+                Image(systemName: tool.systemImage)
+                    .font(.system(size: 14, weight: selected ? .semibold : .regular))
+                    .foregroundColor(locked
+                                     ? .white.opacity(0.28)
+                                     : selected ? .white : .white.opacity(0.55))
+                    .frame(width: 32, height: 32)
+                    .background(
+                        RoundedRectangle(cornerRadius: 8)
+                            .fill(selected
+                                  ? AnyShapeStyle(brandGradient)
+                                  : AnyShapeStyle(Color.white.opacity(0.0)))
+                            .shadow(
+                                color: selected ? (Color(hex: "#F4644D") ?? .orange).opacity(0.5) : .clear,
+                                radius: 6, x: 0, y: 2
+                            )
+                    )
+
+                if locked {
+                    Image(systemName: "lock.fill")
+                        .font(.system(size: 6.5, weight: .bold))
+                        .foregroundColor(.white.opacity(0.75))
+                        .padding(2.5)
+                        .background(Circle().fill(Color.black.opacity(0.55)))
+                        .offset(x: 4, y: -4)
+                }
+            }
         }
         .buttonStyle(.plain)
-        .help(tool.displayName)
+        .help(locked ? "\(tool.displayName) — Pointly Pro" : tool.displayName)
     }
 
     // MARK: - Shape tool button (outline or filled)

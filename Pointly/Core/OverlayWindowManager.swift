@@ -6,6 +6,7 @@ import Combine
 class OverlayWindowManager: ObservableObject {
     private var canvasWindows: [CGDirectDisplayID: NSWindow] = [:]
     private var toolbarPanel: NSPanel?
+    private var paywallPanel: NSPanel?
     private var isOverlayActive = false
     private var colorPanelObserver: NSKeyValueObservation?
     private var keyMonitor: Any?
@@ -32,6 +33,9 @@ class OverlayWindowManager: ObservableObject {
         NotificationCenter.default.addObserver(
             self, selector: #selector(appDidResignActive),
             name: NSApplication.didResignActiveNotification, object: nil)
+        NotificationCenter.default.addObserver(
+            self, selector: #selector(handleShowPaywall(_:)),
+            name: .showPaywall, object: nil)
     }
 
     // MARK: - Canvas windows (one per screen, drawing surface only)
@@ -252,8 +256,55 @@ class OverlayWindowManager: ObservableObject {
     private func hideAll() {
         canvasWindows.values.forEach { $0.orderOut(nil) }
         toolbarPanel?.orderOut(nil)
+        paywallPanel?.orderOut(nil)
         colorPanelObserver = nil
         NSColorPanel.shared.level = .floating
+    }
+
+    // MARK: - Paywall
+
+    @objc private func handleShowPaywall(_ notification: Notification) {
+        guard let tool = notification.object as? DrawingTool else { return }
+        showPaywall(for: tool)
+    }
+
+    func showPaywall(for tool: DrawingTool) {
+        paywallPanel?.orderOut(nil)
+
+        let size = CGSize(width: 400, height: 560)
+        let panel = NSPanel(
+            contentRect: NSRect(origin: .zero, size: size),
+            styleMask: [.titled, .closable, .fullSizeContentView],
+            backing: .buffered,
+            defer: false
+        )
+        panel.title = ""
+        panel.titlebarAppearsTransparent = true
+        panel.titleVisibility = .hidden
+        panel.backgroundColor = .clear
+        panel.isOpaque = false
+        panel.hasShadow = true
+        panel.ignoresMouseEvents = false
+        panel.isReleasedWhenClosed = false
+        panel.appearance = NSAppearance(named: .darkAqua)
+        panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
+        panel.level = NSWindow.Level(rawValue: NSWindow.Level.screenSaver.rawValue + 3)
+
+        panel.contentView = FirstMouseHostingView(rootView:
+            ProPaywallView(tool: tool, proManager: .shared) { [weak self, weak panel] in
+                panel?.orderOut(nil)
+                self?.paywallPanel = nil
+                // Re-focus canvas if overlay is active
+                if self?.isOverlayActive == true {
+                    let mainID = self?.displayID(for: NSScreen.main ?? NSScreen.screens[0]) ?? 0
+                    self?.canvasWindows[mainID]?.makeKey()
+                }
+            }
+        )
+        panel.center()
+        paywallPanel = panel
+        panel.makeKeyAndOrderFront(nil)
+        NSApp.activate(ignoringOtherApps: true)
     }
 
     // MARK: - Screen recording permission
