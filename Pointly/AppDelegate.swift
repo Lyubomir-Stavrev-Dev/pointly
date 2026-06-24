@@ -98,6 +98,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
         menu.addItem(NSMenuItem.separator())
         menu.addItem(NSMenuItem(title: "Settings...", action: #selector(openSettings), keyEquivalent: ","))
+        menu.addItem(NSMenuItem(title: "Show Tutorial", action: #selector(showTutorial), keyEquivalent: ""))
         menu.addItem(NSMenuItem.separator())
         menu.addItem(NSMenuItem(title: "Quit Pointly", action: #selector(quitApp), keyEquivalent: "q"))
 
@@ -185,6 +186,30 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             settingsWindow = window
         }
         settingsWindow?.makeKeyAndOrderFront(nil)
+        NSApp.activate(ignoringOtherApps: true)
+    }
+
+    @objc private func showTutorial() {
+        onboardingWindow = nil  // force a fresh window each time
+        let window = NSWindow(
+            contentRect: NSRect(x: 0, y: 0, width: 520, height: 580),
+            styleMask: [.titled, .closable, .fullSizeContentView],
+            backing: .buffered,
+            defer: false
+        )
+        window.title = ""
+        window.titlebarAppearsTransparent = true
+        window.titleVisibility = .hidden
+        window.isOpaque = false
+        window.backgroundColor = .clear
+        window.appearance = NSAppearance(named: .darkAqua)
+        window.isReleasedWhenClosed = false
+        window.contentView = FirstMouseHostingView(rootView: OnboardingView {
+            self.onboardingWindow?.orderOut(nil)
+        })
+        window.center()
+        onboardingWindow = window
+        window.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
     }
 
