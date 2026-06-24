@@ -21,6 +21,8 @@ enum DrawingTool: String, CaseIterable {
     // Shape Tools
     case rectangle = "rectangle"
     case ellipse = "ellipse"
+    case triangle = "triangle"
+    case diamond = "diamond"
     case arrow = "arrow"
     case line = "line"
     
@@ -28,7 +30,10 @@ enum DrawingTool: String, CaseIterable {
     case text = "text"
     case stamp = "stamp"
     case magnifier = "magnifier"
-    
+    case spotlight = "spotlight"
+    case select = "select"
+    case cursor = "cursor"
+
     var displayName: String {
         switch self {
         case .pen: return "Pen"
@@ -39,14 +44,19 @@ enum DrawingTool: String, CaseIterable {
         case .laserPointer: return "Laser Pointer"
         case .rectangle: return "Rectangle"
         case .ellipse: return "Ellipse"
+        case .triangle: return "Triangle"
+        case .diamond: return "Diamond"
         case .arrow: return "Arrow"
         case .line: return "Line"
         case .text: return "Text"
         case .stamp: return "Stamp"
         case .magnifier: return "Magnifier"
+        case .spotlight: return "Spotlight"
+        case .select: return "Select"
+        case .cursor: return "Cursor"
         }
     }
-    
+
     var systemImage: String {
         switch self {
         case .pen: return "pencil"
@@ -56,15 +66,20 @@ enum DrawingTool: String, CaseIterable {
         case .blurBrush: return "camera.filters"
         case .laserPointer: return "laser.burst"
         case .rectangle: return "rectangle"
-        case .ellipse: return "ellipse"
+        case .ellipse: return "circle"
+        case .triangle: return "triangle"
+        case .diamond: return "diamond"
         case .arrow: return "arrow.right"
         case .line: return "line.diagonal"
         case .text: return "textformat"
         case .stamp: return "stamp"
         case .magnifier: return "magnifyingglass"
+        case .spotlight: return "rays"
+        case .select: return "lasso"
+        case .cursor: return "cursorarrow"
         }
     }
-    
+
     var description: String {
         switch self {
         case .pen: return "Smooth drawing with pressure sensitivity"
@@ -75,14 +90,19 @@ enum DrawingTool: String, CaseIterable {
         case .laserPointer: return "Animated pointer for presentations"
         case .rectangle: return "Draw rectangular shapes"
         case .ellipse: return "Draw circular and oval shapes"
+        case .triangle: return "Draw triangle shapes"
+        case .diamond: return "Draw diamond shapes"
         case .arrow: return "Draw arrows with arrowheads"
         case .line: return "Draw straight lines"
         case .text: return "Add text labels"
         case .stamp: return "Insert predefined stamps"
         case .magnifier: return "Magnify screen areas"
+        case .spotlight: return "Spotlight effect for presentations"
+        case .select: return "Select and move annotations"
+        case .cursor: return "Click through to apps behind the overlay"
         }
     }
-    
+
     /// Whether this tool supports thickness adjustment
     var supportsThickness: Bool {
         switch self {
@@ -92,15 +112,19 @@ enum DrawingTool: String, CaseIterable {
             return true  // Controls blur radius
         case .laserPointer:
             return true  // Controls glow intensity
+        case .spotlight:
+            return true  // Controls spotlight radius
+        case .text:
+            return true  // Controls font size
         default:
             return false
         }
     }
-    
+
     /// Whether this tool supports color selection
     var supportsColor: Bool {
         switch self {
-        case .eraser, .magnifier:
+        case .eraser, .magnifier, .spotlight, .select, .cursor:
             return false
         default:
             return true
@@ -112,14 +136,22 @@ enum DrawingTool: String, CaseIterable {
         switch self {
         case .laserPointer:
             return false  // Fades over time
-        case .magnifier:
+        case .magnifier, .spotlight, .cursor:
             return false  // Real-time effect only
         default:
             return true
         }
     }
     
-    /// Default opacity for this tool
+    /// Whether this tool is a closed shape that supports fill
+    var isShape: Bool {
+        switch self {
+        case .rectangle, .ellipse, .triangle, .diamond: return true
+        default: return false
+        }
+    }
+
+    /// Whether this tool supports thickness adjustment
     var defaultOpacity: Double {
         switch self {
         case .highlighter:
@@ -142,7 +174,7 @@ enum DrawingTool: String, CaseIterable {
 struct DrawingElement: Identifiable {
     let id = UUID()
     let tool: DrawingTool
-    let points: [CGPoint]
+    var points: [CGPoint]
     let color: Color
     let thickness: CGFloat
     let opacity: Double
@@ -193,6 +225,40 @@ struct DrawingElement: Identifiable {
         let fadeProgress = age / fadeTime
         return opacity * (1.0 - fadeProgress)
     }
+
+    var boundingBox: CGRect {
+        guard !points.isEmpty else { return .zero }
+        if tool == .text, let t = text, let pt = points.first {
+            let fontSize = max(14, thickness * 4)
+            let estimatedWidth = max(40, CGFloat(t.count) * fontSize * 0.58 + 12)
+            let estimatedHeight = fontSize * 1.5 + 6
+            return CGRect(x: pt.x, y: pt.y, width: estimatedWidth, height: estimatedHeight)
+        }
+        let xs = points.map(\.x), ys = points.map(\.y)
+        return CGRect(x: xs.min()!, y: ys.min()!,
+                      width: xs.max()! - xs.min()!,
+                      height: ys.max()! - ys.min()!)
+    }
+
+    func contains(_ point: CGPoint, threshold: CGFloat = 12) -> Bool {
+        let box = boundingBox.insetBy(dx: -threshold, dy: -threshold)
+        if tool.isShape || tool == .text { return box.contains(point) }
+        guard points.count > 1 else {
+            return points.first.map { hypot($0.x - point.x, $0.y - point.y) < threshold } ?? false
+        }
+        for i in 0..<(points.count - 1) {
+            if segmentDistance(from: point, a: points[i], b: points[i + 1]) < threshold { return true }
+        }
+        return false
+    }
+
+    private func segmentDistance(from p: CGPoint, a: CGPoint, b: CGPoint) -> CGFloat {
+        let dx = b.x - a.x, dy = b.y - a.y
+        let len2 = dx * dx + dy * dy
+        guard len2 > 0 else { return hypot(p.x - a.x, p.y - a.y) }
+        let t = max(0, min(1, ((p.x - a.x) * dx + (p.y - a.y) * dy) / len2))
+        return hypot(p.x - (a.x + t * dx), p.y - (a.y + t * dy))
+    }
 }
 
 /// Texture types for advanced tools
@@ -215,7 +281,10 @@ class DrawingState: ObservableObject {
     @Published var selectedColor: Color = Color(red: 1.0, green: 0.231, blue: 0.188) // #FF3B30
     @Published var strokeThickness: CGFloat = 3.0
     @Published var isFilled: Bool = false
-    
+    @Published var selectedElementIDs: Set<UUID> = []
+    @Published var selectionRubberBand: CGRect? = nil
+    @Published var isTextInputActive: Bool = false
+
     // Drawing elements and undo/redo stacks
     @Published private(set) var elements: [DrawingElement] = []
     private var undoStack: [[DrawingElement]] = []
@@ -234,7 +303,18 @@ class DrawingState: ObservableObject {
     var canRedo: Bool {
         !redoStack.isEmpty
     }
-    
+
+    var selectedBoundingBox: CGRect? {
+        let sel = elements.filter { selectedElementIDs.contains($0.id) }
+        guard !sel.isEmpty else { return nil }
+        return sel.map(\.boundingBox).dropFirst().reduce(sel[0].boundingBox) { $0.union($1) }
+    }
+
+    var selectedElementsAreAllText: Bool {
+        let sel = elements.filter { selectedElementIDs.contains($0.id) }
+        return !sel.isEmpty && sel.allSatisfy { $0.tool == .text }
+    }
+
     init() {
         // Apply saved default color and thickness from Settings
         let colorHex = UserDefaults.standard.string(forKey: "defaultPenColor") ?? "#FF3B30"
@@ -276,7 +356,7 @@ class DrawingState: ObservableObject {
         }
         // Straight-line assist: for shape tools, only keep start + current endpoint
         if UserDefaults.standard.bool(forKey: "straightLineAssist"),
-           [DrawingTool.line, .arrow, .rectangle, .ellipse].contains(selectedTool),
+           [DrawingTool.line, .arrow, .rectangle, .ellipse, .triangle, .diamond].contains(selectedTool),
            let first = currentStroke.first {
             currentStroke = [first]
         }
@@ -398,7 +478,7 @@ class DrawingState: ObservableObject {
             )
             
         default:
-            let fillable = selectedTool == .rectangle || selectedTool == .ellipse
+            let fillable = [DrawingTool.rectangle, .ellipse, .triangle, .diamond].contains(selectedTool)
             return DrawingElement(
                 tool: selectedTool,
                 points: currentStroke,
@@ -510,21 +590,73 @@ class DrawingState: ObservableObject {
     
     func selectTool(_ tool: DrawingTool) {
         selectedTool = tool
-        
+
         // Update UI for tool-specific properties
         NotificationCenter.default.post(
             name: .toolChanged,
             object: tool
         )
     }
+
+    // MARK: - Selection
+
+    func hitTest(at point: CGPoint, threshold: CGFloat = 12) -> DrawingElement? {
+        elements.reversed().first { $0.contains(point, threshold: threshold) }
+    }
+
+    func clearSelection() { selectedElementIDs = [] }
+
+    func selectElement(id: UUID, addToSelection: Bool = false) {
+        if addToSelection { selectedElementIDs.insert(id) }
+        else { selectedElementIDs = [id] }
+    }
+
+    func selectElements(in rect: CGRect) {
+        selectedElementIDs = Set(elements.filter { rect.intersects($0.boundingBox) }.map(\.id))
+    }
+
+    func moveSelected(by delta: CGSize) {
+        guard !selectedElementIDs.isEmpty else { return }
+        saveStateForUndo()
+        for i in elements.indices where selectedElementIDs.contains(elements[i].id) {
+            elements[i].points = elements[i].points.map {
+                CGPoint(x: $0.x + delta.width, y: $0.y + delta.height)
+            }
+        }
+        saveAnnotations()
+    }
+
+    func resizeFromSnapshot(_ snapshot: [(UUID, [CGPoint])], from oldBox: CGRect, to newBox: CGRect) {
+        guard oldBox.width > 1, oldBox.height > 1 else { return }
+        for (id, originalPts) in snapshot {
+            guard let idx = elements.firstIndex(where: { $0.id == id }) else { continue }
+            elements[idx].points = originalPts.map { pt in
+                CGPoint(
+                    x: newBox.minX + (pt.x - oldBox.minX) / oldBox.width  * newBox.width,
+                    y: newBox.minY + (pt.y - oldBox.minY) / oldBox.height * newBox.height
+                )
+            }
+        }
+        saveAnnotations()
+    }
+
+    func deleteSelected() {
+        guard !selectedElementIDs.isEmpty else { return }
+        saveStateForUndo()
+        elements.removeAll { selectedElementIDs.contains($0.id) }
+        selectedElementIDs = []
+        redoStack.removeAll()
+        saveAnnotations()
+    }
 }
 
 // MARK: - Notification Extensions
 
 extension Notification.Name {
-    static let toolChanged        = Notification.Name("ToolChanged")
-    static let applyBlurEffect    = Notification.Name("ApplyBlurEffect")
+    static let toolChanged         = Notification.Name("ToolChanged")
+    static let applyBlurEffect     = Notification.Name("ApplyBlurEffect")
     static let startLaserAnimation = Notification.Name("StartLaserAnimation")
+    static let cancelTextInput     = Notification.Name("CancelTextInput")
 }
 
 // MARK: - Persistence

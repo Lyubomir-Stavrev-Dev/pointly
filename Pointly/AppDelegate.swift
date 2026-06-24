@@ -1,6 +1,5 @@
 import AppKit
 import SwiftUI
-import UserNotifications
 
 class AppDelegate: NSObject, NSApplicationDelegate {
     var statusItem: NSStatusItem?
@@ -18,6 +17,17 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         showOnboardingIfNeeded()
 
         overlayWindowManager = OverlayWindowManager()
+
+        // Show toolbar immediately if the user enabled "Show Toolbar on Startup".
+        if UserDefaults.standard.object(forKey: "showToolbarOnStartup") as? Bool ?? false {
+            overlayWindowManager?.toggleOverlay()
+        }
+
+        // "Start Hidden" suppresses the initial activation that would steal focus.
+        let startupBehavior = UserDefaults.standard.string(forKey: "startupBehavior") ?? "menubar"
+        if startupBehavior != "hidden" {
+            NSApp.activate(ignoringOtherApps: false)
+        }
 
         globalHotkeyManager = GlobalHotkeyManager()
         globalHotkeyManager?.delegate = self
@@ -50,8 +60,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             object: nil
         )
 
-        // Request notification authorization for export notifications
-        UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound]) { _, _ in }
     }
 
     // MARK: - Menu Bar Setup
@@ -99,7 +107,13 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     @objc private func statusItemClicked() {}
 
     @objc private func toggleOverlay() {
-        overlayWindowManager?.toggleOverlay()
+        guard let mgr = overlayWindowManager else { return }
+        // If overlay is up and in interact mode, switch back to draw instead of hiding.
+        if mgr.isActive, mgr.currentInteractionMode?.currentMode == .interact {
+            mgr.currentInteractionMode?.switchTo(mode: .draw)
+        } else {
+            mgr.toggleOverlay()
+        }
     }
 
     @objc private func toggleInteractionMode() {
@@ -195,7 +209,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
 extension AppDelegate: GlobalHotkeyManagerDelegate {
     func hotkeyPressed() {
-        toggleOverlay()
+        toggleOverlay()  // already contains interact-mode → draw logic
     }
 }
 

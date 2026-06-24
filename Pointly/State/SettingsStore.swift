@@ -15,6 +15,7 @@ class SettingsStore: ObservableObject {
     @Published var toolbarTheme: String {
         didSet {
             UserDefaults.standard.set(toolbarTheme, forKey: "toolbarTheme")
+            NotificationCenter.default.post(name: .toolbarThemeChanged, object: nil)
         }
     }
     
@@ -273,4 +274,5 @@ extension SettingsStore {
 
 extension Notification.Name {
     static let globalHotkeyChanged = Notification.Name("GlobalHotkeyChanged")
+    static let toolbarThemeChanged = Notification.Name("ToolbarThemeChanged")
 }

@@ -125,23 +125,17 @@ class InteractionModeManager: ObservableObject {
     
     // MARK: - Private Methods
     
-    /// Apply the current mode settings to the overlay window
     private func applyModeToWindow() {
-        guard let window = overlayWindow else { return }
-        
-        switch currentMode {
-        case .interact:
-            // Pass-through mode: ignore mouse events
-            window.ignoresMouseEvents = true
-            window.level = .floating  // Lower level so it doesn't interfere
-            
-        case .draw:
-            // Drawing mode: capture all input
-            window.ignoresMouseEvents = false
-            window.level = .screenSaver  // High level to capture input
+        if let window = overlayWindow {
+            switch currentMode {
+            case .interact:
+                window.ignoresMouseEvents = true
+                window.level = .floating
+            case .draw:
+                window.ignoresMouseEvents = false
+                window.level = .screenSaver
+            }
         }
-        
-        // Update window appearance based on mode
         updateWindowAppearance()
     }
     

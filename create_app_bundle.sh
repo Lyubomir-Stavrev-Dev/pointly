@@ -24,6 +24,8 @@ cat > "$CONTENTS_DIR/Info.plist" << EOF
 <dict>
     <key>CFBundleExecutable</key>
     <string>$APP_NAME</string>
+    <key>CFBundleIconFile</key>
+    <string>AppIcon</string>
     <key>CFBundleIdentifier</key>
     <string>com.pointly.app</string>
     <key>CFBundleName</key>
@@ -71,12 +73,15 @@ else
     exit 1
 fi
 
-# Create a simple icon (optional)
-echo "🎨 Creating app icon..."
-# We'll create a simple text-based icon for now
-cat > "$RESOURCES_DIR/AppIcon.icns" << EOF
-# This is a placeholder - in a real app you'd have a proper .icns file
-EOF
+# Copy the app icon
+echo "🎨 Copying app icon..."
+ICNS_SRC="$(dirname "$0")/Pointly/Resources/AppIcon.icns"
+if [ -f "$ICNS_SRC" ]; then
+    cp "$ICNS_SRC" "$RESOURCES_DIR/AppIcon.icns"
+    echo "✅ Icon copied"
+else
+    echo "⚠️  AppIcon.icns not found at $ICNS_SRC — skipping icon"
+fi
 
 echo "✅ App bundle created: $APP_BUNDLE"
 echo "📱 You can now add this to Accessibility permissions!"

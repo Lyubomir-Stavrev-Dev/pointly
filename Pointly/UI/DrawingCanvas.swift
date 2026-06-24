@@ -41,6 +41,10 @@ struct DrawingCanvas: View {
             drawRectangle(element, in: context)
         case .ellipse:
             drawEllipse(element, in: context)
+        case .triangle:
+            drawTriangle(element, in: context)
+        case .diamond:
+            drawDiamond(element, in: context)
         case .arrow:
             drawArrow(element, in: context)
         case .line:
@@ -132,7 +136,40 @@ struct DrawingCanvas: View {
         }
         context.stroke(Path(ellipseIn: rect), with: .color(element.color), style: StrokeStyle(lineWidth: element.thickness))
     }
-    
+
+    private func drawTriangle(_ element: DrawingElement, in context: GraphicsContext) {
+        guard element.points.count >= 2 else { return }
+        let start = element.points[0], end = element.points.last!
+        let rect = CGRect(x: min(start.x, end.x), y: min(start.y, end.y),
+                          width: abs(end.x - start.x), height: abs(end.y - start.y))
+        var path = Path()
+        path.move(to: CGPoint(x: rect.midX, y: rect.minY))
+        path.addLine(to: CGPoint(x: rect.maxX, y: rect.maxY))
+        path.addLine(to: CGPoint(x: rect.minX, y: rect.maxY))
+        path.closeSubpath()
+        if element.isFilled {
+            context.fill(path, with: .color(element.color.opacity(element.opacity * 0.3)))
+        }
+        context.stroke(path, with: .color(element.color), style: StrokeStyle(lineWidth: element.thickness, lineJoin: .round))
+    }
+
+    private func drawDiamond(_ element: DrawingElement, in context: GraphicsContext) {
+        guard element.points.count >= 2 else { return }
+        let start = element.points[0], end = element.points.last!
+        let rect = CGRect(x: min(start.x, end.x), y: min(start.y, end.y),
+                          width: abs(end.x - start.x), height: abs(end.y - start.y))
+        var path = Path()
+        path.move(to: CGPoint(x: rect.midX, y: rect.minY))
+        path.addLine(to: CGPoint(x: rect.maxX, y: rect.midY))
+        path.addLine(to: CGPoint(x: rect.midX, y: rect.maxY))
+        path.addLine(to: CGPoint(x: rect.minX, y: rect.midY))
+        path.closeSubpath()
+        if element.isFilled {
+            context.fill(path, with: .color(element.color.opacity(element.opacity * 0.3)))
+        }
+        context.stroke(path, with: .color(element.color), style: StrokeStyle(lineWidth: element.thickness, lineJoin: .round))
+    }
+
     private func drawLine(_ element: DrawingElement, in context: GraphicsContext) {
         guard element.points.count >= 2 else { return }
         
