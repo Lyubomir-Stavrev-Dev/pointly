@@ -2,22 +2,19 @@ import SwiftUI
 import Combine
 
 /// Drawing tools available in the toolbar
-/// 
-/// **Phase 2.1 Expansion**: Added professional tools for immediate impact
-/// - Marker: Textured, realistic marker with blending
-/// - BlurBrush: Screen-space blur effect for emphasis
-/// - LaserPointer: Animated pointer with fade for presentations
 enum DrawingTool: String, CaseIterable {
-    // Core Tools (Phase 1)
+    // Core Tools
     case pen = "pen"
     case highlighter = "highlighter"
     case eraser = "eraser"
-    
-    // Professional Tools (Phase 2.1)
+
+    // Professional Tools
     case marker = "marker"
     case blurBrush = "blurBrush"
     case laserPointer = "laserPointer"
-    
+    case dotPen = "dotPen"
+    case screenBlur = "screenBlur"
+
     // Shape Tools
     case rectangle = "rectangle"
     case ellipse = "ellipse"
@@ -25,8 +22,8 @@ enum DrawingTool: String, CaseIterable {
     case diamond = "diamond"
     case arrow = "arrow"
     case line = "line"
-    
-    // Advanced Tools (Future)
+
+    // Advanced Tools
     case text = "text"
     case stamp = "stamp"
     case magnifier = "magnifier"
@@ -42,6 +39,8 @@ enum DrawingTool: String, CaseIterable {
         case .marker: return "Marker"
         case .blurBrush: return "Blur Brush"
         case .laserPointer: return "Laser Pointer"
+        case .dotPen: return "Dot Pen"
+        case .screenBlur: return "Screen Blur"
         case .rectangle: return "Rectangle"
         case .ellipse: return "Ellipse"
         case .triangle: return "Triangle"
@@ -65,6 +64,8 @@ enum DrawingTool: String, CaseIterable {
         case .marker: return "paintbrush"
         case .blurBrush: return "camera.filters"
         case .laserPointer: return "laser.burst"
+        case .dotPen: return "circle.grid.3x3"
+        case .screenBlur: return "smoke"
         case .rectangle: return "rectangle"
         case .ellipse: return "circle"
         case .triangle: return "triangle"
@@ -86,8 +87,10 @@ enum DrawingTool: String, CaseIterable {
         case .highlighter: return "Semi-transparent highlighting"
         case .eraser: return "Remove annotations"
         case .marker: return "Textured marker with realistic blending"
-        case .blurBrush: return "Blur effect for emphasis and focus"
+        case .blurBrush: return "Soft airbrush for emphasis and focus"
         case .laserPointer: return "Animated pointer for presentations"
+        case .dotPen: return "Dotted drawing like math diagrams"
+        case .screenBlur: return "Blur screen content behind the overlay"
         case .rectangle: return "Draw rectangular shapes"
         case .ellipse: return "Draw circular and oval shapes"
         case .triangle: return "Draw triangle shapes"
@@ -106,16 +109,16 @@ enum DrawingTool: String, CaseIterable {
     /// Whether this tool supports thickness adjustment
     var supportsThickness: Bool {
         switch self {
-        case .pen, .marker, .highlighter, .line, .arrow:
+        case .pen, .marker, .highlighter, .line, .arrow, .dotPen:
             return true
-        case .blurBrush:
-            return true  // Controls blur radius
+        case .blurBrush, .screenBlur:
+            return true
         case .laserPointer:
-            return true  // Controls glow intensity
+            return true
         case .spotlight:
-            return true  // Controls spotlight radius
+            return true
         case .text:
-            return true  // Controls font size
+            return true
         default:
             return false
         }
@@ -124,7 +127,7 @@ enum DrawingTool: String, CaseIterable {
     /// Whether this tool supports color selection
     var supportsColor: Bool {
         switch self {
-        case .eraser, .magnifier, .spotlight, .select, .cursor:
+        case .eraser, .magnifier, .spotlight, .select, .cursor, .screenBlur:
             return false
         default:
             return true
@@ -476,7 +479,24 @@ class DrawingState: ObservableObject {
                 glowIntensity: strokeThickness * 1.5,
                 animationSpeed: 1.0
             )
-            
+
+        case .dotPen:
+            return DrawingElement(
+                tool: selectedTool,
+                points: currentStroke,
+                color: selectedColor,
+                thickness: strokeThickness
+            )
+
+        case .screenBlur:
+            return DrawingElement(
+                tool: selectedTool,
+                points: currentStroke,
+                color: .white,
+                thickness: strokeThickness,
+                blurRadius: strokeThickness * 3.0
+            )
+
         default:
             let fillable = [DrawingTool.rectangle, .ellipse, .triangle, .diamond].contains(selectedTool)
             return DrawingElement(

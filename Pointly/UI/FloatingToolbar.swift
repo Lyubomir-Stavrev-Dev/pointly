@@ -56,6 +56,7 @@ struct FloatingToolbar: View {
                 (.marker,      false), (.blurBrush,   false),
                 (.eraser,      false), (.text,        false),
                 (.laserPointer,false), (.spotlight,   false),
+                (.dotPen,      false), (.screenBlur,  false),
             ])
 
             divider()

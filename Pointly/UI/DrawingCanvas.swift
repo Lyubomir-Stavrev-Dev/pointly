@@ -37,6 +37,10 @@ struct DrawingCanvas: View {
             drawBlurBrush(element, in: context)
         case .laserPointer:
             drawLaserPointer(element, in: context)
+        case .dotPen:
+            drawDotPen(element, in: context)
+        case .screenBlur:
+            drawScreenBlur(element, in: context)
         case .rectangle:
             drawRectangle(element, in: context)
         case .ellipse:
@@ -308,6 +312,81 @@ struct DrawingCanvas: View {
         context.stroke(glowPath,
             with: .color(Color.white.opacity(opacity * 0.85)),
             style: StrokeStyle(lineWidth: element.thickness * 0.8, lineCap: .round, lineJoin: .round))
+    }
+
+    // MARK: - Dot Pen: dots spaced along the path using a dashed round-capped stroke
+    private func drawDotPen(_ element: DrawingElement, in context: GraphicsContext) {
+        guard !element.points.isEmpty else { return }
+        let spacing = max(element.thickness * 1.8, 4)
+
+        if element.points.count == 1, let pt = element.points.first {
+            let r = element.thickness / 2
+            context.fill(
+                Path(ellipseIn: CGRect(x: pt.x - r, y: pt.y - r, width: element.thickness, height: element.thickness)),
+                with: .color(element.color.opacity(element.opacity))
+            )
+            return
+        }
+
+        var path = Path()
+        path.move(to: element.points[0])
+        for i in 1..<element.points.count {
+            let cur = element.points[i]
+            if i == element.points.count - 1 {
+                path.addLine(to: cur)
+            } else {
+                let next = element.points[i + 1]
+                let mid = CGPoint(x: (cur.x + next.x) / 2, y: (cur.y + next.y) / 2)
+                path.addQuadCurve(to: mid, control: cur)
+            }
+        }
+
+        context.stroke(
+            path,
+            with: .color(element.color.opacity(element.opacity)),
+            style: StrokeStyle(
+                lineWidth: element.thickness,
+                lineCap: .round,
+                lineJoin: .round,
+                dash: [0, spacing]
+            )
+        )
+    }
+
+    // MARK: - Screen Blur: frosted-glass brush stroke simulating content blur
+    private func drawScreenBlur(_ element: DrawingElement, in context: GraphicsContext) {
+        guard !element.points.isEmpty else { return }
+        let brushWidth = (element.blurRadius ?? element.thickness * 3) * 2
+
+        if element.points.count == 1, let pt = element.points.first {
+            let r = brushWidth / 2
+            let layers: [(Double, CGFloat)] = [(0.06, r * 2.4), (0.10, r * 1.6), (0.15, r)]
+            for (alpha, radius) in layers {
+                context.fill(
+                    Path(ellipseIn: CGRect(x: pt.x - radius, y: pt.y - radius, width: radius * 2, height: radius * 2)),
+                    with: .color(Color.white.opacity(alpha))
+                )
+            }
+            return
+        }
+
+        var path = Path()
+        path.move(to: element.points[0])
+        for pt in element.points.dropFirst() { path.addLine(to: pt) }
+
+        let layers: [(Double, CGFloat)] = [
+            (0.06, brushWidth + 20),
+            (0.10, brushWidth + 8),
+            (0.16, brushWidth),
+            (0.18, brushWidth * 0.55),
+        ]
+        for (alpha, w) in layers {
+            context.stroke(
+                path,
+                with: .color(Color.white.opacity(alpha)),
+                style: StrokeStyle(lineWidth: w, lineCap: .round, lineJoin: .round)
+            )
+        }
     }
 
     private func drawText(_ element: DrawingElement, in context: GraphicsContext) {

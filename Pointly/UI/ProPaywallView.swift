@@ -36,6 +36,8 @@ extension DrawingTool {
         case .blurBrush:    return "Blur Brush"
         case .laserPointer: return "Laser Pointer"
         case .spotlight:    return "Spotlight"
+        case .dotPen:       return "Dot Pen"
+        case .screenBlur:   return "Screen Blur"
         default:            return displayName
         }
     }
@@ -44,6 +46,8 @@ extension DrawingTool {
         case .blurBrush:    return "Protect sensitive info by painting a smooth blur over any part of your screen."
         case .laserPointer: return "Guide your audience with a glowing laser dot that fades naturally as you move."
         case .spotlight:    return "Dim everything and spotlight exactly what matters — perfect for live demos."
+        case .dotPen:       return "Draw precise dotted lines and math-style diagrams with perfect spacing."
+        case .screenBlur:   return "Brush over any area to instantly blur the screen content beneath the overlay."
         default:            return ""
         }
     }
@@ -60,6 +64,8 @@ struct ProPaywallView: View {
         ("camera.filters",   "Blur Brush — protect sensitive content"),
         ("laser.burst",      "Laser Pointer — guide with precision"),
         ("rays",             "Spotlight — focus your audience"),
+        ("circle.grid.3x3",  "Dot Pen — math-style dotted drawing"),
+        ("smoke",            "Screen Blur — blur content behind overlay"),
     ]
 
     var body: some View {
@@ -93,6 +99,8 @@ struct ProPaywallView: View {
                     case .blurBrush:    BlurBrushPreview()
                     case .laserPointer: LaserPointerPreview()
                     case .spotlight:    SpotlightPreview()
+                    case .dotPen:       DotPenPreview()
+                    case .screenBlur:   ScreenBlurPreview()
                     default:            defaultPreview
                     }
                 }
@@ -229,144 +237,449 @@ struct ProPaywallView: View {
 }
 
 // MARK: - Blur Brush Preview
+// The blur brush paints a soft, feathered stroke of colour — like an airbrush.
+// Shows: brush cursor draws strokes on a canvas; each stroke has blurry/soft edges.
 
 private struct BlurBrushPreview: View {
-    @State private var brushX: CGFloat = -60
-    @State private var revealedCount = 0
 
-    private let rows = [
-        ("person.fill", "John Smith"),
-        ("creditcard.fill", "4242 4242 4242 4242"),
-        ("lock.fill", "Password: hunter2"),
+    private struct Stroke {
+        var points: [CGPoint]
+        var color: Color
+        var width: CGFloat
+    }
+
+    @State private var finishedStrokes: [Stroke] = []
+    @State private var livePoints:      [CGPoint] = []
+    @State private var cursorPos = CGPoint(x: 20, y: 95)
+
+    // Three overlapping brush strokes
+    private let paths: [([CGPoint], Color, CGFloat)] = [
+        (
+            stride(from: 30.0, through: 330.0, by: 14).map { x in
+                CGPoint(x: x, y: 80 + sin(x / 30) * 12)
+            },
+            Color(hex: "#F4644D") ?? .orange, 28
+        ),
+        (
+            stride(from: 330.0, through: 30.0, by: -14).map { x in
+                CGPoint(x: x, y: 115 + sin(x / 28) * 10)
+            },
+            Color(hex: "#E9458C") ?? .pink, 22
+        ),
+        (
+            stride(from: 60.0, through: 300.0, by: 14).map { x in
+                CGPoint(x: x, y: 148 + sin(x / 32) * 8)
+            },
+            Color(hex: "#FF8C42") ?? .orange, 18
+        ),
     ]
 
     var body: some View {
         ZStack {
-            Color.white.opacity(0.03)
+            // Dark canvas
+            Color(red: 0.06, green: 0.06, blue: 0.12)
 
-            VStack(alignment: .leading, spacing: 14) {
-                ForEach(rows.indices, id: \.self) { i in
-                    HStack(spacing: 10) {
-                        Image(systemName: rows[i].0)
-                            .font(.system(size: 11))
-                            .foregroundColor(.white.opacity(0.3))
-                            .frame(width: 16)
-
-                        if i < revealedCount {
-                            Text(String(repeating: "●", count: 14))
-                                .font(.system(size: 11, design: .monospaced))
-                                .foregroundColor(.white.opacity(0.15))
-                                .blur(radius: 2)
-                        } else {
-                            Text(rows[i].1)
-                                .font(.system(size: 11, design: .monospaced))
-                                .foregroundColor(.white.opacity(0.7))
-                        }
-                    }
-                    .animation(.easeInOut(duration: 0.25), value: revealedCount)
-                }
+            // Finished strokes
+            ForEach(finishedStrokes.indices, id: \.self) { i in
+                softStroke(points: finishedStrokes[i].points,
+                           color: finishedStrokes[i].color,
+                           width: finishedStrokes[i].width)
             }
-            .padding(.leading, 36)
 
-            // Brush cursor
-            VStack(spacing: 0) {
-                Image(systemName: "camera.filters")
-                    .font(.system(size: 22, weight: .semibold))
-                    .foregroundStyle(paywallGradient)
-                    .shadow(color: (Color(hex: "#F4644D") ?? .orange).opacity(0.7), radius: 10)
-
-                // Trail behind brush
-                Rectangle()
-                    .fill(
-                        LinearGradient(
-                            colors: [(Color(hex: "#F4644D") ?? .orange).opacity(0.25), .clear],
-                            startPoint: .trailing, endPoint: .leading
-                        )
-                    )
-                    .frame(width: max(0, brushX + 60), height: 3)
-                    .offset(x: -(max(0, brushX + 60)) / 2)
+            // Live stroke being drawn
+            if livePoints.count > 1 {
+                let (_, color, width) = paths[finishedStrokes.count % paths.count]
+                softStroke(points: livePoints, color: color, width: width)
             }
-            .offset(x: brushX, y: 0)
+
+            // Brush cursor — soft circle outline like a real brush tip
+            ZStack {
+                Circle()
+                    .stroke(Color.white.opacity(0.55), lineWidth: 1)
+                    .frame(width: 30, height: 30)
+                Circle()
+                    .fill(Color.white.opacity(0.08))
+                    .frame(width: 30, height: 30)
+            }
+            .position(cursorPos)
         }
         .task {
             while true {
-                brushX = -60
-                revealedCount = 0
-                try? await Task.sleep(nanoseconds: 600_000_000)
+                finishedStrokes = []
+                livePoints      = []
 
-                withAnimation(.linear(duration: 1.4)) { brushX = 240 }
-                try? await Task.sleep(nanoseconds: 460_000_000)
-                revealedCount = 1
-                try? await Task.sleep(nanoseconds: 460_000_000)
-                revealedCount = 2
-                try? await Task.sleep(nanoseconds: 460_000_000)
-                revealedCount = 3
-                try? await Task.sleep(nanoseconds: 900_000_000)
+                for (pts, color, width) in paths {
+                    cursorPos  = pts[0]
+                    livePoints = []
+                    try? await Task.sleep(nanoseconds: 200_000_000)
+
+                    for pt in pts {
+                        withAnimation(.linear(duration: 0.05)) { cursorPos = pt }
+                        livePoints.append(pt)
+                        try? await Task.sleep(nanoseconds: 50_000_000)
+                    }
+                    finishedStrokes.append(Stroke(points: livePoints, color: color, width: width))
+                    livePoints = []
+                    try? await Task.sleep(nanoseconds: 180_000_000)
+                }
+
+                try? await Task.sleep(nanoseconds: 700_000_000)
+                withAnimation(.easeOut(duration: 0.5)) { finishedStrokes = [] }
+                try? await Task.sleep(nanoseconds: 600_000_000)
             }
+        }
+    }
+
+    @ViewBuilder
+    private func softStroke(points: [CGPoint], color: Color, width: CGFloat) -> some View {
+        let path = Path { p in
+            p.move(to: points[0])
+            for pt in points.dropFirst() { p.addLine(to: pt) }
+        }
+        ZStack {
+            // Soft outer halo — gives the feathered airbrush look
+            path
+                .stroke(color.opacity(0.25), style: StrokeStyle(lineWidth: width + 14, lineCap: .round, lineJoin: .round))
+                .blur(radius: 9)
+            // Core stroke
+            path
+                .stroke(color.opacity(0.7), style: StrokeStyle(lineWidth: width, lineCap: .round, lineJoin: .round))
+                .blur(radius: 3)
         }
     }
 }
 
 // MARK: - Laser Pointer Preview
+// The laser draws a glowing stroke along your cursor path, then it fades away automatically.
+// Shows: cursor moves → neon glowing stroke appears → stroke fades out.
 
 private struct LaserPointerPreview: View {
-    @State private var dotPos = CGPoint(x: 200, y: 95)
-    @State private var trail: [CGPoint] = []
-    @State private var phase: Double = 0
+    @State private var drawProgress: CGFloat = 0
+    @State private var globalOpacity: Double = 1.0
+    @State private var cursorPos = CGPoint(x: 30, y: 95)
+
+    private let laserPath: Path = {
+        var p = Path()
+        p.move(to: CGPoint(x: 30, y: 120))
+        p.addCurve(
+            to:       CGPoint(x: 195, y: 70),
+            control1: CGPoint(x: 90,  y: 60),
+            control2: CGPoint(x: 150, y: 55)
+        )
+        p.addCurve(
+            to:       CGPoint(x: 360, y: 115),
+            control1: CGPoint(x: 245, y: 85),
+            control2: CGPoint(x: 310, y: 145)
+        )
+        return p
+    }()
+
+    // Sample cursor position along the path at given progress t ∈ [0,1]
+    private func point(at t: CGFloat) -> CGPoint {
+        // Approximate via parametric Bezier eval
+        let p0 = CGPoint(x: 30,  y: 120)
+        let p1 = CGPoint(x: 90,  y: 60)
+        let p2 = CGPoint(x: 150, y: 55)
+        let p3 = CGPoint(x: 195, y: 70)
+        let p4 = CGPoint(x: 245, y: 85)
+        let p5 = CGPoint(x: 310, y: 145)
+        let p6 = CGPoint(x: 360, y: 115)
+
+        if t <= 0.5 {
+            let u = t * 2
+            return cubicBezier(p0, p1, p2, p3, t: u)
+        } else {
+            let u = (t - 0.5) * 2
+            return cubicBezier(p3, p4, p5, p6, t: u)
+        }
+    }
+
+    private func cubicBezier(_ a: CGPoint, _ b: CGPoint, _ c: CGPoint, _ d: CGPoint, t: CGFloat) -> CGPoint {
+        let mt = 1 - t
+        return CGPoint(
+            x: mt*mt*mt*a.x + 3*mt*mt*t*b.x + 3*mt*t*t*c.x + t*t*t*d.x,
+            y: mt*mt*mt*a.y + 3*mt*mt*t*b.y + 3*mt*t*t*c.y + t*t*t*d.y
+        )
+    }
 
     var body: some View {
         ZStack {
-            // Fake slide background
             Color.white.opacity(0.03)
 
             // Fake slide content
-            VStack(alignment: .leading, spacing: 10) {
-                RoundedRectangle(cornerRadius: 3)
-                    .fill(Color.white.opacity(0.12))
-                    .frame(width: 180, height: 10)
-                RoundedRectangle(cornerRadius: 3)
-                    .fill(Color.white.opacity(0.07))
-                    .frame(width: 140, height: 8)
-                RoundedRectangle(cornerRadius: 3)
-                    .fill(Color.white.opacity(0.07))
-                    .frame(width: 160, height: 8)
+            VStack(alignment: .leading, spacing: 9) {
+                RoundedRectangle(cornerRadius: 3).fill(Color.white.opacity(0.12)).frame(width: 200, height: 10)
+                RoundedRectangle(cornerRadius: 3).fill(Color.white.opacity(0.06)).frame(width: 170, height: 7)
+                RoundedRectangle(cornerRadius: 3).fill(Color.white.opacity(0.06)).frame(width: 190, height: 7)
+                RoundedRectangle(cornerRadius: 3).fill(Color.white.opacity(0.06)).frame(width: 140, height: 7)
             }
-            .offset(x: -60)
+            .offset(x: -60, y: -15)
 
-            // Fading trail
-            Canvas { ctx, _ in
-                for (i, pt) in trail.enumerated() {
-                    let alpha = Double(i) / Double(max(1, trail.count)) * 0.55
-                    var p = Path()
-                    p.addEllipse(in: CGRect(x: pt.x - 3, y: pt.y - 3, width: 6, height: 6))
-                    ctx.fill(p, with: .color(Color.red.opacity(alpha)))
-                }
-            }
+            // Wide outer glow
+            laserPath
+                .trim(from: 0, to: drawProgress)
+                .stroke(
+                    (Color(hex: "#F4644D") ?? .orange).opacity(0.35),
+                    style: StrokeStyle(lineWidth: 22, lineCap: .round, lineJoin: .round)
+                )
+                .blur(radius: 10)
+                .opacity(globalOpacity)
 
-            // Dot
+            // Mid glow
+            laserPath
+                .trim(from: 0, to: drawProgress)
+                .stroke(
+                    (Color(hex: "#FF8C42") ?? .orange).opacity(0.65),
+                    style: StrokeStyle(lineWidth: 8, lineCap: .round, lineJoin: .round)
+                )
+                .blur(radius: 3)
+                .opacity(globalOpacity)
+
+            // Bright core
+            laserPath
+                .trim(from: 0, to: drawProgress)
+                .stroke(
+                    Color.white.opacity(0.95),
+                    style: StrokeStyle(lineWidth: 2.5, lineCap: .round, lineJoin: .round)
+                )
+                .opacity(globalOpacity)
+
+            // Cursor dot at stroke tip
             ZStack {
                 Circle()
-                    .fill(Color.red.opacity(0.25))
-                    .frame(width: 22, height: 22)
-                    .blur(radius: 6)
+                    .fill((Color(hex: "#F4644D") ?? .orange).opacity(0.4))
+                    .frame(width: 18, height: 18)
+                    .blur(radius: 5)
                 Circle()
                     .fill(Color.white)
-                    .frame(width: 7, height: 7)
-                    .shadow(color: .red, radius: 4)
+                    .frame(width: 6, height: 6)
             }
-            .position(dotPos)
+            .position(cursorPos)
+            .opacity(drawProgress < 1 ? 1 : 0)
+            .animation(.easeOut(duration: 0.2), value: drawProgress)
         }
         .task {
             while true {
-                phase += 0.12
-                let x = 200.0 + 90.0 * cos(phase)
-                let y = 95.0  + 45.0 * sin(2 * phase)
-                let newPt = CGPoint(x: x, y: y)
-                withAnimation(.linear(duration: 0.05)) { dotPos = newPt }
-                trail.append(newPt)
-                if trail.count > 22 { trail.removeFirst() }
-                try? await Task.sleep(nanoseconds: 55_000_000)
+                drawProgress  = 0
+                globalOpacity = 1.0
+                cursorPos     = point(at: 0)
+                try? await Task.sleep(nanoseconds: 300_000_000)
+
+                // Draw the stroke, moving cursor along path
+                let steps = 40
+                for i in 1...steps {
+                    let t = CGFloat(i) / CGFloat(steps)
+                    withAnimation(.linear(duration: 0.04)) {
+                        drawProgress = t
+                        cursorPos    = point(at: t)
+                    }
+                    try? await Task.sleep(nanoseconds: 40_000_000)
+                }
+
+                // Hold briefly, then fade — matches the real 3-second auto-fade
+                try? await Task.sleep(nanoseconds: 800_000_000)
+                withAnimation(.easeIn(duration: 1.0)) { globalOpacity = 0 }
+                try? await Task.sleep(nanoseconds: 1_100_000_000)
             }
+        }
+    }
+}
+
+// MARK: - Dot Pen Preview
+// Glowing dots trace a Lissajous figure-8 — the same animation that was
+// saved from the original laser concept. Full faint path visible as guide dots.
+
+private struct DotPenPreview: View {
+    @State private var startDate: Date = .now
+
+    private let trailLength = 18
+
+    private func lissajousPoint(t: CGFloat, in size: CGSize) -> CGPoint {
+        let cx = size.width  / 2
+        let cy = size.height / 2
+        let rx = size.width  * 0.37
+        let ry = size.height * 0.37
+        return CGPoint(
+            x: cx + rx * sin(2 * t * .pi * 2),
+            y: cy + ry * sin(t * .pi * 2)
+        )
+    }
+
+    var body: some View {
+        TimelineView(.animation(minimumInterval: 1.0 / 60.0, paused: false)) { tl in
+            GeometryReader { geo in
+                let elapsed  = tl.date.timeIntervalSince(startDate)
+                let progress = CGFloat(elapsed.truncatingRemainder(dividingBy: 4.0) / 4.0)
+
+                ZStack {
+                    Color(red: 0.06, green: 0.06, blue: 0.12)
+
+                    Canvas { ctx, size in
+                        // Faint guide dots showing the full figure-8 path
+                        let guideCount = 80
+                        for i in 0..<guideCount {
+                            let t = CGFloat(i) / CGFloat(guideCount)
+                            let pt = lissajousPoint(t: t, in: size)
+                            let r: CGFloat = 1.3
+                            ctx.fill(
+                                Path(ellipseIn: CGRect(x: pt.x - r, y: pt.y - r, width: r*2, height: r*2)),
+                                with: .color(Color.white.opacity(0.14))
+                            )
+                        }
+
+                        // Glowing animated trail
+                        for i in 0..<trailLength {
+                            let t = (progress - CGFloat(i) * 0.016 + 2.0)
+                                .truncatingRemainder(dividingBy: 1.0)
+                            let pt   = lissajousPoint(t: t, in: size)
+                            let fade = pow(CGFloat(trailLength - i) / CGFloat(trailLength), 1.5)
+                            let coreR = 3.8 * fade
+                            let glowR = 10.0 * fade
+
+                            ctx.fill(
+                                Path(ellipseIn: CGRect(x: pt.x - glowR, y: pt.y - glowR,
+                                                       width: glowR*2, height: glowR*2)),
+                                with: .color((Color(hex: "#F4644D") ?? .orange).opacity(Double(fade) * 0.30))
+                            )
+                            ctx.fill(
+                                Path(ellipseIn: CGRect(x: pt.x - coreR, y: pt.y - coreR,
+                                                       width: coreR*2, height: coreR*2)),
+                                with: .color(Color.white.opacity(Double(fade) * 0.92))
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+// MARK: - Screen Blur Preview
+// Fake screen content (UI blocks) with a brush sweeping and leaving a
+// frosted-glass blurred trail — represents blurring the screen behind the overlay.
+
+private struct ScreenBlurPreview: View {
+
+    @State private var blurProgress: [CGFloat] = [0, 0, 0]
+    @State private var cursorPos = CGPoint(x: 50, y: 95)
+
+    private let brushPaths: [[CGPoint]] = [
+        stride(from: 40.0,  through: 320.0, by: 11).map { x in CGPoint(x: x, y: 60 + sin(x / 40) * 9) },
+        stride(from: 310.0, through:  55.0, by: -11).map { x in CGPoint(x: x, y: 100 + sin(x / 35) * 10) },
+        stride(from: 75.0,  through: 285.0, by: 11).map { x in CGPoint(x: x, y: 142 + sin(x / 38) * 7) },
+    ]
+
+    var body: some View {
+        ZStack {
+            Color(red: 0.09, green: 0.09, blue: 0.18)
+
+            // Fake screen UI content
+            VStack(alignment: .leading, spacing: 9) {
+                HStack(spacing: 7) {
+                    RoundedRectangle(cornerRadius: 4)
+                        .fill((Color(hex: "#F4644D") ?? .orange).opacity(0.7))
+                        .frame(width: 80, height: 22)
+                    RoundedRectangle(cornerRadius: 4)
+                        .fill(Color.white.opacity(0.09))
+                        .frame(width: 110, height: 22)
+                    Spacer()
+                }
+                RoundedRectangle(cornerRadius: 3)
+                    .fill(Color.white.opacity(0.13))
+                    .frame(width: 185, height: 10)
+                HStack(spacing: 7) {
+                    RoundedRectangle(cornerRadius: 3)
+                        .fill((Color(hex: "#4FACFE") ?? .blue).opacity(0.45))
+                        .frame(width: 58, height: 16)
+                    RoundedRectangle(cornerRadius: 3)
+                        .fill(Color.white.opacity(0.07))
+                        .frame(width: 95, height: 16)
+                    Spacer()
+                }
+                RoundedRectangle(cornerRadius: 3)
+                    .fill(Color.white.opacity(0.07))
+                    .frame(width: 145, height: 10)
+                RoundedRectangle(cornerRadius: 3)
+                    .fill(Color.white.opacity(0.05))
+                    .frame(width: 120, height: 10)
+            }
+            .padding(.horizontal, 18)
+            .padding(.vertical, 14)
+
+            // Frosted blur strokes applied so far
+            ForEach(0..<brushPaths.count, id: \.self) { i in
+                if blurProgress[i] > 0 {
+                    let count = max(2, Int(blurProgress[i] * CGFloat(brushPaths[i].count)))
+                    let pts   = Array(brushPaths[i].prefix(count))
+                    FrostedStroke(points: pts)
+                }
+            }
+
+            // Brush cursor
+            ZStack {
+                Circle()
+                    .stroke(Color.white.opacity(0.50), lineWidth: 1.2)
+                    .frame(width: 26, height: 26)
+                Circle()
+                    .fill(Color.white.opacity(0.07))
+                    .frame(width: 26, height: 26)
+            }
+            .position(cursorPos)
+        }
+        .task {
+            while true {
+                blurProgress = [0, 0, 0]
+                try? await Task.sleep(nanoseconds: 400_000_000)
+
+                for i in 0..<brushPaths.count {
+                    let pts = brushPaths[i]
+                    withAnimation(.linear(duration: 0.05)) { cursorPos = pts[0] }
+                    try? await Task.sleep(nanoseconds: 150_000_000)
+
+                    for j in 1...pts.count {
+                        let prog = CGFloat(j) / CGFloat(pts.count)
+                        withAnimation(.linear(duration: 0.045)) {
+                            cursorPos    = pts[min(j, pts.count - 1)]
+                            blurProgress[i] = prog
+                        }
+                        try? await Task.sleep(nanoseconds: 45_000_000)
+                    }
+                    try? await Task.sleep(nanoseconds: 180_000_000)
+                }
+
+                try? await Task.sleep(nanoseconds: 700_000_000)
+                withAnimation(.easeOut(duration: 0.55)) { blurProgress = [0, 0, 0] }
+                try? await Task.sleep(nanoseconds: 650_000_000)
+            }
+        }
+    }
+}
+
+private struct FrostedStroke: View {
+    let points: [CGPoint]
+
+    var body: some View {
+        let path = Path { p in
+            guard points.count > 1 else { return }
+            p.move(to: points[0])
+            for pt in points.dropFirst() { p.addLine(to: pt) }
+        }
+        ZStack {
+            path
+                .stroke(Color.white.opacity(0.10),
+                        style: StrokeStyle(lineWidth: 36, lineCap: .round, lineJoin: .round))
+                .blur(radius: 10)
+            path
+                .stroke(Color.white.opacity(0.16),
+                        style: StrokeStyle(lineWidth: 22, lineCap: .round, lineJoin: .round))
+                .blur(radius: 5)
+            path
+                .stroke(Color.white.opacity(0.22),
+                        style: StrokeStyle(lineWidth: 13, lineCap: .round, lineJoin: .round))
+                .blur(radius: 2)
+            path
+                .stroke(Color.white.opacity(0.28),
+                        style: StrokeStyle(lineWidth: 5, lineCap: .round, lineJoin: .round))
         }
     }
 }
