@@ -6,7 +6,13 @@ A screen annotation tool for macOS — floating toolbar, live drawing, spotlight
 
 [![Download](https://img.shields.io/badge/⬇%20Download-Pointly%20v1.0.0-FF6B6B?style=for-the-badge)](https://github.com/Lyubomir-Stavrev-Dev/pointly/releases/latest/download/Pointly-v1.0.0-macOS.zip)
 
-> **macOS 14+** · Unzip → drag **Pointly.app** to `/Applications` · Right-click → Open on first launch to bypass Gatekeeper
+> **macOS 14+** · Unzip → drag **Pointly.app** to `/Applications`
+>
+> If macOS says "damaged and can't be opened", run this once in Terminal:
+> ```
+> xattr -cr /Applications/Pointly.app
+> ```
+> Then open normally. This happens because the app is not yet notarized.
 
 ---
 
