@@ -14,19 +14,21 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
         NSApp.setActivationPolicy(.accessory)
         setupMenuBarItem()
-        showOnboardingIfNeeded()
 
         overlayWindowManager = OverlayWindowManager()
 
-        // Show toolbar immediately if the user enabled "Show Toolbar on Startup".
-        if UserDefaults.standard.object(forKey: "showToolbarOnStartup") as? Bool ?? false {
-            overlayWindowManager?.toggleOverlay()
-        }
-
-        // "Start Hidden" suppresses the initial activation that would steal focus.
-        let startupBehavior = UserDefaults.standard.string(forKey: "startupBehavior") ?? "menubar"
-        if startupBehavior != "hidden" {
-            NSApp.activate(ignoringOtherApps: false)
+        let isFirstLaunch = !UserDefaults.standard.bool(forKey: "hasSeenOnboarding")
+        if isFirstLaunch {
+            // First launch: show only onboarding; toolbar appears after "Get Started".
+            showOnboarding()
+        } else {
+            if UserDefaults.standard.object(forKey: "showToolbarOnStartup") as? Bool ?? false {
+                overlayWindowManager?.toggleOverlay()
+            }
+            let startupBehavior = UserDefaults.standard.string(forKey: "startupBehavior") ?? "menubar"
+            if startupBehavior != "hidden" {
+                NSApp.activate(ignoringOtherApps: false)
+            }
         }
 
         globalHotkeyManager = GlobalHotkeyManager()
@@ -141,9 +143,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         // Tab is intentionally NOT re-registered as a global hotkey.
     }
 
-    private func showOnboardingIfNeeded() {
-        guard !UserDefaults.standard.bool(forKey: "hasSeenOnboarding") else { return }
-
+    private func showOnboarding(thenShowToolbar: Bool = true) {
         let window = NSWindow(
             contentRect: NSRect(x: 0, y: 0, width: 520, height: 580),
             styleMask: [.titled, .closable, .fullSizeContentView],
@@ -159,6 +159,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         window.isReleasedWhenClosed = false
         window.contentView = FirstMouseHostingView(rootView: OnboardingView {
             self.onboardingWindow?.orderOut(nil)
+            if thenShowToolbar {
+                self.overlayWindowManager?.toggleOverlay()
+            }
         })
         window.center()
         onboardingWindow = window
@@ -191,26 +194,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     @objc private func showTutorial() {
         onboardingWindow = nil  // force a fresh window each time
-        let window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 520, height: 580),
-            styleMask: [.titled, .closable, .fullSizeContentView],
-            backing: .buffered,
-            defer: false
-        )
-        window.title = ""
-        window.titlebarAppearsTransparent = true
-        window.titleVisibility = .hidden
-        window.isOpaque = false
-        window.backgroundColor = .clear
-        window.appearance = NSAppearance(named: .darkAqua)
-        window.isReleasedWhenClosed = false
-        window.contentView = FirstMouseHostingView(rootView: OnboardingView {
-            self.onboardingWindow?.orderOut(nil)
-        })
-        window.center()
-        onboardingWindow = window
-        window.makeKeyAndOrderFront(nil)
-        NSApp.activate(ignoringOtherApps: true)
+        showOnboarding(thenShowToolbar: false)
     }
 
     @objc private func quitApp() {
