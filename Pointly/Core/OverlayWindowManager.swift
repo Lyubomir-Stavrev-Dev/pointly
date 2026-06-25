@@ -41,8 +41,9 @@ class OverlayWindowManager: ObservableObject {
             self, selector: #selector(handleCaptureAndLift(_:)),
             name: .captureAndLift, object: nil)
 
-        sharedDrawingState.onWillUndo = { [weak self] in self?.dismissAllLiftedCaptures() }
-        sharedDrawingState.onWillRedo = { [weak self] in self?.dismissAllLiftedCaptures() }
+        sharedDrawingState.onWillUndo     = { [weak self] in self?.dismissAllLiftedCaptures() }
+        sharedDrawingState.onWillRedo     = { [weak self] in self?.dismissAllLiftedCaptures() }
+        sharedDrawingState.onWillClearAll = { [weak self] in self?.dismissAllLiftedCaptures() }
     }
 
     // MARK: - Canvas windows (one per screen, drawing surface only)

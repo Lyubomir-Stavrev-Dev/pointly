@@ -98,12 +98,13 @@ struct FloatingToolbar: View {
                     .disabled(!drawingState.canUndo)
                 },
                 right: {
+                    let redoActive = drawingState.canRedo || !drawingState.liftedCovers.isEmpty
                     iconButton(
                         icon: "arrow.uturn.forward",
-                        tint: drawingState.canRedo ? .white : .white.opacity(0.2),
+                        tint: redoActive ? .white : .white.opacity(0.2),
                         help: "Redo"
                     ) { drawingState.redo() }
-                    .disabled(!drawingState.canRedo)
+                    .disabled(!redoActive)
                 }
             )
 

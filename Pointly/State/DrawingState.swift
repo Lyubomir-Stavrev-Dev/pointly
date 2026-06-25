@@ -565,8 +565,9 @@ class DrawingState: ObservableObject {
     
     // MARK: - Undo/Redo Operations
     
-    var onWillUndo: (() -> Void)?
-    var onWillRedo: (() -> Void)?
+    var onWillUndo:     (() -> Void)?
+    var onWillRedo:     (() -> Void)?
+    var onWillClearAll: (() -> Void)?
 
     func undo() {
         guard canUndo else { return }
@@ -578,8 +579,10 @@ class DrawingState: ObservableObject {
     }
 
     func redo() {
-        guard canRedo else { return }
+        // Fire hook before the guard so lifted captures are dismissed even
+        // when canRedo is false (the button is enabled whenever captures exist).
         onWillRedo?()
+        guard canRedo else { return }
         undoStack.append(elements)
         if let nextState = redoStack.popLast() {
             elements = nextState
@@ -598,6 +601,7 @@ class DrawingState: ObservableObject {
     // MARK: - Utility Operations
     
     func clearAll() {
+        onWillClearAll?()
         saveStateForUndo()
         elements.removeAll()
         redoStack.removeAll()
