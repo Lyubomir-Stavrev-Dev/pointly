@@ -8,11 +8,7 @@ A screen annotation tool for macOS — floating toolbar, live drawing, spotlight
 
 > **macOS 14+** · Unzip → drag **Pointly.app** to `/Applications`
 >
-> If macOS says "damaged and can't be opened", run this once in Terminal:
-> ```
-> xattr -cr /Applications/Pointly.app
-> ```
-> Then open normally. This happens because the app is not yet notarized.
+> On first launch macOS may say "unidentified developer" — go to **System Settings → Privacy & Security** and click **Open Anyway**.
 
 ---
 
