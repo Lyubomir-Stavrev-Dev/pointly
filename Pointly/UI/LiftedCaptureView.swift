@@ -4,12 +4,18 @@ import AppKit
 struct LiftedCaptureView: View {
     let image: NSImage
     let onDismiss: () -> Void
-    let onGetFrame: () -> NSRect       // snapshot current panel frame
-    let onSetFrame: (NSRect) -> Void   // update panel frame
+    let onGetFrame: () -> NSRect
+    let onSetFrame: (NSRect) -> Void
 
-    @State private var isHovered   = false
-    @State private var moveStart:   NSRect? = nil
-    @State private var resizeStart: NSRect? = nil
+    @State private var isHovered = false
+
+    // Move: snapshot cursor + panel origin at drag start
+    @State private var moveInitialCursor: NSPoint? = nil
+    @State private var moveInitialOrigin: NSPoint? = nil
+
+    // Resize: snapshot cursor + panel frame at drag start
+    @State private var resizeInitialCursor: NSPoint? = nil
+    @State private var resizeInitialFrame:  NSRect?  = nil
 
     private enum HandlePos: CaseIterable {
         case topLeft, topRight, bottomLeft, bottomRight
@@ -17,7 +23,6 @@ struct LiftedCaptureView: View {
 
     var body: some View {
         ZStack(alignment: .topTrailing) {
-            // Image body — drag to move the panel
             Image(nsImage: image)
                 .resizable()
                 .gesture(moveDrag)
@@ -44,7 +49,6 @@ struct LiftedCaptureView: View {
         }
         .clipShape(RoundedRectangle(cornerRadius: 3))
         .shadow(color: .black.opacity(0.35), radius: 8, x: 0, y: 3)
-        // Corner handles outside the clip so they render fully at the edges
         .overlay(alignment: .topLeading)     { if isHovered { handle(.topLeft) } }
         .overlay(alignment: .topTrailing)    { if isHovered { handle(.topRight) } }
         .overlay(alignment: .bottomLeading)  { if isHovered { handle(.bottomLeft) } }
@@ -55,23 +59,30 @@ struct LiftedCaptureView: View {
         }
     }
 
-    // MARK: - Move (drag anywhere on the image body)
+    // MARK: - Move
+    // Uses NSEvent.mouseLocation (AppKit screen coords) so the computation is
+    // completely independent of the SwiftUI view's coordinate space, which shifts
+    // as the panel moves and would otherwise cause jumps in value.translation.
 
     private var moveDrag: some Gesture {
         DragGesture(minimumDistance: 0)
-            .onChanged { value in
-                guard resizeStart == nil else { return }
-                if moveStart == nil { moveStart = onGetFrame() }
-                guard let sf = moveStart else { return }
+            .onChanged { _ in
+                guard resizeInitialCursor == nil else { return }
+                if moveInitialCursor == nil {
+                    moveInitialCursor = NSEvent.mouseLocation
+                    moveInitialOrigin = onGetFrame().origin
+                }
+                guard let ic = moveInitialCursor, let io = moveInitialOrigin else { return }
+                let cur = NSEvent.mouseLocation
                 NSCursor.closedHand.set()
                 onSetFrame(NSRect(
-                    origin: NSPoint(x: sf.minX + value.translation.width,
-                                   y: sf.minY - value.translation.height),
-                    size: sf.size
+                    origin: NSPoint(x: io.x + cur.x - ic.x, y: io.y + cur.y - ic.y),
+                    size: onGetFrame().size
                 ))
             }
             .onEnded { _ in
-                moveStart = nil
+                moveInitialCursor = nil
+                moveInitialOrigin = nil
                 NSCursor.openHand.set()
             }
     }
@@ -87,28 +98,38 @@ struct LiftedCaptureView: View {
             .onHover { hovered in (hovered ? NSCursor.crosshair : NSCursor.openHand).set() }
             .gesture(
                 DragGesture(minimumDistance: 0)
-                    .onChanged { value in
-                        guard moveStart == nil else { return }
-                        if resizeStart == nil { resizeStart = onGetFrame() }
-                        guard let sf = resizeStart else { return }
-                        onSetFrame(resizedFrame(from: sf, handle: pos, delta: value.translation))
+                    .onChanged { _ in
+                        guard moveInitialCursor == nil else { return }
+                        if resizeInitialCursor == nil {
+                            resizeInitialCursor = NSEvent.mouseLocation
+                            resizeInitialFrame  = onGetFrame()
+                        }
+                        guard let ic = resizeInitialCursor,
+                              let sf = resizeInitialFrame else { return }
+                        let cur = NSEvent.mouseLocation
+                        let dx  = cur.x - ic.x
+                        let dy  = cur.y - ic.y  // AppKit: positive = upward on screen
+                        onSetFrame(resizedFrame(sf, pos, dx, dy))
                     }
-                    .onEnded { _ in resizeStart = nil }
+                    .onEnded { _ in
+                        resizeInitialCursor = nil
+                        resizeInitialFrame  = nil
+                    }
             )
     }
 
     // MARK: - Frame math
-    // AppKit origin is bottom-left of screen; SwiftUI drag dy > 0 means moving downward
-    // on screen = decreasing y in AppKit, so vertical edges get -dy.
+    // All values in AppKit screen coords (y increases upward).
+    // Dragging a top handle upward (dy > 0) expands it → maxY += dy.
+    // Dragging a bottom handle downward (dy < 0) expands it → minY += dy.
 
-    private func resizedFrame(from s: NSRect, handle: HandlePos, delta: CGSize) -> NSRect {
+    private func resizedFrame(_ s: NSRect, _ h: HandlePos, _ dx: CGFloat, _ dy: CGFloat) -> NSRect {
         var minX = s.minX, maxX = s.maxX, minY = s.minY, maxY = s.maxY
-        let dx = delta.width, dy = delta.height
-        switch handle {
-        case .topLeft:     minX += dx; maxY -= dy
-        case .topRight:    maxX += dx; maxY -= dy
-        case .bottomLeft:  minX += dx; minY -= dy
-        case .bottomRight: maxX += dx; minY -= dy
+        switch h {
+        case .topLeft:     minX += dx; maxY += dy
+        case .topRight:    maxX += dx; maxY += dy
+        case .bottomLeft:  minX += dx; minY += dy
+        case .bottomRight: maxX += dx; minY += dy
         }
         if maxX - minX < 50 { maxX = minX + 50 }
         if maxY - minY < 50 { maxY = minY + 50 }
