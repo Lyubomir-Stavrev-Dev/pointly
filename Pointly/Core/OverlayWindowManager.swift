@@ -374,11 +374,16 @@ class OverlayWindowManager: ObservableObject {
 
         let captured = floating
         floating.contentView = FirstMouseHostingView(rootView:
-            LiftedCaptureView(image: image) { [weak self] in
-                captured.orderOut(nil)
-                self?.sharedDrawingState.removeLiftedCover(id: coverID)
-                self?.liftedCaptures.removeAll { $0 === captured }
-            }
+            LiftedCaptureView(
+                image: image,
+                onDismiss: { [weak self] in
+                    captured.orderOut(nil)
+                    self?.sharedDrawingState.removeLiftedCover(id: coverID)
+                    self?.liftedCaptures.removeAll { $0 === captured }
+                },
+                onResizeStart: { captured.frame },
+                onResize: { newFrame in captured.setFrame(newFrame, display: true) }
+            )
         )
         liftedCaptures.append(floating)
         floating.orderFrontRegardless()
