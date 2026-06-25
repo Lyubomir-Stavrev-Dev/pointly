@@ -659,6 +659,13 @@ class DrawingState: ObservableObject {
         redoStack.removeAll()
         saveAnnotations()
     }
+
+    func deleteElements(in rect: CGRect) {
+        saveStateForUndo()
+        elements.removeAll { rect.intersects($0.boundingBox) }
+        selectedElementIDs = []
+        saveAnnotations()
+    }
 }
 
 // MARK: - Notification Extensions

@@ -222,8 +222,15 @@ struct OverlayView: View {
     private func handleSelectionEnded(_ value: DragGesture.Value) {
         if isDraggingHandle { return }
         if case .rubberBanding = selAction {
-            if let r = drawingState.selectionRubberBand { drawingState.selectElements(in: r) }
-            drawingState.selectionRubberBand = nil
+            if drawingState.selectedTool == .cutMove {
+                if let r = drawingState.selectionRubberBand, r.width > 10, r.height > 10 {
+                    NotificationCenter.default.post(name: .captureAndLift, object: r)
+                }
+                drawingState.selectionRubberBand = nil
+            } else {
+                if let r = drawingState.selectionRubberBand { drawingState.selectElements(in: r) }
+                drawingState.selectionRubberBand = nil
+            }
         }
         selAction = nil
     }
@@ -471,5 +478,6 @@ struct MetalView: NSViewRepresentable {
 // MARK: - Notifications
 
 extension Notification.Name {
-    static let hideOverlay = Notification.Name("HideOverlay")
+    static let hideOverlay   = Notification.Name("HideOverlay")
+    static let captureAndLift = Notification.Name("CaptureAndLift")
 }

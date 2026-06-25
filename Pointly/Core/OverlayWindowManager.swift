@@ -7,6 +7,7 @@ class OverlayWindowManager: ObservableObject {
     private var canvasWindows: [CGDirectDisplayID: NSWindow] = [:]
     private var toolbarPanel: NSPanel?
     private var paywallPanel: NSPanel?
+    private var liftedPanels: [NSPanel] = []
     private var isOverlayActive = false
     private var colorPanelObserver: NSKeyValueObservation?
     private var keyMonitor: Any?
@@ -36,6 +37,9 @@ class OverlayWindowManager: ObservableObject {
         NotificationCenter.default.addObserver(
             self, selector: #selector(handleShowPaywall(_:)),
             name: .showPaywall, object: nil)
+        NotificationCenter.default.addObserver(
+            self, selector: #selector(handleCaptureAndLift(_:)),
+            name: .captureAndLift, object: nil)
     }
 
     // MARK: - Canvas windows (one per screen, drawing surface only)
@@ -257,8 +261,82 @@ class OverlayWindowManager: ObservableObject {
         canvasWindows.values.forEach { $0.orderOut(nil) }
         toolbarPanel?.orderOut(nil)
         paywallPanel?.orderOut(nil)
+        liftedPanels.forEach { $0.orderOut(nil) }
+        liftedPanels.removeAll()
         colorPanelObserver = nil
         NSColorPanel.shared.level = .floating
+    }
+
+    // MARK: - Cut & Move capture
+
+    @objc private func handleCaptureAndLift(_ notification: Notification) {
+        guard let viewRect = notification.object as? CGRect else { return }
+        let mainID = displayID(for: NSScreen.main ?? NSScreen.screens[0])
+        guard let canvasWin = canvasWindows[mainID] else { return }
+
+        // Convert SwiftUI (top-left) rect → NSView (bottom-left) rect
+        let contentH = canvasWin.contentView?.frame.height ?? canvasWin.frame.height
+        let nsViewRect = NSRect(
+            x: viewRect.origin.x,
+            y: contentH - viewRect.origin.y - viewRect.height,
+            width: viewRect.width,
+            height: viewRect.height
+        )
+
+        // Convert NSView rect → AppKit screen rect (bottom-left origin of primary screen)
+        let screenRect = canvasWin.convertToScreen(nsViewRect)
+
+        // Convert AppKit screen rect → CG screen rect (top-left origin of primary screen)
+        let primaryH = NSScreen.screens.first?.frame.height ?? canvasWin.screen?.frame.height ?? screenRect.maxY
+        let cgRect = CGRect(
+            x: screenRect.origin.x,
+            y: primaryH - screenRect.origin.y - screenRect.height,
+            width: screenRect.width,
+            height: screenRect.height
+        )
+
+        // Capture all windows below our canvas overlay (real screen content only)
+        let windowID = CGWindowID(canvasWin.windowNumber)
+        guard let cgImage = CGWindowListCreateImage(
+            cgRect,
+            .optionOnScreenBelowWindow,
+            windowID,
+            .bestResolution
+        ) else { return }
+
+        // Erase any annotations overlapping the selected area
+        sharedDrawingState.deleteElements(in: viewRect)
+
+        // Show the captured area as a floating draggable panel
+        let nsImage = NSImage(cgImage: cgImage, size: screenRect.size)
+        showLiftedCapture(image: nsImage, screenRect: screenRect)
+    }
+
+    private func showLiftedCapture(image: NSImage, screenRect: NSRect) {
+        let panel = NSPanel(
+            contentRect: screenRect,
+            styleMask: [.borderless],
+            backing: .buffered,
+            defer: false
+        )
+        panel.level                    = NSWindow.Level(rawValue: NSWindow.Level.screenSaver.rawValue + 2)
+        panel.backgroundColor          = .clear
+        panel.isOpaque                 = false
+        panel.hasShadow                = true
+        panel.isMovableByWindowBackground = true
+        panel.ignoresMouseEvents       = false
+        panel.isReleasedWhenClosed     = false
+        panel.collectionBehavior       = [.canJoinAllSpaces, .fullScreenAuxiliary]
+
+        let captured = panel
+        panel.contentView = FirstMouseHostingView(rootView:
+            LiftedCaptureView(image: image) { [weak self, weak captured] in
+                captured?.orderOut(nil)
+                self?.liftedPanels.removeAll { $0 === captured }
+            }
+        )
+        liftedPanels.append(panel)
+        panel.orderFrontRegardless()
     }
 
     // MARK: - Paywall
