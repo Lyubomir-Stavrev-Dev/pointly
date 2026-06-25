@@ -31,16 +31,11 @@ struct OverlayView: View {
             // Erase covers for Cut & Move — rendered at canvas level so they reliably
             // hide real app content beneath the transparent canvas window.
             ForEach(drawingState.liftedCovers) { cover in
-                Group {
-                    if let img = cover.image {
-                        Image(nsImage: img).resizable()
-                    } else {
-                        Rectangle().fill(cover.fillColor)
-                    }
-                }
-                .frame(width: cover.rect.width, height: cover.rect.height)
-                .position(x: cover.rect.midX, y: cover.rect.midY)
-                .allowsHitTesting(false)
+                Rectangle()
+                    .fill(cover.fillColor)
+                    .frame(width: cover.rect.width, height: cover.rect.height)
+                    .position(x: cover.rect.midX, y: cover.rect.midY)
+                    .allowsHitTesting(false)
             }
 
             // Gesture capture layer + spotlight mouse tracking

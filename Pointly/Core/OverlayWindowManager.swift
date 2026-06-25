@@ -302,21 +302,14 @@ class OverlayWindowManager: ObservableObject {
         // Erase canvas annotations in the selected area
         sharedDrawingState.deleteElements(in: viewRect)
 
-        // Sample the edge pixels of the capture to approximate the background color.
-        // For a terminal: dark border pixels → dark fill that looks like empty space.
-        // For slides or browser: matches the surrounding background color.
-        let fillNSColor = sampleEdgeColor(of: fgCG)
-        let fillColor   = Color(fillNSColor)
-
-        // Try to get an exact background screenshot (below the foreground app window).
-        // This is best-effort; the edge-color fill is always the reliable fallback.
-        let bgCG    = captureBackgroundBehindForeground(in: cgRect)
-        let bgImage = bgCG.map { NSImage(cgImage: $0, size: screenRect.size) }
+        // Sample the border pixels of the capture to get the surrounding background color.
+        // Simple solid fill — no background screenshot, no compositing tricks.
+        let fillColor = Color(sampleEdgeColor(of: fgCG))
 
         // Register the cover with DrawingState so OverlayView renders it INSIDE the
         // canvas window (level 1000) — guaranteed to appear above the real app below.
         let coverID = sharedDrawingState.addLiftedCover(rect: viewRect,
-                                                         image: bgImage,
+                                                         image: nil,
                                                          fillColor: fillColor)
 
         // Show the captured region as a floating draggable panel, offset so it's
@@ -361,26 +354,6 @@ class OverlayWindowManager: ObservableObject {
         }
         guard n > 0 else { return NSColor(white: 0.08, alpha: 1) }
         return NSColor(red: r/n/255, green: g/n/255, blue: b/n/255, alpha: 1)
-    }
-
-    // Best-effort: capture what's behind the frontmost real app window.
-    private func captureBackgroundBehindForeground(in cgRect: CGRect) -> CGImage? {
-        let ourPID = Int32(ProcessInfo.processInfo.processIdentifier)
-        guard let list = CGWindowListCopyWindowInfo([.optionOnScreenOnly],
-                                                    kCGNullWindowID) as? [[String: Any]] else { return nil }
-        for info in list {
-            let pid = info[kCGWindowOwnerPID as String] as? Int32 ?? 0
-            guard pid != ourPID else { continue }
-            let layer = info[kCGWindowLayer as String] as? Int ?? 0
-            guard layer >= 0 else { continue }
-            guard let widRaw = info[kCGWindowNumber as String] as? Int else { continue }
-            let wid = CGWindowID(widRaw)
-            guard let boundsDict = info[kCGWindowBounds as String] as? NSDictionary,
-                  let windowRect = CGRect(dictionaryRepresentation: boundsDict),
-                  windowRect.intersects(cgRect) else { continue }
-            return CGWindowListCreateImage(cgRect, .optionOnScreenBelowWindow, wid, .bestResolution)
-        }
-        return nil
     }
 
     private func showLiftedCapture(image: NSImage, floatingRect: NSRect, coverID: UUID) {
