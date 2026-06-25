@@ -4,11 +4,12 @@ import AppKit
 struct LiftedCaptureView: View {
     let image: NSImage
     let onDismiss: () -> Void
-    let onResizeStart: () -> NSRect
-    let onResize: (NSRect) -> Void
+    let onGetFrame: () -> NSRect       // snapshot current panel frame
+    let onSetFrame: (NSRect) -> Void   // update panel frame
 
-    @State private var isHovered = false
-    @State private var startFrame: NSRect? = nil
+    @State private var isHovered   = false
+    @State private var moveStart:   NSRect? = nil
+    @State private var resizeStart: NSRect? = nil
 
     private enum HandlePos: CaseIterable {
         case topLeft, topRight, bottomLeft, bottomRight
@@ -16,12 +17,14 @@ struct LiftedCaptureView: View {
 
     var body: some View {
         ZStack(alignment: .topTrailing) {
+            // Image body — drag to move the panel
             Image(nsImage: image)
                 .resizable()
-                .aspectRatio(contentMode: .fill)
+                .gesture(moveDrag)
 
             RoundedRectangle(cornerRadius: 3)
                 .stroke(Color.accentColor.opacity(0.9), lineWidth: 1.5)
+                .allowsHitTesting(false)
 
             if isHovered {
                 Button(action: onDismiss) {
@@ -41,16 +44,39 @@ struct LiftedCaptureView: View {
         }
         .clipShape(RoundedRectangle(cornerRadius: 3))
         .shadow(color: .black.opacity(0.35), radius: 8, x: 0, y: 3)
-        // Corner handles sit outside the clip so they're fully visible
-        .overlay(alignment: .topLeading)    { if isHovered { handle(.topLeft) } }
-        .overlay(alignment: .topTrailing)   { if isHovered { handle(.topRight) } }
-        .overlay(alignment: .bottomLeading) { if isHovered { handle(.bottomLeft) } }
-        .overlay(alignment: .bottomTrailing){ if isHovered { handle(.bottomRight) } }
+        // Corner handles outside the clip so they render fully at the edges
+        .overlay(alignment: .topLeading)     { if isHovered { handle(.topLeft) } }
+        .overlay(alignment: .topTrailing)    { if isHovered { handle(.topRight) } }
+        .overlay(alignment: .bottomLeading)  { if isHovered { handle(.bottomLeft) } }
+        .overlay(alignment: .bottomTrailing) { if isHovered { handle(.bottomRight) } }
         .onHover { hovered in
             withAnimation { isHovered = hovered }
             (hovered ? NSCursor.openHand : NSCursor.arrow).set()
         }
     }
+
+    // MARK: - Move (drag anywhere on the image body)
+
+    private var moveDrag: some Gesture {
+        DragGesture(minimumDistance: 0)
+            .onChanged { value in
+                guard resizeStart == nil else { return }
+                if moveStart == nil { moveStart = onGetFrame() }
+                guard let sf = moveStart else { return }
+                NSCursor.closedHand.set()
+                onSetFrame(NSRect(
+                    origin: NSPoint(x: sf.minX + value.translation.width,
+                                   y: sf.minY - value.translation.height),
+                    size: sf.size
+                ))
+            }
+            .onEnded { _ in
+                moveStart = nil
+                NSCursor.openHand.set()
+            }
+    }
+
+    // MARK: - Resize handle
 
     private func handle(_ pos: HandlePos) -> some View {
         Circle()
@@ -58,35 +84,34 @@ struct LiftedCaptureView: View {
             .overlay(Circle().stroke(Color.accentColor, lineWidth: 1.5))
             .frame(width: 11, height: 11)
             .contentShape(Circle().inset(by: -8))
+            .onHover { hovered in (hovered ? NSCursor.crosshair : NSCursor.openHand).set() }
             .gesture(
                 DragGesture(minimumDistance: 0)
                     .onChanged { value in
-                        if startFrame == nil { startFrame = onResizeStart() }
-                        guard let sf = startFrame else { return }
-                        onResize(newFrame(from: sf, handle: pos, delta: value.translation))
+                        guard moveStart == nil else { return }
+                        if resizeStart == nil { resizeStart = onGetFrame() }
+                        guard let sf = resizeStart else { return }
+                        onSetFrame(resizedFrame(from: sf, handle: pos, delta: value.translation))
                     }
-                    .onEnded { _ in startFrame = nil }
+                    .onEnded { _ in resizeStart = nil }
             )
     }
 
-    // Computes the updated NSRect (AppKit screen coords, origin bottom-left)
-    // for a given corner drag. SwiftUI dy > 0 means downward on screen,
-    // which is decreasing y in AppKit, so the signs are flipped for vertical edges.
-    private func newFrame(from start: NSRect, handle: HandlePos, delta: CGSize) -> NSRect {
-        var minX = start.minX, maxX = start.maxX
-        var minY = start.minY, maxY = start.maxY
-        let dx = delta.width, dy = delta.height
+    // MARK: - Frame math
+    // AppKit origin is bottom-left of screen; SwiftUI drag dy > 0 means moving downward
+    // on screen = decreasing y in AppKit, so vertical edges get -dy.
 
+    private func resizedFrame(from s: NSRect, handle: HandlePos, delta: CGSize) -> NSRect {
+        var minX = s.minX, maxX = s.maxX, minY = s.minY, maxY = s.maxY
+        let dx = delta.width, dy = delta.height
         switch handle {
         case .topLeft:     minX += dx; maxY -= dy
         case .topRight:    maxX += dx; maxY -= dy
         case .bottomLeft:  minX += dx; minY -= dy
         case .bottomRight: maxX += dx; minY -= dy
         }
-
         if maxX - minX < 50 { maxX = minX + 50 }
         if maxY - minY < 50 { maxY = minY + 50 }
-
         return NSRect(x: minX, y: minY, width: maxX - minX, height: maxY - minY)
     }
 }

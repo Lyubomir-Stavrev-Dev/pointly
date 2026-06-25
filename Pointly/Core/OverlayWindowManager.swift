@@ -363,14 +363,13 @@ class OverlayWindowManager: ObservableObject {
             backing: .buffered,
             defer: false
         )
-        floating.level                       = NSWindow.Level(rawValue: NSWindow.Level.screenSaver.rawValue + 2)
-        floating.backgroundColor             = .clear
-        floating.isOpaque                    = false
-        floating.hasShadow                   = true
-        floating.isMovableByWindowBackground = true
-        floating.ignoresMouseEvents          = false
-        floating.isReleasedWhenClosed        = false
-        floating.collectionBehavior          = [.canJoinAllSpaces, .fullScreenAuxiliary]
+        floating.level                = NSWindow.Level(rawValue: NSWindow.Level.screenSaver.rawValue + 2)
+        floating.backgroundColor      = .clear
+        floating.isOpaque             = false
+        floating.hasShadow            = true
+        floating.ignoresMouseEvents   = false
+        floating.isReleasedWhenClosed = false
+        floating.collectionBehavior   = [.canJoinAllSpaces, .fullScreenAuxiliary]
 
         let captured = floating
         floating.contentView = FirstMouseHostingView(rootView:
@@ -381,8 +380,8 @@ class OverlayWindowManager: ObservableObject {
                     self?.sharedDrawingState.removeLiftedCover(id: coverID)
                     self?.liftedCaptures.removeAll { $0 === captured }
                 },
-                onResizeStart: { captured.frame },
-                onResize: { newFrame in captured.setFrame(newFrame, display: true) }
+                onGetFrame: { captured.frame },
+                onSetFrame: { newFrame in captured.setFrame(newFrame, display: true) }
             )
         )
         liftedCaptures.append(floating)
