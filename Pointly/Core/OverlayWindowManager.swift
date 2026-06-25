@@ -7,7 +7,7 @@ class OverlayWindowManager: ObservableObject {
     private var canvasWindows: [CGDirectDisplayID: NSWindow] = [:]
     private var toolbarPanel: NSPanel?
     private var paywallPanel: NSPanel?
-    private var liftedPanels: [NSPanel] = []
+    private var liftedCaptures: [(floating: NSPanel, cover: NSPanel?)] = []
     private var isOverlayActive = false
     private var colorPanelObserver: NSKeyValueObservation?
     private var keyMonitor: Any?
@@ -261,8 +261,8 @@ class OverlayWindowManager: ObservableObject {
         canvasWindows.values.forEach { $0.orderOut(nil) }
         toolbarPanel?.orderOut(nil)
         paywallPanel?.orderOut(nil)
-        liftedPanels.forEach { $0.orderOut(nil) }
-        liftedPanels.removeAll()
+        liftedCaptures.forEach { $0.floating.orderOut(nil); $0.cover?.orderOut(nil) }
+        liftedCaptures.removeAll()
         colorPanelObserver = nil
         NSColorPanel.shared.level = .floating
     }
@@ -274,7 +274,7 @@ class OverlayWindowManager: ObservableObject {
         let mainID = displayID(for: NSScreen.main ?? NSScreen.screens[0])
         guard let canvasWin = canvasWindows[mainID] else { return }
 
-        // Convert SwiftUI (top-left) rect → NSView (bottom-left) rect
+        // SwiftUI (top-left) → NSView (bottom-left) → AppKit screen rect
         let contentH = canvasWin.contentView?.frame.height ?? canvasWin.frame.height
         let nsViewRect = NSRect(
             x: viewRect.origin.x,
@@ -282,11 +282,9 @@ class OverlayWindowManager: ObservableObject {
             width: viewRect.width,
             height: viewRect.height
         )
-
-        // Convert NSView rect → AppKit screen rect (bottom-left origin of primary screen)
         let screenRect = canvasWin.convertToScreen(nsViewRect)
 
-        // Convert AppKit screen rect → CG screen rect (top-left origin of primary screen)
+        // AppKit screen rect → CG screen rect (CG has top-left origin on primary screen)
         let primaryH = NSScreen.screens.first?.frame.height ?? canvasWin.screen?.frame.height ?? screenRect.maxY
         let cgRect = CGRect(
             x: screenRect.origin.x,
@@ -295,48 +293,100 @@ class OverlayWindowManager: ObservableObject {
             height: screenRect.height
         )
 
-        // Capture all windows below our canvas overlay (real screen content only)
-        let windowID = CGWindowID(canvasWin.windowNumber)
-        guard let cgImage = CGWindowListCreateImage(
-            cgRect,
-            .optionOnScreenBelowWindow,
-            windowID,
-            .bestResolution
-        ) else { return }
+        // Foreground: everything visible to the user below our canvas
+        let canvasID = CGWindowID(canvasWin.windowNumber)
+        guard let fgCG = CGWindowListCreateImage(cgRect, .optionOnScreenBelowWindow,
+                                                  canvasID, .bestResolution) else { return }
 
-        // Erase any annotations overlapping the selected area
+        // Background: what was behind the frontmost real app (shown at the erased spot)
+        let bgCG = captureBackgroundBehindForeground(in: cgRect)
+
         sharedDrawingState.deleteElements(in: viewRect)
 
-        // Show the captured area as a floating draggable panel
-        let nsImage = NSImage(cgImage: cgImage, size: screenRect.size)
-        showLiftedCapture(image: nsImage, screenRect: screenRect)
+        let fgImage = NSImage(cgImage: fgCG, size: screenRect.size)
+        let bgImage = bgCG.map { NSImage(cgImage: $0, size: screenRect.size) }
+
+        // Offset the floating image slightly so it is visually separate from the cover
+        let floatingRect = NSRect(x: screenRect.minX + 14, y: screenRect.minY - 14,
+                                  width: screenRect.width, height: screenRect.height)
+        showLiftedCapture(foreground: fgImage, floatingRect: floatingRect,
+                          background: bgImage, coverRect: screenRect)
     }
 
-    private func showLiftedCapture(image: NSImage, screenRect: NSRect) {
-        let panel = NSPanel(
-            contentRect: screenRect,
+    // Finds the topmost real application window that intersects cgRect
+    // (CG coordinates) and captures everything below it — the "background"
+    // that will be shown at the erased position.
+    private func captureBackgroundBehindForeground(in cgRect: CGRect) -> CGImage? {
+        let ourPID = Int32(ProcessInfo.processInfo.processIdentifier)
+        guard let list = CGWindowListCopyWindowInfo([.optionOnScreenOnly],
+                                                    kCGNullWindowID) as? [[String: Any]] else { return nil }
+        for info in list {
+            let pid = info[kCGWindowOwnerPID as String] as? Int32 ?? 0
+            guard pid != ourPID else { continue }
+            let layer = info[kCGWindowLayer as String] as? Int ?? 0
+            guard layer >= 0 else { continue }
+            guard let widRaw = info[kCGWindowNumber as String] as? Int else { continue }
+            let wid = CGWindowID(widRaw)
+            guard let boundsDict = info[kCGWindowBounds as String] as? NSDictionary,
+                  let windowRect = CGRect(dictionaryRepresentation: boundsDict) else { continue }
+            guard windowRect.intersects(cgRect) else { continue }
+            return CGWindowListCreateImage(cgRect, .optionOnScreenBelowWindow, wid, .bestResolution)
+        }
+        return nil
+    }
+
+    private func showLiftedCapture(foreground: NSImage, floatingRect: NSRect,
+                                   background: NSImage?, coverRect: NSRect) {
+        // Cover panel — sits between normal apps and our canvas, hides the original area
+        var coverPanel: NSPanel? = nil
+        if let bg = background {
+            let cover = NSPanel(
+                contentRect: coverRect,
+                styleMask: [.borderless],
+                backing: .buffered,
+                defer: false
+            )
+            cover.level               = NSWindow.Level(rawValue: 1)  // above apps, below canvas
+            cover.backgroundColor     = .clear
+            cover.isOpaque            = false
+            cover.hasShadow           = false
+            cover.ignoresMouseEvents  = true
+            cover.isReleasedWhenClosed = false
+            cover.collectionBehavior  = [.canJoinAllSpaces, .fullScreenAuxiliary]
+            let iv = NSImageView(image: bg)
+            iv.imageScaling = .scaleAxesIndependently
+            cover.contentView = iv
+            cover.orderFrontRegardless()
+            coverPanel = cover
+        }
+
+        // Floating panel — draggable lifted image
+        let floating = NSPanel(
+            contentRect: floatingRect,
             styleMask: [.borderless],
             backing: .buffered,
             defer: false
         )
-        panel.level                    = NSWindow.Level(rawValue: NSWindow.Level.screenSaver.rawValue + 2)
-        panel.backgroundColor          = .clear
-        panel.isOpaque                 = false
-        panel.hasShadow                = true
-        panel.isMovableByWindowBackground = true
-        panel.ignoresMouseEvents       = false
-        panel.isReleasedWhenClosed     = false
-        panel.collectionBehavior       = [.canJoinAllSpaces, .fullScreenAuxiliary]
+        floating.level                    = NSWindow.Level(rawValue: NSWindow.Level.screenSaver.rawValue + 2)
+        floating.backgroundColor          = .clear
+        floating.isOpaque                 = false
+        floating.hasShadow                = true
+        floating.isMovableByWindowBackground = true
+        floating.ignoresMouseEvents       = false
+        floating.isReleasedWhenClosed     = false
+        floating.collectionBehavior       = [.canJoinAllSpaces, .fullScreenAuxiliary]
 
-        let captured = panel
-        panel.contentView = FirstMouseHostingView(rootView:
-            LiftedCaptureView(image: image) { [weak self, weak captured] in
-                captured?.orderOut(nil)
-                self?.liftedPanels.removeAll { $0 === captured }
+        let capturedFloating = floating
+        let capturedCover    = coverPanel
+        floating.contentView = FirstMouseHostingView(rootView:
+            LiftedCaptureView(image: foreground) { [weak self] in
+                capturedFloating.orderOut(nil)
+                capturedCover?.orderOut(nil)
+                self?.liftedCaptures.removeAll { $0.floating === capturedFloating }
             }
         )
-        liftedPanels.append(panel)
-        panel.orderFrontRegardless()
+        liftedCaptures.append((floating: floating, cover: coverPanel))
+        floating.orderFrontRegardless()
     }
 
     // MARK: - Paywall
