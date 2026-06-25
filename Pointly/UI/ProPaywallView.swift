@@ -486,201 +486,249 @@ private struct LaserPointerPreview: View {
 }
 
 // MARK: - Dot Pen Preview
-// Glowing dots trace a Lissajous figure-8 — the same animation that was
-// saved from the original laser concept. Full faint path visible as guide dots.
+// Shows a math-diagram style drawing: a dotted circle being traced + dotted axes.
+// Dots are clearly spaced, demonstrating the "math/diagram" dotted-line style.
 
 private struct DotPenPreview: View {
-    @State private var startDate: Date = .now
+    // Phase 0: draw axes; Phase 1: draw circle; Phase 2: hold; Phase 3: fade
+    @State private var hAxisProg: CGFloat = 0
+    @State private var vAxisProg: CGFloat = 0
+    @State private var circleProg: CGFloat = 0
+    @State private var opacity: Double = 1
+    @State private var cursorPos = CGPoint(x: 185, y: 95)
 
-    private let trailLength = 18
-
-    private func lissajousPoint(t: CGFloat, in size: CGSize) -> CGPoint {
-        let cx = size.width  / 2
-        let cy = size.height / 2
-        let rx = size.width  * 0.37
-        let ry = size.height * 0.37
-        return CGPoint(
-            x: cx + rx * sin(2 * t * .pi * 2),
-            y: cy + ry * sin(t * .pi * 2)
-        )
-    }
+    private let cx: CGFloat = 185
+    private let cy: CGFloat = 95
+    private let r: CGFloat  = 52
 
     var body: some View {
-        TimelineView(.animation(minimumInterval: 1.0 / 60.0, paused: false)) { tl in
-            GeometryReader { geo in
-                let elapsed  = tl.date.timeIntervalSince(startDate)
-                let progress = CGFloat(elapsed.truncatingRemainder(dividingBy: 4.0) / 4.0)
+        ZStack {
+            Color(red: 0.06, green: 0.06, blue: 0.12)
 
-                ZStack {
-                    Color(red: 0.06, green: 0.06, blue: 0.12)
-
-                    Canvas { ctx, size in
-                        // Faint guide dots showing the full figure-8 path
-                        let guideCount = 80
-                        for i in 0..<guideCount {
-                            let t = CGFloat(i) / CGFloat(guideCount)
-                            let pt = lissajousPoint(t: t, in: size)
-                            let r: CGFloat = 1.3
-                            ctx.fill(
-                                Path(ellipseIn: CGRect(x: pt.x - r, y: pt.y - r, width: r*2, height: r*2)),
-                                with: .color(Color.white.opacity(0.14))
-                            )
-                        }
-
-                        // Glowing animated trail
-                        for i in 0..<trailLength {
-                            let t = (progress - CGFloat(i) * 0.016 + 2.0)
-                                .truncatingRemainder(dividingBy: 1.0)
-                            let pt   = lissajousPoint(t: t, in: size)
-                            let fade = pow(CGFloat(trailLength - i) / CGFloat(trailLength), 1.5)
-                            let coreR = 3.8 * fade
-                            let glowR = 10.0 * fade
-
-                            ctx.fill(
-                                Path(ellipseIn: CGRect(x: pt.x - glowR, y: pt.y - glowR,
-                                                       width: glowR*2, height: glowR*2)),
-                                with: .color((Color(hex: "#F4644D") ?? .orange).opacity(Double(fade) * 0.30))
-                            )
-                            ctx.fill(
-                                Path(ellipseIn: CGRect(x: pt.x - coreR, y: pt.y - coreR,
-                                                       width: coreR*2, height: coreR*2)),
-                                with: .color(Color.white.opacity(Double(fade) * 0.92))
-                            )
-                        }
+            // Subtle graph-paper dots
+            Canvas { ctx, size in
+                let sp: CGFloat = 20
+                var x: CGFloat = fmod(size.width / 2, sp)
+                while x < size.width {
+                    var y: CGFloat = fmod(size.height / 2, sp)
+                    while y < size.height {
+                        let dot: CGFloat = 0.9
+                        ctx.fill(
+                            Path(ellipseIn: CGRect(x: x-dot, y: y-dot, width: dot*2, height: dot*2)),
+                            with: .color(Color.white.opacity(0.08))
+                        )
+                        y += sp
                     }
+                    x += sp
                 }
+            }
+
+            // Horizontal axis dotted line
+            if hAxisProg > 0 {
+                let endX = cx - 120 + 240 * hAxisProg
+                Path { p in
+                    p.move(to: CGPoint(x: cx - 120, y: cy))
+                    p.addLine(to: CGPoint(x: endX, y: cy))
+                }
+                .stroke(Color.white.opacity(0.35),
+                        style: StrokeStyle(lineWidth: 1.5, lineCap: .round, dash: [0, 8]))
+                .opacity(opacity)
+            }
+
+            // Vertical axis dotted line
+            if vAxisProg > 0 {
+                let endY = cy - 70 + 140 * vAxisProg
+                Path { p in
+                    p.move(to: CGPoint(x: cx, y: cy - 70))
+                    p.addLine(to: CGPoint(x: cx, y: endY))
+                }
+                .stroke(Color.white.opacity(0.35),
+                        style: StrokeStyle(lineWidth: 1.5, lineCap: .round, dash: [0, 8]))
+                .opacity(opacity)
+            }
+
+            // Dotted circle
+            Circle()
+                .trim(from: 0, to: circleProg)
+                .stroke(
+                    AnyShapeStyle(paywallGradient),
+                    style: StrokeStyle(lineWidth: 2.5, lineCap: .round, dash: [0, 9])
+                )
+                .frame(width: r * 2, height: r * 2)
+                .rotationEffect(.degrees(-90))
+                .position(x: cx, y: cy)
+                .opacity(opacity)
+
+            // Cursor dot
+            ZStack {
+                Circle()
+                    .fill((Color(hex: "#F4644D") ?? .orange).opacity(0.35))
+                    .frame(width: 14, height: 14)
+                    .blur(radius: 4)
+                Circle()
+                    .fill(Color.white)
+                    .frame(width: 5, height: 5)
+            }
+            .position(cursorPos)
+            .opacity(opacity)
+        }
+        .task {
+            while true {
+                hAxisProg = 0; vAxisProg = 0; circleProg = 0; opacity = 1
+                cursorPos = CGPoint(x: cx - 120, y: cy)
+                try? await Task.sleep(nanoseconds: 300_000_000)
+
+                // Draw horizontal axis
+                for i in 1...30 {
+                    let p = CGFloat(i) / 30
+                    withAnimation(.linear(duration: 0.04)) {
+                        hAxisProg = p
+                        cursorPos = CGPoint(x: cx - 120 + 240 * p, y: cy)
+                    }
+                    try? await Task.sleep(nanoseconds: 35_000_000)
+                }
+                try? await Task.sleep(nanoseconds: 120_000_000)
+
+                // Draw vertical axis
+                cursorPos = CGPoint(x: cx, y: cy - 70)
+                for i in 1...20 {
+                    let p = CGFloat(i) / 20
+                    withAnimation(.linear(duration: 0.04)) {
+                        vAxisProg = p
+                        cursorPos = CGPoint(x: cx, y: cy - 70 + 140 * p)
+                    }
+                    try? await Task.sleep(nanoseconds: 35_000_000)
+                }
+                try? await Task.sleep(nanoseconds: 120_000_000)
+
+                // Draw dotted circle
+                cursorPos = CGPoint(x: cx, y: cy - r)
+                for i in 1...50 {
+                    let p = CGFloat(i) / 50
+                    withAnimation(.linear(duration: 0.04)) {
+                        circleProg = p
+                        cursorPos = CGPoint(
+                            x: cx + r * sin(p * .pi * 2),
+                            y: cy - r * cos(p * .pi * 2)
+                        )
+                    }
+                    try? await Task.sleep(nanoseconds: 35_000_000)
+                }
+
+                // Hold then fade
+                try? await Task.sleep(nanoseconds: 900_000_000)
+                withAnimation(.easeOut(duration: 0.5)) { opacity = 0 }
+                try? await Task.sleep(nanoseconds: 600_000_000)
             }
         }
     }
 }
 
 // MARK: - Screen Blur Preview
-// Fake screen content (UI blocks) with a brush sweeping and leaving a
-// frosted-glass blurred trail — represents blurring the screen behind the overlay.
+// Two stacked layers of fake UI content: a sharp layer below and a blurred layer on top.
+// A mask that grows as the "brush" moves reveals the blurred layer, accurately showing
+// how the tool blurs screen content behind the overlay.
 
 private struct ScreenBlurPreview: View {
+    @State private var revealedPoints: [CGPoint] = []
+    @State private var cursorPos = CGPoint(x: 55, y: 55)
 
-    @State private var blurProgress: [CGFloat] = [0, 0, 0]
-    @State private var cursorPos = CGPoint(x: 50, y: 95)
-
-    private let brushPaths: [[CGPoint]] = [
-        stride(from: 40.0,  through: 320.0, by: 11).map { x in CGPoint(x: x, y: 60 + sin(x / 40) * 9) },
-        stride(from: 310.0, through:  55.0, by: -11).map { x in CGPoint(x: x, y: 100 + sin(x / 35) * 10) },
-        stride(from: 75.0,  through: 285.0, by: 11).map { x in CGPoint(x: x, y: 142 + sin(x / 38) * 7) },
-    ]
+    private let strokePath: [CGPoint] =
+        stride(from: 55.0, through: 315.0, by: 7).map { x in
+            CGPoint(x: x, y: 80 + sin(x / 38) * 28)
+        }
 
     var body: some View {
         ZStack {
             Color(red: 0.09, green: 0.09, blue: 0.18)
 
-            // Fake screen UI content
-            VStack(alignment: .leading, spacing: 9) {
-                HStack(spacing: 7) {
-                    RoundedRectangle(cornerRadius: 4)
-                        .fill((Color(hex: "#F4644D") ?? .orange).opacity(0.7))
-                        .frame(width: 80, height: 22)
-                    RoundedRectangle(cornerRadius: 4)
-                        .fill(Color.white.opacity(0.09))
-                        .frame(width: 110, height: 22)
-                    Spacer()
-                }
-                RoundedRectangle(cornerRadius: 3)
-                    .fill(Color.white.opacity(0.13))
-                    .frame(width: 185, height: 10)
-                HStack(spacing: 7) {
-                    RoundedRectangle(cornerRadius: 3)
-                        .fill((Color(hex: "#4FACFE") ?? .blue).opacity(0.45))
-                        .frame(width: 58, height: 16)
-                    RoundedRectangle(cornerRadius: 3)
-                        .fill(Color.white.opacity(0.07))
-                        .frame(width: 95, height: 16)
-                    Spacer()
-                }
-                RoundedRectangle(cornerRadius: 3)
-                    .fill(Color.white.opacity(0.07))
-                    .frame(width: 145, height: 10)
-                RoundedRectangle(cornerRadius: 3)
-                    .fill(Color.white.opacity(0.05))
-                    .frame(width: 120, height: 10)
-            }
-            .padding(.horizontal, 18)
-            .padding(.vertical, 14)
+            // Sharp content (always visible underneath)
+            FakeScreenContent()
 
-            // Frosted blur strokes applied so far
-            ForEach(0..<brushPaths.count, id: \.self) { i in
-                if blurProgress[i] > 0 {
-                    let count = max(2, Int(blurProgress[i] * CGFloat(brushPaths[i].count)))
-                    let pts   = Array(brushPaths[i].prefix(count))
-                    FrostedStroke(points: pts)
+            // Blurred version — revealed only where brush has passed
+            FakeScreenContent()
+                .blur(radius: 16)
+                .mask(
+                    Canvas { ctx, size in
+                        guard revealedPoints.count > 1 else { return }
+                        var path = Path()
+                        path.move(to: revealedPoints[0])
+                        for pt in revealedPoints.dropFirst() { path.addLine(to: pt) }
+                        ctx.stroke(path, with: .color(.white),
+                                   style: StrokeStyle(lineWidth: 42, lineCap: .round, lineJoin: .round))
+                    }
+                )
+
+            // White edge highlight so the blurred zone is clearly defined
+            if revealedPoints.count > 1 {
+                Canvas { ctx, size in
+                    var path = Path()
+                    path.move(to: revealedPoints[0])
+                    for pt in revealedPoints.dropFirst() { path.addLine(to: pt) }
+                    ctx.stroke(path, with: .color(Color.white.opacity(0.18)),
+                               style: StrokeStyle(lineWidth: 42, lineCap: .round, lineJoin: .round))
+                    ctx.stroke(path, with: .color(Color.white.opacity(0.30)),
+                               style: StrokeStyle(lineWidth: 2, lineCap: .round, lineJoin: .round))
                 }
             }
 
             // Brush cursor
             ZStack {
-                Circle()
-                    .stroke(Color.white.opacity(0.50), lineWidth: 1.2)
-                    .frame(width: 26, height: 26)
-                Circle()
-                    .fill(Color.white.opacity(0.07))
-                    .frame(width: 26, height: 26)
+                Circle().stroke(Color.white.opacity(0.55), lineWidth: 1.3).frame(width: 32, height: 32)
+                Circle().fill(Color.white.opacity(0.06)).frame(width: 32, height: 32)
             }
             .position(cursorPos)
         }
         .task {
             while true {
-                blurProgress = [0, 0, 0]
-                try? await Task.sleep(nanoseconds: 400_000_000)
+                revealedPoints = []
+                try? await Task.sleep(nanoseconds: 450_000_000)
 
-                for i in 0..<brushPaths.count {
-                    let pts = brushPaths[i]
-                    withAnimation(.linear(duration: 0.05)) { cursorPos = pts[0] }
-                    try? await Task.sleep(nanoseconds: 150_000_000)
+                cursorPos = strokePath[0]
+                try? await Task.sleep(nanoseconds: 100_000_000)
 
-                    for j in 1...pts.count {
-                        let prog = CGFloat(j) / CGFloat(pts.count)
-                        withAnimation(.linear(duration: 0.045)) {
-                            cursorPos    = pts[min(j, pts.count - 1)]
-                            blurProgress[i] = prog
-                        }
-                        try? await Task.sleep(nanoseconds: 45_000_000)
-                    }
-                    try? await Task.sleep(nanoseconds: 180_000_000)
+                for pt in strokePath {
+                    withAnimation(.linear(duration: 0.04)) { cursorPos = pt }
+                    revealedPoints.append(pt)
+                    try? await Task.sleep(nanoseconds: 38_000_000)
                 }
 
+                try? await Task.sleep(nanoseconds: 1_000_000_000)
+                withAnimation(.easeOut(duration: 0.6)) { revealedPoints = [] }
                 try? await Task.sleep(nanoseconds: 700_000_000)
-                withAnimation(.easeOut(duration: 0.55)) { blurProgress = [0, 0, 0] }
-                try? await Task.sleep(nanoseconds: 650_000_000)
             }
         }
     }
 }
 
-private struct FrostedStroke: View {
-    let points: [CGPoint]
-
+private struct FakeScreenContent: View {
     var body: some View {
-        let path = Path { p in
-            guard points.count > 1 else { return }
-            p.move(to: points[0])
-            for pt in points.dropFirst() { p.addLine(to: pt) }
+        VStack(alignment: .leading, spacing: 11) {
+            HStack(spacing: 8) {
+                RoundedRectangle(cornerRadius: 5)
+                    .fill((Color(hex: "#F4644D") ?? .orange).opacity(0.85))
+                    .frame(width: 70, height: 26)
+                RoundedRectangle(cornerRadius: 5)
+                    .fill(Color.white.opacity(0.13))
+                    .frame(width: 105, height: 26)
+                Spacer()
+            }
+            RoundedRectangle(cornerRadius: 3).fill(Color.white.opacity(0.16)).frame(width: 175, height: 11)
+            HStack(spacing: 8) {
+                RoundedRectangle(cornerRadius: 3)
+                    .fill((Color(hex: "#4FACFE") ?? .blue).opacity(0.55))
+                    .frame(width: 54, height: 18)
+                RoundedRectangle(cornerRadius: 3)
+                    .fill(Color.white.opacity(0.09))
+                    .frame(width: 88, height: 18)
+                Spacer()
+            }
+            RoundedRectangle(cornerRadius: 3).fill(Color.white.opacity(0.09)).frame(width: 140, height: 10)
+            RoundedRectangle(cornerRadius: 3).fill(Color.white.opacity(0.06)).frame(width: 115, height: 10)
         }
-        ZStack {
-            path
-                .stroke(Color.white.opacity(0.10),
-                        style: StrokeStyle(lineWidth: 36, lineCap: .round, lineJoin: .round))
-                .blur(radius: 10)
-            path
-                .stroke(Color.white.opacity(0.16),
-                        style: StrokeStyle(lineWidth: 22, lineCap: .round, lineJoin: .round))
-                .blur(radius: 5)
-            path
-                .stroke(Color.white.opacity(0.22),
-                        style: StrokeStyle(lineWidth: 13, lineCap: .round, lineJoin: .round))
-                .blur(radius: 2)
-            path
-                .stroke(Color.white.opacity(0.28),
-                        style: StrokeStyle(lineWidth: 5, lineCap: .round, lineJoin: .round))
-        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 14)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
 }
 

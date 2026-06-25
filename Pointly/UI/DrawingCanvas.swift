@@ -317,7 +317,7 @@ struct DrawingCanvas: View {
     // MARK: - Dot Pen: dots spaced along the path using a dashed round-capped stroke
     private func drawDotPen(_ element: DrawingElement, in context: GraphicsContext) {
         guard !element.points.isEmpty else { return }
-        let spacing = max(element.thickness * 1.8, 4)
+        let spacing = max(element.thickness * 4.0, 10)
 
         if element.points.count == 1, let pt = element.points.first {
             let r = element.thickness / 2
@@ -353,40 +353,18 @@ struct DrawingCanvas: View {
         )
     }
 
-    // MARK: - Screen Blur: frosted-glass brush stroke simulating content blur
+    // MARK: - Screen Blur: thin guide outline only — actual blur rendered by NSVisualEffectView layer in OverlayView
     private func drawScreenBlur(_ element: DrawingElement, in context: GraphicsContext) {
-        guard !element.points.isEmpty else { return }
+        guard element.points.count > 1 else { return }
         let brushWidth = (element.blurRadius ?? element.thickness * 3) * 2
-
-        if element.points.count == 1, let pt = element.points.first {
-            let r = brushWidth / 2
-            let layers: [(Double, CGFloat)] = [(0.06, r * 2.4), (0.10, r * 1.6), (0.15, r)]
-            for (alpha, radius) in layers {
-                context.fill(
-                    Path(ellipseIn: CGRect(x: pt.x - radius, y: pt.y - radius, width: radius * 2, height: radius * 2)),
-                    with: .color(Color.white.opacity(alpha))
-                )
-            }
-            return
-        }
-
         var path = Path()
         path.move(to: element.points[0])
         for pt in element.points.dropFirst() { path.addLine(to: pt) }
-
-        let layers: [(Double, CGFloat)] = [
-            (0.06, brushWidth + 20),
-            (0.10, brushWidth + 8),
-            (0.16, brushWidth),
-            (0.18, brushWidth * 0.55),
-        ]
-        for (alpha, w) in layers {
-            context.stroke(
-                path,
-                with: .color(Color.white.opacity(alpha)),
-                style: StrokeStyle(lineWidth: w, lineCap: .round, lineJoin: .round)
-            )
-        }
+        context.stroke(
+            path,
+            with: .color(Color.white.opacity(0.20)),
+            style: StrokeStyle(lineWidth: brushWidth, lineCap: .round, lineJoin: .round)
+        )
     }
 
     private func drawText(_ element: DrawingElement, in context: GraphicsContext) {

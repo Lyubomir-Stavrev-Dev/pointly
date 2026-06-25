@@ -39,6 +39,11 @@ struct OverlayView: View {
                     }
                 }
 
+            // Screen blur layer — NSVisualEffectView masked to drawn blur strokes
+            ScreenBlurLayer(elements: drawingState.elements, canvasHeight: canvasSize.height)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .allowsHitTesting(false)
+
             // Canvas
             if let renderer = metalRenderer {
                 MetalDrawingCanvas(state: drawingState, renderer: renderer)
@@ -461,6 +466,82 @@ struct MetalView: NSViewRepresentable {
                             viewportSize: CGSize(width: view.drawableSize.width,
                                                 height: view.drawableSize.height))
         }
+    }
+}
+
+// MARK: - Screen Blur Layer
+//
+// Places an NSVisualEffectView (.behindWindow) behind the drawing canvas.
+// A CAShapeLayer mask restricts blur visibility to exactly where the user
+// painted with the Screen Blur tool. Coordinates are flipped from SwiftUI
+// (Y-down) to CALayer (Y-up) during path construction.
+
+private struct ScreenBlurLayer: NSViewRepresentable {
+    let elements: [DrawingElement]
+    let canvasHeight: CGFloat
+
+    func makeNSView(context: Context) -> BlurOverlayNSView { BlurOverlayNSView() }
+
+    func updateNSView(_ nsView: BlurOverlayNSView, context: Context) {
+        nsView.update(elements: elements, canvasHeight: canvasHeight)
+    }
+}
+
+final class BlurOverlayNSView: NSView {
+    private let effectView: NSVisualEffectView = {
+        let v = NSVisualEffectView()
+        v.material   = .hudWindow
+        v.blendingMode = .behindWindow
+        v.state      = .active
+        v.wantsLayer = true
+        return v
+    }()
+    private let maskLayer = CAShapeLayer()
+
+    override init(frame: NSRect) {
+        super.init(frame: frame)
+        wantsLayer = true
+        addSubview(effectView)
+        effectView.autoresizingMask = [.width, .height]
+        maskLayer.fillColor = NSColor.black.cgColor
+        effectView.layer?.mask = maskLayer
+    }
+    required init?(coder: NSCoder) { fatalError() }
+
+    override func layout() {
+        super.layout()
+        effectView.frame = bounds
+        maskLayer.frame  = bounds
+    }
+
+    func update(elements: [DrawingElement], canvasHeight: CGFloat) {
+        let blurElements = elements.filter { $0.tool == .screenBlur }
+        guard canvasHeight > 0 else { maskLayer.path = nil; return }
+
+        let combined = CGMutablePath()
+
+        for el in blurElements {
+            guard !el.points.isEmpty else { continue }
+            let brushW = (el.blurRadius ?? el.thickness * 3) * 2
+
+            // Flip Y: SwiftUI has (0,0) at top; CALayer has (0,0) at bottom
+            func flip(_ p: CGPoint) -> CGPoint { CGPoint(x: p.x, y: canvasHeight - p.y) }
+
+            if el.points.count == 1, let pt = el.points.first {
+                let fp = flip(pt)
+                let r  = brushW / 2
+                combined.addEllipse(in: CGRect(x: fp.x - r, y: fp.y - r, width: r * 2, height: r * 2))
+            } else {
+                let line = CGMutablePath()
+                line.move(to: flip(el.points[0]))
+                for pt in el.points.dropFirst() { line.addLine(to: flip(pt)) }
+                let stroked = line.copy(strokingWithWidth: brushW,
+                                        lineCap: .round, lineJoin: .round, miterLimit: 10)
+                combined.addPath(stroked)
+            }
+        }
+
+        maskLayer.path = combined.isEmpty ? nil : combined
     }
 }
 
