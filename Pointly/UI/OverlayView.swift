@@ -39,11 +39,6 @@ struct OverlayView: View {
                     }
                 }
 
-            // Screen blur layer — NSVisualEffectView masked to drawn blur strokes
-            ScreenBlurLayer(elements: drawingState.elements, canvasHeight: canvasSize.height)
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .allowsHitTesting(false)
-
             // Canvas
             if let renderer = metalRenderer {
                 MetalDrawingCanvas(state: drawingState, renderer: renderer)
@@ -469,23 +464,13 @@ struct MetalView: NSViewRepresentable {
     }
 }
 
-// MARK: - Screen Blur Layer
+// MARK: - Screen Blur View
 //
-// Places an NSVisualEffectView (.behindWindow) behind the drawing canvas.
-// A CAShapeLayer mask restricts blur visibility to exactly where the user
-// painted with the Screen Blur tool. Coordinates are flipped from SwiftUI
-// (Y-down) to CALayer (Y-up) during path construction.
-
-private struct ScreenBlurLayer: NSViewRepresentable {
-    let elements: [DrawingElement]
-    let canvasHeight: CGFloat
-
-    func makeNSView(context: Context) -> BlurOverlayNSView { BlurOverlayNSView() }
-
-    func updateNSView(_ nsView: BlurOverlayNSView, context: Context) {
-        nsView.update(elements: elements, canvasHeight: canvasHeight)
-    }
-}
+// Owned by OverlayWindowManager and placed in a dedicated NSPanel that sits
+// between normal app windows (level 1) and the canvas (level .screenSaver).
+// behindWindow blending blurs whatever apps are beneath that panel.
+// A CAShapeLayer mask restricts the blur to painted brush strokes.
+// Y coordinates are flipped from SwiftUI top-origin to CALayer bottom-origin.
 
 final class BlurOverlayNSView: NSView {
     private let effectView: NSVisualEffectView = {
