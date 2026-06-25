@@ -565,25 +565,22 @@ class DrawingState: ObservableObject {
     
     // MARK: - Undo/Redo Operations
     
+    var onWillUndo: (() -> Void)?
+    var onWillRedo: (() -> Void)?
+
     func undo() {
         guard canUndo else { return }
-        
-        // Save current state to redo stack
+        onWillUndo?()
         redoStack.append(elements)
-        
-        // Restore previous state
         if let previousState = undoStack.popLast() {
             elements = previousState
         }
     }
-    
+
     func redo() {
         guard canRedo else { return }
-        
-        // Save current state to undo stack
+        onWillRedo?()
         undoStack.append(elements)
-        
-        // Restore next state
         if let nextState = redoStack.popLast() {
             elements = nextState
         }

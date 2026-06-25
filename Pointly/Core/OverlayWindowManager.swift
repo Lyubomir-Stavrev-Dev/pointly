@@ -7,7 +7,7 @@ class OverlayWindowManager: ObservableObject {
     private var canvasWindows: [CGDirectDisplayID: NSWindow] = [:]
     private var toolbarPanel: NSPanel?
     private var paywallPanel: NSPanel?
-    private var liftedCaptures: [NSPanel] = []
+    private var liftedCaptures: [(panel: NSPanel, coverID: UUID)] = []
     private var isOverlayActive = false
     private var colorPanelObserver: NSKeyValueObservation?
     private var keyMonitor: Any?
@@ -40,6 +40,9 @@ class OverlayWindowManager: ObservableObject {
         NotificationCenter.default.addObserver(
             self, selector: #selector(handleCaptureAndLift(_:)),
             name: .captureAndLift, object: nil)
+
+        sharedDrawingState.onWillUndo = { [weak self] in self?.dismissAllLiftedCaptures() }
+        sharedDrawingState.onWillRedo = { [weak self] in self?.dismissAllLiftedCaptures() }
     }
 
     // MARK: - Canvas windows (one per screen, drawing surface only)
@@ -92,6 +95,10 @@ class OverlayWindowManager: ObservableObject {
             case 51, 117: // ⌫ backspace (51) or ⌦ forward delete (117)
                 if ds.selectedTool == .select && !ds.selectedElementIDs.isEmpty {
                     DispatchQueue.main.async { ds.deleteSelected() }
+                    return nil
+                }
+                if !self.liftedCaptures.isEmpty {
+                    DispatchQueue.main.async { self.dismissLastLiftedCapture() }
                     return nil
                 }
 
@@ -261,11 +268,24 @@ class OverlayWindowManager: ObservableObject {
         canvasWindows.values.forEach { $0.orderOut(nil) }
         toolbarPanel?.orderOut(nil)
         paywallPanel?.orderOut(nil)
-        liftedCaptures.forEach { $0.orderOut(nil) }
-        liftedCaptures.removeAll()
-        sharedDrawingState.clearLiftedCovers()
+        dismissAllLiftedCaptures()
         colorPanelObserver = nil
         NSColorPanel.shared.level = .floating
+    }
+
+    // MARK: - Lifted capture management
+
+    private func dismissLastLiftedCapture() {
+        guard let last = liftedCaptures.last else { return }
+        last.panel.orderOut(nil)
+        sharedDrawingState.removeLiftedCover(id: last.coverID)
+        liftedCaptures.removeLast()
+    }
+
+    private func dismissAllLiftedCaptures() {
+        liftedCaptures.forEach { $0.panel.orderOut(nil) }
+        liftedCaptures.removeAll()
+        sharedDrawingState.clearLiftedCovers()
     }
 
     // MARK: - Cut & Move capture
@@ -378,13 +398,13 @@ class OverlayWindowManager: ObservableObject {
                 onDismiss: { [weak self] in
                     captured.orderOut(nil)
                     self?.sharedDrawingState.removeLiftedCover(id: coverID)
-                    self?.liftedCaptures.removeAll { $0 === captured }
+                    self?.liftedCaptures.removeAll { $0.panel === captured }
                 },
                 onGetFrame: { captured.frame },
                 onSetFrame: { newFrame in captured.setFrame(newFrame, display: true) }
             )
         )
-        liftedCaptures.append(floating)
+        liftedCaptures.append((panel: floating, coverID: coverID))
         floating.orderFrontRegardless()
     }
 
