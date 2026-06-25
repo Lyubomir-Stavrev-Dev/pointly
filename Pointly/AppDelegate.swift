@@ -15,15 +15,18 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         NSApp.setActivationPolicy(.accessory)
         setupMenuBarItem()
 
+        // Always close any SwiftUI scene windows (e.g. blank Settings) that macOS
+        // may restore or show on activation — our own windows are opened explicitly below.
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+            for w in NSApp.windows where w !== self.onboardingWindow
+                                      && w !== self.settingsWindow {
+                w.orderOut(nil)
+            }
+        }
+
         let isFirstLaunch = !UserDefaults.standard.bool(forKey: "hasSeenOnboarding")
         if isFirstLaunch {
             showOnboarding()
-            // Close any SwiftUI scene window (Settings) that may appear after activation.
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                for w in NSApp.windows where w !== self.onboardingWindow {
-                    w.orderOut(nil)
-                }
-            }
         }
 
         overlayWindowManager = OverlayWindowManager()
