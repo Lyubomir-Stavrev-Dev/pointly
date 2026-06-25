@@ -490,10 +490,10 @@ private struct ScreenBlurLayer: NSViewRepresentable {
 final class BlurOverlayNSView: NSView {
     private let effectView: NSVisualEffectView = {
         let v = NSVisualEffectView()
-        v.material   = .hudWindow
+        v.material     = .underWindowBackground   // lightest tint — content stays visible, just blurred
         v.blendingMode = .behindWindow
-        v.state      = .active
-        v.wantsLayer = true
+        v.state        = .active
+        v.wantsLayer   = true
         return v
     }()
     private let maskLayer = CAShapeLayer()

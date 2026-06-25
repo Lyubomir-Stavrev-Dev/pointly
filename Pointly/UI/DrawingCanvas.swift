@@ -353,18 +353,10 @@ struct DrawingCanvas: View {
         )
     }
 
-    // MARK: - Screen Blur: thin guide outline only — actual blur rendered by NSVisualEffectView layer in OverlayView
+    // MARK: - Screen Blur: no canvas rendering — NSVisualEffectView in OverlayView handles it
     private func drawScreenBlur(_ element: DrawingElement, in context: GraphicsContext) {
-        guard element.points.count > 1 else { return }
-        let brushWidth = (element.blurRadius ?? element.thickness * 3) * 2
-        var path = Path()
-        path.move(to: element.points[0])
-        for pt in element.points.dropFirst() { path.addLine(to: pt) }
-        context.stroke(
-            path,
-            with: .color(Color.white.opacity(0.20)),
-            style: StrokeStyle(lineWidth: brushWidth, lineCap: .round, lineJoin: .round)
-        )
+        // The actual blur is rendered by BlurOverlayNSView (NSVisualEffectView + CAShapeLayer mask).
+        // Nothing drawn here so the blurred content is visible without any opaque overlay on top.
     }
 
     private func drawText(_ element: DrawingElement, in context: GraphicsContext) {
