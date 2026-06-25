@@ -13,7 +13,7 @@ enum DrawingTool: String, CaseIterable {
     case blurBrush = "blurBrush"
     case laserPointer = "laserPointer"
     case dotPen = "dotPen"
-    case screenBlur = "screenBlur"
+    case cutMove = "cutMove"
 
     // Shape Tools
     case rectangle = "rectangle"
@@ -40,7 +40,7 @@ enum DrawingTool: String, CaseIterable {
         case .blurBrush: return "Blur Brush"
         case .laserPointer: return "Laser Pointer"
         case .dotPen: return "Dot Pen"
-        case .screenBlur: return "Screen Blur"
+        case .cutMove: return "Cut & Move"
         case .rectangle: return "Rectangle"
         case .ellipse: return "Ellipse"
         case .triangle: return "Triangle"
@@ -65,7 +65,7 @@ enum DrawingTool: String, CaseIterable {
         case .blurBrush: return "camera.filters"
         case .laserPointer: return "laser.burst"
         case .dotPen: return "circle.dotted"
-        case .screenBlur: return "wand.and.sparkles"
+        case .cutMove: return "scissors"
         case .rectangle: return "rectangle"
         case .ellipse: return "circle"
         case .triangle: return "triangle"
@@ -90,7 +90,7 @@ enum DrawingTool: String, CaseIterable {
         case .blurBrush: return "Soft airbrush for emphasis and focus"
         case .laserPointer: return "Animated pointer for presentations"
         case .dotPen: return "Dotted drawing like math diagrams"
-        case .screenBlur: return "Blur screen content behind the overlay"
+        case .cutMove: return "Select an area and drag annotations to a new position"
         case .rectangle: return "Draw rectangular shapes"
         case .ellipse: return "Draw circular and oval shapes"
         case .triangle: return "Draw triangle shapes"
@@ -111,7 +111,7 @@ enum DrawingTool: String, CaseIterable {
         switch self {
         case .pen, .marker, .highlighter, .line, .arrow, .dotPen:
             return true
-        case .blurBrush, .screenBlur:
+        case .blurBrush:
             return true
         case .laserPointer:
             return true
@@ -127,7 +127,7 @@ enum DrawingTool: String, CaseIterable {
     /// Whether this tool supports color selection
     var supportsColor: Bool {
         switch self {
-        case .eraser, .magnifier, .spotlight, .select, .cursor, .screenBlur:
+        case .eraser, .magnifier, .spotlight, .select, .cursor, .cutMove:
             return false
         default:
             return true
@@ -486,15 +486,6 @@ class DrawingState: ObservableObject {
                 points: currentStroke,
                 color: selectedColor,
                 thickness: strokeThickness
-            )
-
-        case .screenBlur:
-            return DrawingElement(
-                tool: selectedTool,
-                points: currentStroke,
-                color: .white,
-                thickness: strokeThickness,
-                blurRadius: strokeThickness * 3.0
             )
 
         default:

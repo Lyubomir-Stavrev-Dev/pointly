@@ -86,7 +86,7 @@ struct OverlayView: View {
                 .allowsHitTesting(false)
 
             // Resize handles — interactive, on top (hidden for text-only selections)
-            if drawingState.selectedTool == .select,
+            if (drawingState.selectedTool == .select || drawingState.selectedTool == .cutMove),
                let box = drawingState.selectedBoundingBox,
                !drawingState.selectedElementsAreAllText {
                 resizeHandles(for: box)
@@ -110,7 +110,7 @@ struct OverlayView: View {
         .onAppear { drawingState.loadAnnotations() }
         .onReceive(NotificationCenter.default.publisher(for: .interactionModeChanged)) { handleModeChange($0) }
         .onChange(of: drawingState.selectedTool) { tool in
-            if tool != .select { drawingState.clearSelection() }
+            if tool != .select && tool != .cutMove { drawingState.clearSelection() }
             if tool == .cursor { NSCursor.arrow.set() }
         }
         .onReceive(NotificationCenter.default.publisher(for: .cancelTextInput)) { _ in
@@ -125,14 +125,18 @@ struct OverlayView: View {
     private var mainGesture: some Gesture {
         DragGesture(minimumDistance: 0)
             .onChanged { value in
-                if drawingState.selectedTool == .select {
+                let isSelectionTool = drawingState.selectedTool == .select
+                                   || drawingState.selectedTool == .cutMove
+                if isSelectionTool {
                     handleSelectionChanged(value)
                 } else {
                     handleDrawingChanged(value)
                 }
             }
             .onEnded { value in
-                if drawingState.selectedTool == .select {
+                let isSelectionTool = drawingState.selectedTool == .select
+                                   || drawingState.selectedTool == .cutMove
+                if isSelectionTool {
                     handleSelectionEnded(value)
                 } else {
                     handleDrawingEnded(value)
@@ -185,10 +189,10 @@ struct OverlayView: View {
 
         if selAction == nil {
             let startPt = value.startLocation
+            let isCutMove = drawingState.selectedTool == .cutMove
             if let box = drawingState.selectedBoundingBox, box.contains(startPt) {
-                // Click inside the existing selection box → move without re-hit-testing
                 selAction = .moving(last: startPt)
-            } else if let hit = drawingState.hitTest(at: startPt) {
+            } else if !isCutMove, let hit = drawingState.hitTest(at: startPt) {
                 if !drawingState.selectedElementIDs.contains(hit.id) {
                     drawingState.selectElement(id: hit.id)
                 }
@@ -461,72 +465,6 @@ struct MetalView: NSViewRepresentable {
                             viewportSize: CGSize(width: view.drawableSize.width,
                                                 height: view.drawableSize.height))
         }
-    }
-}
-
-// MARK: - Screen Blur View
-//
-// Owned by OverlayWindowManager and placed in a dedicated NSPanel that sits
-// between normal app windows (level 1) and the canvas (level .screenSaver).
-// behindWindow blending blurs whatever apps are beneath that panel.
-// A CAShapeLayer mask restricts the blur to painted brush strokes.
-// Y coordinates are flipped from SwiftUI top-origin to CALayer bottom-origin.
-
-final class BlurOverlayNSView: NSView {
-    private let effectView: NSVisualEffectView = {
-        let v = NSVisualEffectView()
-        v.material     = .underWindowBackground   // lightest tint — content stays visible, just blurred
-        v.blendingMode = .behindWindow
-        v.state        = .active
-        v.wantsLayer   = true
-        return v
-    }()
-    private let maskLayer = CAShapeLayer()
-
-    override init(frame: NSRect) {
-        super.init(frame: frame)
-        wantsLayer = true
-        addSubview(effectView)
-        effectView.autoresizingMask = [.width, .height]
-        maskLayer.fillColor = NSColor.black.cgColor
-        effectView.layer?.mask = maskLayer
-    }
-    required init?(coder: NSCoder) { fatalError() }
-
-    override func layout() {
-        super.layout()
-        effectView.frame = bounds
-        maskLayer.frame  = bounds
-    }
-
-    func update(elements: [DrawingElement], canvasHeight: CGFloat) {
-        let blurElements = elements.filter { $0.tool == .screenBlur }
-        guard canvasHeight > 0 else { maskLayer.path = nil; return }
-
-        let combined = CGMutablePath()
-
-        for el in blurElements {
-            guard !el.points.isEmpty else { continue }
-            let brushW = (el.blurRadius ?? el.thickness * 3) * 2
-
-            // Flip Y: SwiftUI has (0,0) at top; CALayer has (0,0) at bottom
-            func flip(_ p: CGPoint) -> CGPoint { CGPoint(x: p.x, y: canvasHeight - p.y) }
-
-            if el.points.count == 1, let pt = el.points.first {
-                let fp = flip(pt)
-                let r  = brushW / 2
-                combined.addEllipse(in: CGRect(x: fp.x - r, y: fp.y - r, width: r * 2, height: r * 2))
-            } else {
-                let line = CGMutablePath()
-                line.move(to: flip(el.points[0]))
-                for pt in el.points.dropFirst() { line.addLine(to: flip(pt)) }
-                let stroked = line.copy(strokingWithWidth: brushW,
-                                        lineCap: .round, lineJoin: .round, miterLimit: 10)
-                combined.addPath(stroked)
-            }
-        }
-
-        maskLayer.path = combined.isEmpty ? nil : combined
     }
 }
 

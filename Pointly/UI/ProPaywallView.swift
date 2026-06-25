@@ -37,7 +37,7 @@ extension DrawingTool {
         case .laserPointer: return "Laser Pointer"
         case .spotlight:    return "Spotlight"
         case .dotPen:       return "Dot Pen"
-        case .screenBlur:   return "Screen Blur"
+        case .cutMove:      return "Cut & Move"
         default:            return displayName
         }
     }
@@ -47,7 +47,7 @@ extension DrawingTool {
         case .laserPointer: return "Guide your audience with a glowing laser dot that fades naturally as you move."
         case .spotlight:    return "Dim everything and spotlight exactly what matters — perfect for live demos."
         case .dotPen:       return "Draw precise dotted lines and math-style diagrams with perfect spacing."
-        case .screenBlur:   return "Brush over any area to instantly blur the screen content beneath the overlay."
+        case .cutMove:      return "Draw a rectangle to select any annotations and drag them to a new position."
         default:            return ""
         }
     }
@@ -65,7 +65,7 @@ struct ProPaywallView: View {
         ("laser.burst",      "Laser Pointer — guide with precision"),
         ("rays",             "Spotlight — focus your audience"),
         ("circle.grid.3x3",  "Dot Pen — math-style dotted drawing"),
-        ("smoke",            "Screen Blur — blur content behind overlay"),
+        ("scissors",         "Cut & Move — rearrange annotations freely"),
     ]
 
     var body: some View {
@@ -100,7 +100,7 @@ struct ProPaywallView: View {
                     case .laserPointer: LaserPointerPreview()
                     case .spotlight:    SpotlightPreview()
                     case .dotPen:       DotPenPreview()
-                    case .screenBlur:   ScreenBlurPreview()
+                    case .cutMove:      CutMovePreview()
                     default:            defaultPreview
                     }
                 }
@@ -624,112 +624,127 @@ private struct DotPenPreview: View {
     }
 }
 
-// MARK: - Screen Blur Preview
-// Two stacked layers of fake UI content: a sharp layer below and a blurred layer on top.
-// A mask that grows as the "brush" moves reveals the blurred layer, accurately showing
-// how the tool blurs screen content behind the overlay.
+// MARK: - Cut & Move Preview
+// Shows annotations on canvas, a dashed selection rectangle drawn around some,
+// then those annotations sliding to a new position — demonstrates the tool's purpose.
 
-private struct ScreenBlurPreview: View {
-    @State private var revealedPoints: [CGPoint] = []
-    @State private var cursorPos = CGPoint(x: 55, y: 55)
+private struct CutMovePreview: View {
+    @State private var selectionRect: CGRect = .zero
+    @State private var selectionOpacity: Double = 0
+    @State private var offsetX: CGFloat = 0
+    @State private var offsetY: CGFloat = 0
 
-    private let strokePath: [CGPoint] =
-        stride(from: 55.0, through: 315.0, by: 7).map { x in
-            CGPoint(x: x, y: 80 + sin(x / 38) * 28)
-        }
+    // Fixed annotation "strokes" on the canvas
+    private let strokes: [(Color, [CGPoint])] = [
+        (Color(hex: "#F4644D") ?? .orange, [
+            CGPoint(x: 60, y: 60), CGPoint(x: 90, y: 90), CGPoint(x: 120, y: 70),
+            CGPoint(x: 150, y: 100), CGPoint(x: 180, y: 75)
+        ]),
+        (Color(hex: "#4FACFE") ?? .blue, [
+            CGPoint(x: 200, y: 130), CGPoint(x: 240, y: 110), CGPoint(x: 280, y: 140)
+        ]),
+        (Color(hex: "#E9458C") ?? .pink, [
+            CGPoint(x: 80, y: 140), CGPoint(x: 110, y: 160), CGPoint(x: 140, y: 145),
+            CGPoint(x: 170, y: 165)
+        ]),
+        (Color(hex: "#34D399") ?? .green, [
+            CGPoint(x: 220, y: 60), CGPoint(x: 260, y: 80), CGPoint(x: 300, y: 55)
+        ]),
+    ]
+
+    // Strokes 0 and 2 are "inside" the selection box; 1 and 3 stay put
+    private let selectedIndices: Set<Int> = [0, 2]
+    private let selRect = CGRect(x: 48, y: 48, width: 148, height: 132)
+    private let targetOffset = CGSize(width: 100, height: 20)
 
     var body: some View {
         ZStack {
-            Color(red: 0.09, green: 0.09, blue: 0.18)
+            Color(red: 0.06, green: 0.06, blue: 0.12)
 
-            // Sharp content (always visible underneath)
-            FakeScreenContent()
-
-            // Blurred version — revealed only where brush has passed
-            FakeScreenContent()
-                .blur(radius: 16)
-                .mask(
-                    Canvas { ctx, size in
-                        guard revealedPoints.count > 1 else { return }
-                        var path = Path()
-                        path.move(to: revealedPoints[0])
-                        for pt in revealedPoints.dropFirst() { path.addLine(to: pt) }
-                        ctx.stroke(path, with: .color(.white),
-                                   style: StrokeStyle(lineWidth: 42, lineCap: .round, lineJoin: .round))
-                    }
-                )
-
-            // White edge highlight so the blurred zone is clearly defined
-            if revealedPoints.count > 1 {
-                Canvas { ctx, size in
+            Canvas { ctx, _ in
+                // Draw non-selected strokes (always in place)
+                for (i, (color, pts)) in strokes.enumerated() {
+                    guard !selectedIndices.contains(i), pts.count > 1 else { continue }
                     var path = Path()
-                    path.move(to: revealedPoints[0])
-                    for pt in revealedPoints.dropFirst() { path.addLine(to: pt) }
-                    ctx.stroke(path, with: .color(Color.white.opacity(0.18)),
-                               style: StrokeStyle(lineWidth: 42, lineCap: .round, lineJoin: .round))
-                    ctx.stroke(path, with: .color(Color.white.opacity(0.30)),
-                               style: StrokeStyle(lineWidth: 2, lineCap: .round, lineJoin: .round))
+                    path.move(to: pts[0])
+                    for pt in pts.dropFirst() { path.addLine(to: pt) }
+                    ctx.stroke(path, with: .color(color.opacity(0.8)),
+                               style: StrokeStyle(lineWidth: 3, lineCap: .round, lineJoin: .round))
                 }
             }
 
-            // Brush cursor
-            ZStack {
-                Circle().stroke(Color.white.opacity(0.55), lineWidth: 1.3).frame(width: 32, height: 32)
-                Circle().fill(Color.white.opacity(0.06)).frame(width: 32, height: 32)
+            // Selected strokes — move with the offset
+            Canvas { ctx, _ in
+                for (i, (color, pts)) in strokes.enumerated() {
+                    guard selectedIndices.contains(i), pts.count > 1 else { continue }
+                    var path = Path()
+                    path.move(to: pts[0].offset(dx: offsetX, dy: offsetY))
+                    for pt in pts.dropFirst() {
+                        path.addLine(to: pt.offset(dx: offsetX, dy: offsetY))
+                    }
+                    ctx.stroke(path, with: .color(color),
+                               style: StrokeStyle(lineWidth: 3, lineCap: .round, lineJoin: .round))
+                }
             }
-            .position(cursorPos)
+
+            // Dashed selection rectangle
+            if selectionOpacity > 0 {
+                Rectangle()
+                    .stroke(
+                        Color.white.opacity(0.75),
+                        style: StrokeStyle(lineWidth: 1.5, dash: [6, 4])
+                    )
+                    .frame(width: selRect.width, height: selRect.height)
+                    .offset(x: selRect.midX - 185, y: selRect.midY - 95)
+                    .offset(x: offsetX, y: offsetY)
+                    .opacity(selectionOpacity)
+
+                // Corner handles
+                ForEach([
+                    CGPoint(x: selRect.minX, y: selRect.minY),
+                    CGPoint(x: selRect.maxX, y: selRect.minY),
+                    CGPoint(x: selRect.minX, y: selRect.maxY),
+                    CGPoint(x: selRect.maxX, y: selRect.maxY),
+                ], id: \.x) { pt in
+                    Circle()
+                        .fill(Color.white)
+                        .frame(width: 7, height: 7)
+                        .offset(x: pt.x - 185 + offsetX, y: pt.y - 95 + offsetY)
+                        .opacity(selectionOpacity)
+                }
+            }
         }
         .task {
             while true {
-                revealedPoints = []
-                try? await Task.sleep(nanoseconds: 450_000_000)
+                // Reset
+                selectionOpacity = 0; offsetX = 0; offsetY = 0
+                try? await Task.sleep(nanoseconds: 400_000_000)
 
-                cursorPos = strokePath[0]
-                try? await Task.sleep(nanoseconds: 100_000_000)
-
-                for pt in strokePath {
-                    withAnimation(.linear(duration: 0.04)) { cursorPos = pt }
-                    revealedPoints.append(pt)
-                    try? await Task.sleep(nanoseconds: 38_000_000)
-                }
-
-                try? await Task.sleep(nanoseconds: 1_000_000_000)
-                withAnimation(.easeOut(duration: 0.6)) { revealedPoints = [] }
+                // Draw selection rectangle
+                withAnimation(.easeOut(duration: 0.5)) { selectionOpacity = 1 }
                 try? await Task.sleep(nanoseconds: 700_000_000)
+
+                // Drag selected elements to new position
+                withAnimation(.spring(response: 0.6, dampingFraction: 0.78)) {
+                    offsetX = CGFloat(targetOffset.width)
+                    offsetY = CGFloat(targetOffset.height)
+                }
+                try? await Task.sleep(nanoseconds: 1_000_000_000)
+
+                // Fade selection box, keep elements in new position
+                withAnimation(.easeOut(duration: 0.3)) { selectionOpacity = 0 }
+                try? await Task.sleep(nanoseconds: 800_000_000)
+
+                // Snap back
+                withAnimation(.easeInOut(duration: 0.4)) { offsetX = 0; offsetY = 0 }
+                try? await Task.sleep(nanoseconds: 500_000_000)
             }
         }
     }
 }
 
-private struct FakeScreenContent: View {
-    var body: some View {
-        VStack(alignment: .leading, spacing: 11) {
-            HStack(spacing: 8) {
-                RoundedRectangle(cornerRadius: 5)
-                    .fill((Color(hex: "#F4644D") ?? .orange).opacity(0.85))
-                    .frame(width: 70, height: 26)
-                RoundedRectangle(cornerRadius: 5)
-                    .fill(Color.white.opacity(0.13))
-                    .frame(width: 105, height: 26)
-                Spacer()
-            }
-            RoundedRectangle(cornerRadius: 3).fill(Color.white.opacity(0.16)).frame(width: 175, height: 11)
-            HStack(spacing: 8) {
-                RoundedRectangle(cornerRadius: 3)
-                    .fill((Color(hex: "#4FACFE") ?? .blue).opacity(0.55))
-                    .frame(width: 54, height: 18)
-                RoundedRectangle(cornerRadius: 3)
-                    .fill(Color.white.opacity(0.09))
-                    .frame(width: 88, height: 18)
-                Spacer()
-            }
-            RoundedRectangle(cornerRadius: 3).fill(Color.white.opacity(0.09)).frame(width: 140, height: 10)
-            RoundedRectangle(cornerRadius: 3).fill(Color.white.opacity(0.06)).frame(width: 115, height: 10)
-        }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 14)
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-    }
+private extension CGPoint {
+    func offset(dx: CGFloat, dy: CGFloat) -> CGPoint { CGPoint(x: x + dx, y: y + dy) }
 }
 
 // MARK: - Spotlight Preview

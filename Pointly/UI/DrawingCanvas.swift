@@ -39,8 +39,8 @@ struct DrawingCanvas: View {
             drawLaserPointer(element, in: context)
         case .dotPen:
             drawDotPen(element, in: context)
-        case .screenBlur:
-            drawScreenBlur(element, in: context)
+        case .cutMove:
+            break  // handled by selection UI in OverlayView
         case .rectangle:
             drawRectangle(element, in: context)
         case .ellipse:
@@ -351,12 +351,6 @@ struct DrawingCanvas: View {
                 dash: [0, spacing]
             )
         )
-    }
-
-    // MARK: - Screen Blur: no canvas rendering — NSVisualEffectView in OverlayView handles it
-    private func drawScreenBlur(_ element: DrawingElement, in context: GraphicsContext) {
-        // The actual blur is rendered by BlurOverlayNSView (NSVisualEffectView + CAShapeLayer mask).
-        // Nothing drawn here so the blurred content is visible without any opaque overlay on top.
     }
 
     private func drawText(_ element: DrawingElement, in context: GraphicsContext) {

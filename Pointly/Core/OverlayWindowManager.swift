@@ -7,13 +7,10 @@ class OverlayWindowManager: ObservableObject {
     private var canvasWindows: [CGDirectDisplayID: NSWindow] = [:]
     private var toolbarPanel: NSPanel?
     private var paywallPanel: NSPanel?
-    private var blurPanel: NSPanel?
-    private var blurNSView: BlurOverlayNSView?
     private var isOverlayActive = false
     private var colorPanelObserver: NSKeyValueObservation?
     private var keyMonitor: Any?
     private var toolCancellable: AnyCancellable?
-    private var elementsCancellable: AnyCancellable?
 
     let sharedDrawingState    = DrawingState()
     let sharedInteractionMode = InteractionModeManager()
@@ -21,10 +18,8 @@ class OverlayWindowManager: ObservableObject {
     init() {
         buildCanvasWindows(for: NSScreen.screens)
         buildToolbarPanel()
-        buildBlurPanel()
         installKeyMonitor()
         installToolObserver()
-        installElementsObserver()
 
         NotificationCenter.default.addObserver(
             self, selector: #selector(screensChanged),
@@ -68,46 +63,6 @@ class OverlayWindowManager: ObservableObject {
                         interactionMode: sharedInteractionMode))
         win.orderOut(nil)
         return win
-    }
-
-    // MARK: - Screen blur panel
-    //
-    // A separate NSPanel that lives *between* normal app windows (level 0) and the
-    // canvas (level .screenSaver). Its NSVisualEffectView uses .behindWindow blending
-    // so it blurs the apps below it. A CAShapeLayer mask restricts the blur to exactly
-    // where the user has painted with the Screen Blur tool.
-
-    private func buildBlurPanel() {
-        guard let screen = NSScreen.main else { return }
-        let panel = NSPanel(
-            contentRect: screen.frame,
-            styleMask: [.borderless, .fullSizeContentView],
-            backing: .buffered,
-            defer: false
-        )
-        // Level 1: above normal apps (0), well below canvas (.screenSaver = 1000)
-        panel.level              = NSWindow.Level(rawValue: NSWindow.Level.normal.rawValue + 1)
-        panel.backgroundColor    = .clear
-        panel.isOpaque           = false
-        panel.hasShadow          = false
-        panel.ignoresMouseEvents = true
-        panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
-
-        let blurView = BlurOverlayNSView()
-        panel.contentView = blurView
-        blurNSView   = blurView
-        blurPanel    = panel
-        panel.orderOut(nil)
-    }
-
-    private func installElementsObserver() {
-        elementsCancellable = sharedDrawingState.$elements
-            .receive(on: DispatchQueue.main)
-            .sink { [weak self] elements in
-                guard let self else { return }
-                let h = self.blurPanel?.frame.height ?? (NSScreen.main?.frame.height ?? 800)
-                self.blurNSView?.update(elements: elements, canvasHeight: h)
-            }
     }
 
     // MARK: - Cursor tool pass-through observer
@@ -273,11 +228,6 @@ class OverlayWindowManager: ObservableObject {
 
     private func showAll() {
         requestScreenRecordingPermission()
-        // Blur panel first so canvas and toolbar sit on top
-        if let screen = NSScreen.main {
-            blurPanel?.setFrame(screen.frame, display: true)
-        }
-        blurPanel?.orderFrontRegardless()
         for (id, win) in canvasWindows {
             if let s = screen(for: id) { win.setFrame(s.frame, display: true) }
             win.orderFrontRegardless()
@@ -307,7 +257,6 @@ class OverlayWindowManager: ObservableObject {
         canvasWindows.values.forEach { $0.orderOut(nil) }
         toolbarPanel?.orderOut(nil)
         paywallPanel?.orderOut(nil)
-        blurPanel?.orderOut(nil)
         colorPanelObserver = nil
         NSColorPanel.shared.level = .floating
     }
