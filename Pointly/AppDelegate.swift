@@ -15,11 +15,15 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         NSApp.setActivationPolicy(.accessory)
         setupMenuBarItem()
 
-        // Always close any SwiftUI scene windows (e.g. blank Settings) that macOS
-        // may restore or show on activation — our own windows are opened explicitly below.
+        // Prevent macOS from restoring SwiftUI scene windows on future launches.
+        UserDefaults.standard.set(false, forKey: "NSQuitAlwaysKeepsWindows")
+
+        // Close any visible SwiftUI scene windows (e.g. blank Settings) that macOS
+        // restored from the previous session — only affects windows that are visible
+        // and not ones we explicitly manage.
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-            for w in NSApp.windows where w !== self.onboardingWindow
-                                      && w !== self.settingsWindow {
+            let ours = [self.onboardingWindow, self.settingsWindow].compactMap { $0 }
+            for w in NSApp.windows where w.isVisible && !ours.contains(w) {
                 w.orderOut(nil)
             }
         }
