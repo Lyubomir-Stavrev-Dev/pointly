@@ -19,3 +19,6 @@ sleep 0.3
 
 open Pointly.app
 echo "Launched."
+
+# To test first-launch onboarding, run:
+#   defaults delete com.pointly.app hasSeenOnboarding

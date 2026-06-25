@@ -15,13 +15,20 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         NSApp.setActivationPolicy(.accessory)
         setupMenuBarItem()
 
-        overlayWindowManager = OverlayWindowManager()
-
         let isFirstLaunch = !UserDefaults.standard.bool(forKey: "hasSeenOnboarding")
         if isFirstLaunch {
-            // First launch: show only onboarding; toolbar appears after "Get Started".
             showOnboarding()
-        } else {
+            // Close any SwiftUI scene window (Settings) that may appear after activation.
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                for w in NSApp.windows where w !== self.onboardingWindow {
+                    w.orderOut(nil)
+                }
+            }
+        }
+
+        overlayWindowManager = OverlayWindowManager()
+
+        if !isFirstLaunch {
             if UserDefaults.standard.object(forKey: "showToolbarOnStartup") as? Bool ?? false {
                 overlayWindowManager?.toggleOverlay()
             }
