@@ -278,6 +278,13 @@ enum TextureType: String, CaseIterable {
 }
 
 /// Main state manager for drawing operations
+struct LiftedCover: Identifiable {
+    let id = UUID()
+    let rect: CGRect     // canvas view coordinates (SwiftUI, top-left)
+    let image: NSImage?  // background screenshot if available
+    let fillColor: Color // solid-color fallback (sampled from captured image edges)
+}
+
 class DrawingState: ObservableObject {
     // Published properties for UI binding
     @Published var selectedTool: DrawingTool = .pen
@@ -287,6 +294,7 @@ class DrawingState: ObservableObject {
     @Published var selectedElementIDs: Set<UUID> = []
     @Published var selectionRubberBand: CGRect? = nil
     @Published var isTextInputActive: Bool = false
+    @Published var liftedCovers: [LiftedCover] = []
 
     // Drawing elements and undo/redo stacks
     @Published private(set) var elements: [DrawingElement] = []
@@ -665,6 +673,21 @@ class DrawingState: ObservableObject {
         elements.removeAll { rect.intersects($0.boundingBox) }
         selectedElementIDs = []
         saveAnnotations()
+    }
+
+    @discardableResult
+    func addLiftedCover(rect: CGRect, image: NSImage?, fillColor: Color) -> UUID {
+        let cover = LiftedCover(rect: rect, image: image, fillColor: fillColor)
+        liftedCovers.append(cover)
+        return cover.id
+    }
+
+    func removeLiftedCover(id: UUID) {
+        liftedCovers.removeAll { $0.id == id }
+    }
+
+    func clearLiftedCovers() {
+        liftedCovers.removeAll()
     }
 }
 
