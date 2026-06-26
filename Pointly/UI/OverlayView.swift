@@ -22,6 +22,7 @@ struct OverlayView: View {
     @State private var resizeInitialBox: CGRect? = nil
     @State private var resizeSnapshot: [(UUID, [CGPoint])]? = nil
     @State private var isDraggingHandle = false
+    @State private var isEraserStrokeActive = false
 
     // Spotlight state
     @State private var spotlightPosition: CGPoint? = nil
@@ -118,10 +119,15 @@ struct OverlayView: View {
             }
         )
         .onAppear { drawingState.loadAnnotations() }
+        .onContinuousHover { phase in
+            guard case .active = phase,
+                  interactionMode.currentMode == .draw else { return }
+            ToolCursor.cursor(for: drawingState.selectedTool).set()
+        }
         .onReceive(NotificationCenter.default.publisher(for: .interactionModeChanged)) { handleModeChange($0) }
         .onChange(of: drawingState.selectedTool) { tool in
             if tool != .select && tool != .cutMove { drawingState.clearSelection() }
-            if tool == .cursor { NSCursor.arrow.set() }
+            updateCursor()
         }
         .onReceive(NotificationCenter.default.publisher(for: .cancelTextInput)) { _ in
             textInputPosition = nil
@@ -164,6 +170,10 @@ struct OverlayView: View {
             return
         }
         if drawingState.selectedTool == .eraser {
+            if !isEraserStrokeActive {
+                drawingState.beginEraseStroke()
+                isEraserStrokeActive = true
+            }
             drawingState.eraseAt(value.location)
             return
         }
@@ -179,7 +189,10 @@ struct OverlayView: View {
 
     private func handleDrawingEnded(_ value: DragGesture.Value) {
         guard interactionMode.currentMode == .draw else { return }
-        if drawingState.selectedTool == .eraser { return }
+        if drawingState.selectedTool == .eraser {
+            isEraserStrokeActive = false
+            return
+        }
         if drawingState.selectedTool == .text {
             if hypot(value.translation.width, value.translation.height) < 8 {
                 textInputPosition = value.startLocation
@@ -354,13 +367,7 @@ struct OverlayView: View {
     private func updateCursor() {
         switch interactionMode.currentMode {
         case .interact: NSCursor.arrow.set()
-        case .draw:
-            switch drawingState.selectedTool {
-            case .text:      NSCursor.iBeam.set()
-            case .select:    NSCursor.arrow.set()
-            case .spotlight: NSCursor.crosshair.set()
-            default:         NSCursor.crosshair.set()
-            }
+        case .draw:     ToolCursor.cursor(for: drawingState.selectedTool).set()
         }
     }
 }

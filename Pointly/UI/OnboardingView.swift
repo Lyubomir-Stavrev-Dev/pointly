@@ -44,6 +44,8 @@ private let obSteps: [OBStep] = [
            subtitle: "Switch between Draw mode to annotate freely, and Interact mode to click through to apps underneath."),
     OBStep(title: "Every Tool You Need",
            subtitle: "Pen, Highlighter, Shapes, Text, Laser Pointer and more — all in a sleek floating toolbar right by your side."),
+    OBStep(title: "Unlock Pointly Pro",
+           subtitle: "Blur Brush, Laser Pointer, Spotlight, Dot Pen and Cut & Move — powerful tools built for pros."),
 ]
 
 // MARK: - Main
@@ -87,6 +89,7 @@ struct OnboardingView: View {
                         case 1: HotkeyIllustration()
                         case 2: ModesIllustration()
                         case 3: ToolsIllustration()
+                        case 4: ProIllustration()
                         default: EmptyView()
                         }
                     }
@@ -137,54 +140,238 @@ struct OnboardingView: View {
                 .padding(.bottom, 24)
 
                 // Navigation
-                HStack(spacing: 10) {
-                    if step > 0 {
-                        Button { withAnimation { step -= 1 } } label: {
-                            Text("Back")
-                                .font(.system(size: 13, weight: .semibold))
-                                .foregroundColor(.white.opacity(0.45))
-                                .frame(width: 88, height: 44)
-                                .background(
-                                    RoundedRectangle(cornerRadius: 12)
-                                        .fill(Color.white.opacity(0.07))
-                                        .overlay(RoundedRectangle(cornerRadius: 12)
-                                            .strokeBorder(Color.white.opacity(0.12), lineWidth: 0.8))
-                                )
-                        }
-                        .buttonStyle(.plain)
-                        .transition(.move(edge: .leading).combined(with: .opacity))
-                    }
-
-                    Button {
-                        if step < obSteps.count - 1 {
-                            withAnimation { step += 1 }
-                        } else {
+                if step == obSteps.count - 1 {
+                    // Pro upsell step — two plan buttons + continue free
+                    VStack(spacing: 10) {
+                        // Pro (annual)
+                        Button {
                             UserDefaults.standard.set(true, forKey: "hasSeenOnboarding")
                             onDismiss()
-                        }
-                    } label: {
-                        Text(step < obSteps.count - 1 ? "Next" : "Get Started")
-                            .font(.system(size: 14, weight: .bold))
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
+                                NotificationCenter.default.post(name: .showPaywallForPlan, object: ProPlan.annual)
+                            }
+                        } label: {
+                            HStack {
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text("Go Pro")
+                                        .font(.system(size: 14, weight: .bold))
+                                    Text("$12.99 / year")
+                                        .font(.system(size: 11))
+                                        .opacity(0.7)
+                                }
+                                Spacer()
+                                Text("Most Popular")
+                                    .font(.system(size: 9, weight: .semibold))
+                                    .padding(.horizontal, 8)
+                                    .padding(.vertical, 4)
+                                    .background(Capsule().fill(Color.white.opacity(0.2)))
+                            }
                             .foregroundColor(.white)
+                            .padding(.horizontal, 18)
                             .frame(maxWidth: .infinity)
-                            .frame(height: 44)
+                            .frame(height: 52)
                             .background(
                                 RoundedRectangle(cornerRadius: 12)
                                     .fill(obGradient)
-                                    .shadow(color: (Color(hex: "#F4644D") ?? .orange).opacity(0.48),
+                                    .shadow(color: (Color(hex: "#F4644D") ?? .orange).opacity(0.5),
                                             radius: 16, x: 0, y: 6)
                             )
+                        }
+                        .buttonStyle(.plain)
+                        .keyboardShortcut(.return, modifiers: [])
+
+                        // Pro+ (lifetime)
+                        Button {
+                            UserDefaults.standard.set(true, forKey: "hasSeenOnboarding")
+                            onDismiss()
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
+                                NotificationCenter.default.post(name: .showPaywallForPlan, object: ProPlan.lifetime)
+                            }
+                        } label: {
+                            HStack {
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text("Get Pro+")
+                                        .font(.system(size: 14, weight: .bold))
+                                    Text("$39.99 · One-time lifetime")
+                                        .font(.system(size: 11))
+                                        .opacity(0.65)
+                                }
+                                Spacer()
+                                Text("Best Value")
+                                    .font(.system(size: 9, weight: .semibold))
+                                    .padding(.horizontal, 8)
+                                    .padding(.vertical, 4)
+                                    .background(Capsule().fill(Color.white.opacity(0.12)))
+                            }
+                            .foregroundColor(.white)
+                            .padding(.horizontal, 18)
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 52)
+                            .background(
+                                RoundedRectangle(cornerRadius: 12)
+                                    .fill(Color.white.opacity(0.07))
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 12)
+                                            .strokeBorder(Color.white.opacity(0.18), lineWidth: 0.8)
+                                    )
+                            )
+                        }
+                        .buttonStyle(.plain)
+
+                        Button {
+                            UserDefaults.standard.set(true, forKey: "hasSeenOnboarding")
+                            onDismiss()
+                        } label: {
+                            Text("Continue Free")
+                                .font(.system(size: 12, weight: .medium))
+                                .foregroundColor(.white.opacity(0.32))
+                                .frame(maxWidth: .infinity)
+                                .frame(height: 32)
+                        }
+                        .buttonStyle(.plain)
                     }
-                    .buttonStyle(.plain)
-                    .keyboardShortcut(.return, modifiers: [])
+                    .padding(.horizontal, 40)
+                    .padding(.bottom, 28)
+                    .transition(.asymmetric(
+                        insertion: .move(edge: .trailing).combined(with: .opacity),
+                        removal: .move(edge: .leading).combined(with: .opacity)
+                    ))
+                } else {
+                    HStack(spacing: 10) {
+                        if step > 0 {
+                            Button { withAnimation { step -= 1 } } label: {
+                                Text("Back")
+                                    .font(.system(size: 13, weight: .semibold))
+                                    .foregroundColor(.white.opacity(0.45))
+                                    .frame(width: 88, height: 44)
+                                    .background(
+                                        RoundedRectangle(cornerRadius: 12)
+                                            .fill(Color.white.opacity(0.07))
+                                            .overlay(RoundedRectangle(cornerRadius: 12)
+                                                .strokeBorder(Color.white.opacity(0.12), lineWidth: 0.8))
+                                    )
+                            }
+                            .buttonStyle(.plain)
+                            .transition(.move(edge: .leading).combined(with: .opacity))
+                        }
+
+                        Button {
+                            withAnimation { step += 1 }
+                        } label: {
+                            Text(step == obSteps.count - 2 ? "Next" : "Next")
+                                .font(.system(size: 14, weight: .bold))
+                                .foregroundColor(.white)
+                                .frame(maxWidth: .infinity)
+                                .frame(height: 44)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 12)
+                                        .fill(obGradient)
+                                        .shadow(color: (Color(hex: "#F4644D") ?? .orange).opacity(0.48),
+                                                radius: 16, x: 0, y: 6)
+                                )
+                        }
+                        .buttonStyle(.plain)
+                        .keyboardShortcut(.return, modifiers: [])
+                    }
+                    .animation(.spring(response: 0.32, dampingFraction: 0.8), value: step > 0)
+                    .padding(.horizontal, 40)
+                    .padding(.bottom, 36)
                 }
-                .animation(.spring(response: 0.32, dampingFraction: 0.8), value: step > 0)
-                .padding(.horizontal, 40)
-                .padding(.bottom, 36)
             }
         }
         .frame(width: 520, height: 580)
         .preferredColorScheme(.dark)
+    }
+}
+
+// MARK: - Step 4: Pro upsell
+
+private struct ProIllustration: View {
+    @State private var float = false
+    @State private var glow  = false
+
+    private let proTools: [(icon: String, label: String)] = [
+        ("camera.filters",  "Blur"),
+        ("laser.burst",     "Laser"),
+        ("rays",            "Spotlight"),
+        ("circle.dotted",   "Dot Pen"),
+        ("scissors",        "Cut & Move"),
+    ]
+
+    var body: some View {
+        ZStack {
+            // Outer ring
+            Circle()
+                .stroke(obGradient.opacity(0.25), lineWidth: 1)
+                .frame(width: 168, height: 168)
+                .scaleEffect(glow ? 1.06 : 0.94)
+                .animation(.easeInOut(duration: 2.6).repeatForever(autoreverses: true), value: glow)
+
+            // Pro tool icons orbiting the crown
+            ForEach(proTools.indices, id: \.self) { i in
+                let angle = Double(i) * (360.0 / Double(proTools.count)) - 90
+                let rad   = Double.pi * angle / 180
+                let r: CGFloat = 76
+                let x = r * CGFloat(cos(rad))
+                let y = r * CGFloat(sin(rad))
+
+                ZStack {
+                    RoundedRectangle(cornerRadius: 10)
+                        .fill(Color.white.opacity(0.08))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 10)
+                                .strokeBorder(Color.white.opacity(0.12), lineWidth: 0.8)
+                        )
+                        .frame(width: 36, height: 36)
+
+                    Image(systemName: proTools[i].icon)
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundStyle(obGradient)
+                }
+                .offset(x: x, y: y + (float ? -4 : 4))
+                .animation(
+                    .easeInOut(duration: 1.8 + Double(i) * 0.22)
+                    .repeatForever(autoreverses: true)
+                    .delay(Double(i) * 0.28),
+                    value: float
+                )
+            }
+
+            // Central crown badge
+            ZStack {
+                Circle()
+                    .fill(obGradient)
+                    .frame(width: 74, height: 74)
+                    .shadow(color: (Color(hex: "#F4644D") ?? .orange).opacity(0.65),
+                            radius: 22, x: 0, y: 8)
+
+                Image(systemName: "crown.fill")
+                    .font(.system(size: 28, weight: .bold))
+                    .foregroundColor(.white)
+            }
+            .offset(y: float ? -5 : 5)
+            .animation(.easeInOut(duration: 2.8).repeatForever(autoreverses: true), value: float)
+
+            // Sparkles
+            let sparkles: [(CGFloat, CGFloat, Double)] = [
+                (-90, -30, 0.0), (88, -48, 0.4), (-76, 52, 0.7), (80, 48, 0.2)
+            ]
+            ForEach(sparkles.indices, id: \.self) { i in
+                let (dx, dy, delay) = sparkles[i]
+                Image(systemName: i % 2 == 0 ? "sparkle" : "star.fill")
+                    .font(.system(size: i % 2 == 0 ? 11 : 7))
+                    .foregroundStyle(obGradient)
+                    .offset(x: dx, y: dy + (float ? -4 : 4))
+                    .opacity(float ? 0.9 : 0.15)
+                    .animation(
+                        .easeInOut(duration: 1.9 + Double(i) * 0.3)
+                        .repeatForever(autoreverses: true)
+                        .delay(delay),
+                        value: float
+                    )
+            }
+        }
+        .onAppear { float = true; glow = true }
     }
 }
 

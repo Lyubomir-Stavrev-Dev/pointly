@@ -56,15 +56,18 @@ extension DrawingTool {
 // MARK: - Main view
 
 struct ProPaywallView: View {
-    let tool: DrawingTool
+    let tool: DrawingTool?
     @ObservedObject var proManager: ProManager
     var onDismiss: () -> Void
+    var initialPlan: ProPlan = .annual
+
+    @State private var selectedPlan: ProPlan = .annual
 
     private let proFeatures = [
         ("camera.filters",   "Blur Brush — protect sensitive content"),
         ("laser.burst",      "Laser Pointer — guide with precision"),
         ("rays",             "Spotlight — focus your audience"),
-        ("circle.grid.3x3",  "Dot Pen — math-style dotted drawing"),
+        ("circle.dotted",    "Dot Pen — math-style dotted drawing"),
         ("scissors",         "Cut & Move — rearrange annotations freely"),
     ]
 
@@ -95,16 +98,20 @@ struct ProPaywallView: View {
 
                 // Feature animation
                 ZStack {
-                    switch tool {
-                    case .blurBrush:    BlurBrushPreview()
-                    case .laserPointer: LaserPointerPreview()
-                    case .spotlight:    SpotlightPreview()
-                    case .dotPen:       DotPenPreview()
-                    case .cutMove:      CutMovePreview()
-                    default:            defaultPreview
+                    if let tool {
+                        switch tool {
+                        case .blurBrush:    BlurBrushPreview()
+                        case .laserPointer: LaserPointerPreview()
+                        case .spotlight:    SpotlightPreview()
+                        case .dotPen:       DotPenPreview()
+                        case .cutMove:      CutMovePreview()
+                        default:            genericProPreview
+                        }
+                    } else {
+                        genericProPreview
                     }
                 }
-                .frame(height: 190)
+                .frame(height: 160)
                 .clipShape(RoundedRectangle(cornerRadius: 12))
                 .padding(.horizontal, 28)
                 .padding(.top, 4)
@@ -113,54 +120,62 @@ struct ProPaywallView: View {
                 Rectangle()
                     .fill(Color.white.opacity(0.07))
                     .frame(height: 0.8)
-                    .padding(.top, 20)
+                    .padding(.top, 16)
 
-                VStack(spacing: 20) {
-                    // Lock + title + tagline
-                    VStack(spacing: 8) {
+                VStack(spacing: 16) {
+                    // Header
+                    VStack(spacing: 6) {
                         ZStack {
                             Circle()
                                 .fill(paywallGradient)
-                                .frame(width: 38, height: 38)
+                                .frame(width: 36, height: 36)
                                 .shadow(color: (Color(hex: "#F4644D") ?? .orange).opacity(0.5), radius: 10, x: 0, y: 4)
-                            Image(systemName: "lock.fill")
-                                .font(.system(size: 15, weight: .semibold))
+                            Image(systemName: tool != nil ? "lock.fill" : "crown.fill")
+                                .font(.system(size: 14, weight: .semibold))
                                 .foregroundColor(.white)
                         }
-
-                        Text(tool.proTitle + " is Pro")
-                            .font(.system(size: 20, weight: .bold, design: .rounded))
+                        Text(tool != nil ? "\(tool!.proTitle) is Pro" : "Unlock Pointly Pro")
+                            .font(.system(size: 19, weight: .bold, design: .rounded))
                             .foregroundColor(.white)
-
-                        Text(tool.proTagline)
-                            .font(.system(size: 12))
-                            .foregroundColor(.white.opacity(0.48))
-                            .multilineTextAlignment(.center)
-                            .fixedSize(horizontal: false, vertical: true)
-                            .padding(.horizontal, 20)
+                        if let tool {
+                            Text(tool.proTagline)
+                                .font(.system(size: 11))
+                                .foregroundColor(.white.opacity(0.45))
+                                .multilineTextAlignment(.center)
+                                .fixedSize(horizontal: false, vertical: true)
+                                .padding(.horizontal, 24)
+                        }
                     }
-                    .padding(.top, 20)
+                    .padding(.top, 16)
 
-                    // Feature list
-                    VStack(alignment: .leading, spacing: 9) {
+                    // Feature list (compact)
+                    VStack(alignment: .leading, spacing: 7) {
                         ForEach(proFeatures, id: \.0) { icon, label in
-                            HStack(spacing: 10) {
+                            HStack(spacing: 9) {
                                 Image(systemName: icon)
-                                    .font(.system(size: 12, weight: .semibold))
+                                    .font(.system(size: 11, weight: .semibold))
                                     .foregroundStyle(paywallGradient)
-                                    .frame(width: 18)
+                                    .frame(width: 16)
                                 Text(label)
-                                    .font(.system(size: 12))
-                                    .foregroundColor(.white.opacity(0.65))
+                                    .font(.system(size: 11))
+                                    .foregroundColor(.white.opacity(0.60))
                             }
                         }
                     }
                     .padding(.horizontal, 36)
 
+                    // Plan selector
+                    HStack(spacing: 10) {
+                        ForEach(ProPlan.allCases, id: \.self) { plan in
+                            planCard(plan)
+                        }
+                    }
+                    .padding(.horizontal, 28)
+
                     // CTA
-                    VStack(spacing: 10) {
+                    VStack(spacing: 8) {
                         Button {
-                            Task { await proManager.purchase() }
+                            Task { await proManager.purchase(plan: selectedPlan) }
                         } label: {
                             ZStack {
                                 if proManager.purchaseInProgress {
@@ -170,17 +185,17 @@ struct ProPaywallView: View {
                                         .tint(.white)
                                 } else {
                                     VStack(spacing: 2) {
-                                        Text("Unlock Pointly Pro")
+                                        Text("Get \(selectedPlan.displayName)")
                                             .font(.system(size: 14, weight: .bold))
                                             .foregroundColor(.white)
-                                        Text("$9.99 · One-Time · Lifetime Access")
+                                        Text("\(proManager.product(for: selectedPlan)?.displayPrice ?? selectedPlan.fallbackPrice) · \(selectedPlan == .annual ? "Billed annually" : "Lifetime access")")
                                             .font(.system(size: 10, weight: .medium))
                                             .foregroundColor(.white.opacity(0.65))
                                     }
                                 }
                             }
                             .frame(maxWidth: .infinity)
-                            .frame(height: 50)
+                            .frame(height: 48)
                             .background(
                                 RoundedRectangle(cornerRadius: 13)
                                     .fill(paywallGradient)
@@ -202,37 +217,98 @@ struct ProPaywallView: View {
                             Button("Restore Purchase") {
                                 Task { await proManager.restorePurchases() }
                             }
-                            .font(.system(size: 11))
-                            .foregroundColor(.white.opacity(0.3))
+                            .font(.system(size: 10))
+                            .foregroundColor(.white.opacity(0.28))
                             .buttonStyle(.plain)
 
-                            Text("·")
-                                .foregroundColor(.white.opacity(0.15))
+                            Text("·").foregroundColor(.white.opacity(0.15))
 
                             Button("Maybe Later") { onDismiss() }
-                                .font(.system(size: 11))
-                                .foregroundColor(.white.opacity(0.3))
+                                .font(.system(size: 10))
+                                .foregroundColor(.white.opacity(0.28))
                                 .buttonStyle(.plain)
                         }
                     }
                     .padding(.horizontal, 28)
                 }
 
-                Spacer(minLength: 20)
+                Spacer(minLength: 16)
             }
         }
-        .frame(width: 400, height: 560)
+        .frame(width: 400, height: 600)
         .preferredColorScheme(.dark)
-        // Auto-dismiss when purchase completes
+        .onAppear { selectedPlan = initialPlan }
         .onChange(of: proManager.isPro) { isPro in
             if isPro { onDismiss() }
         }
     }
 
-    private var defaultPreview: some View {
-        Image(systemName: tool.systemImage)
-            .font(.system(size: 48))
-            .foregroundStyle(paywallGradient)
+    // MARK: - Plan card
+
+    private func planCard(_ plan: ProPlan) -> some View {
+        let selected = selectedPlan == plan
+        return Button { withAnimation(.spring(response: 0.25, dampingFraction: 0.7)) { selectedPlan = plan } } label: {
+            VStack(spacing: 4) {
+                Text(plan.badge)
+                    .font(.system(size: 8, weight: .bold))
+                    .foregroundColor(selected ? .white : .white.opacity(0.4))
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 3)
+                    .background(
+                        Capsule()
+                            .fill(selected ? AnyShapeStyle(paywallGradient) : AnyShapeStyle(Color.white.opacity(0.08)))
+                    )
+
+                Text(plan.displayName)
+                    .font(.system(size: 16, weight: .bold, design: .rounded))
+                    .foregroundColor(.white)
+
+                HStack(alignment: .lastTextBaseline, spacing: 2) {
+                    Text(proManager.product(for: plan)?.displayPrice ?? plan.fallbackPrice)
+                        .font(.system(size: 18, weight: .heavy))
+                        .foregroundStyle(selected ? AnyShapeStyle(paywallGradient) : AnyShapeStyle(Color.white))
+                    Text(plan.period)
+                        .font(.system(size: 10))
+                        .foregroundColor(.white.opacity(0.45))
+                }
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 14)
+            .background(
+                RoundedRectangle(cornerRadius: 12)
+                    .fill(Color.white.opacity(selected ? 0.07 : 0.04))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 12)
+                            .strokeBorder(
+                                selected ? AnyShapeStyle(paywallGradient) : AnyShapeStyle(Color.white.opacity(0.1)),
+                                lineWidth: selected ? 1.5 : 0.8
+                            )
+                    )
+            )
+        }
+        .buttonStyle(.plain)
+    }
+
+    private var genericProPreview: some View {
+        ZStack {
+            Color(red: 0.06, green: 0.06, blue: 0.12)
+            HStack(spacing: 20) {
+                ForEach([("camera.filters", "#F4644D"), ("laser.burst", "#FF8C42"),
+                         ("rays", "#E9458C"), ("circle.dotted", "#F4644D"), ("scissors", "#FF8C42")],
+                        id: \.0) { icon, hex in
+                    VStack(spacing: 6) {
+                        RoundedRectangle(cornerRadius: 10)
+                            .fill(Color.white.opacity(0.08))
+                            .frame(width: 40, height: 40)
+                            .overlay(
+                                Image(systemName: icon)
+                                    .font(.system(size: 16, weight: .semibold))
+                                    .foregroundColor(Color(hex: hex) ?? .orange)
+                            )
+                    }
+                }
+            }
+        }
     }
 }
 

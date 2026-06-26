@@ -36,6 +36,10 @@ struct SettingsView: View {
     @State private var selectedTab: SettingsTab = .general
     @State private var showResetAlert = false
 
+    init(initialTab: SettingsTab = .general) {
+        _selectedTab = State(initialValue: initialTab)
+    }
+
     var body: some View {
         HStack(spacing: 0) {
             sidebar
@@ -71,6 +75,9 @@ struct SettingsView: View {
             Button("Reset", role: .destructive) { settings.resetToDefaults() }
         } message: {
             Text("Reset all settings to defaults? This cannot be undone.")
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .navigateToShortcuts)) { _ in
+            selectedTab = .shortcuts
         }
     }
 
@@ -160,6 +167,7 @@ struct SettingsView: View {
                 case .general:    GeneralContent(settings: settings)
                 case .appearance: AppearanceContent(settings: settings)
                 case .drawing:    DrawingContent(settings: settings)
+                case .shortcuts:  ShortcutsContent()
                 case .export:     ExportContent(settings: settings)
                 case .advanced:   AdvancedContent(settings: settings, showReset: $showResetAlert)
                 }
@@ -184,8 +192,8 @@ struct SettingsView: View {
 
 // MARK: - Tab model
 
-private enum SettingsTab: String, CaseIterable, Identifiable {
-    case general, appearance, drawing, export, advanced
+enum SettingsTab: String, CaseIterable, Identifiable {
+    case general, appearance, drawing, shortcuts, export, advanced
     var id: String { rawValue }
 
     var label: String {
@@ -193,6 +201,7 @@ private enum SettingsTab: String, CaseIterable, Identifiable {
         case .general:    return "General"
         case .appearance: return "Appearance"
         case .drawing:    return "Drawing"
+        case .shortcuts:  return "Shortcuts"
         case .export:     return "Export"
         case .advanced:   return "Advanced"
         }
@@ -202,6 +211,7 @@ private enum SettingsTab: String, CaseIterable, Identifiable {
         case .general:    return "slider.horizontal.3"
         case .appearance: return "paintpalette"
         case .drawing:    return "pencil.and.scribble"
+        case .shortcuts:  return "keyboard"
         case .export:     return "square.and.arrow.up"
         case .advanced:   return "gearshape.2"
         }
@@ -605,6 +615,176 @@ private struct SettingsDragHandle: NSViewRepresentable {
     class DragView: NSView {
         override func mouseDown(with event: NSEvent) { window?.performDrag(with: event) }
         override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
+    }
+}
+
+// MARK: - Shortcuts
+
+private struct ShortcutsContent: View {
+    @ObservedObject private var store = ToolBindingsStore.shared
+
+    private let sections: [(title: String, tools: [DrawingTool])] = [
+        ("Draw Tools", [.select, .cursor, .pen, .highlighter, .marker,
+                        .blurBrush, .eraser, .text, .laserPointer, .spotlight, .dotPen, .cutMove]),
+        ("Lines",  [.arrow, .line]),
+        ("Shapes", [.rectangle, .ellipse, .triangle, .diamond]),
+    ]
+
+    var body: some View {
+        VStack(spacing: 14) {
+            HStack(spacing: 8) {
+                Image(systemName: "info.circle")
+                    .foregroundColor(.white.opacity(0.4))
+                Text("Shortcuts work globally while Pointly is running. Combine a modifier key (⌃ ⌥ ⇧ ⌘) with any key — e.g. ⌃1.")
+                    .font(.system(size: 11))
+                    .foregroundColor(.white.opacity(0.45))
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .padding(12)
+            .background(RoundedRectangle(cornerRadius: 10).fill(Color.white.opacity(0.05)))
+
+            ForEach(sections, id: \.title) { section in
+                SettingsCard(title: section.title) {
+                    VStack(spacing: 0) {
+                        ForEach(Array(section.tools.enumerated()), id: \.element) { idx, tool in
+                            ShortcutRow(tool: tool, store: store)
+                            if idx < section.tools.count - 1 {
+                                Rectangle()
+                                    .fill(Color.white.opacity(0.06))
+                                    .frame(height: 0.7)
+                                    .padding(.vertical, 3)
+                            }
+                        }
+                    }
+                }
+            }
+
+            HStack {
+                Spacer()
+                Button("Reset to Defaults") { store.resetToDefaults() }
+                    .buttonStyle(BrandButtonStyle(outline: true))
+            }
+        }
+    }
+}
+
+private struct ShortcutRow: View {
+    let tool: DrawingTool
+    @ObservedObject var store: ToolBindingsStore
+    @ObservedObject private var pro = ProManager.shared
+
+    var body: some View {
+        HStack(spacing: 10) {
+            ZStack {
+                RoundedRectangle(cornerRadius: 6)
+                    .fill(Color.white.opacity(0.08))
+                    .frame(width: 26, height: 26)
+                Image(systemName: tool.systemImage)
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundColor(.white.opacity(0.75))
+            }
+
+            VStack(alignment: .leading, spacing: 1) {
+                HStack(spacing: 4) {
+                    Text(tool.displayName)
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundColor(.white.opacity(0.9))
+                    if pro.isLocked(tool) {
+                        Image(systemName: "lock.fill")
+                            .font(.system(size: 9))
+                            .foregroundStyle(brandGradient)
+                    }
+                }
+                Text(tool.description)
+                    .font(.system(size: 10))
+                    .foregroundColor(.white.opacity(0.35))
+                    .lineLimit(1)
+            }
+
+            Spacer()
+
+            ToolHotkeyRecorder(tool: tool, store: store)
+        }
+        .padding(.vertical, 5)
+    }
+}
+
+private struct ToolHotkeyRecorder: View {
+    let tool: DrawingTool
+    @ObservedObject var store: ToolBindingsStore
+    @State private var isRecording = false
+    @State private var monitor: Any?
+
+    private var current: String { store.bindings[tool] ?? "" }
+
+    var body: some View {
+        HStack(spacing: 5) {
+            if !current.isEmpty {
+                Text(current)
+                    .font(.system(size: 11, weight: .medium, design: .monospaced))
+                    .foregroundColor(.white.opacity(0.85))
+                    .padding(.horizontal, 7)
+                    .padding(.vertical, 3)
+                    .background(
+                        RoundedRectangle(cornerRadius: 5)
+                            .fill(Color.white.opacity(0.10))
+                            .overlay(RoundedRectangle(cornerRadius: 5)
+                                .strokeBorder(Color.white.opacity(0.12), lineWidth: 0.7))
+                    )
+            }
+
+            Button(isRecording ? "Cancel" : (current.isEmpty ? "Set" : "Change")) {
+                isRecording ? stopRecording() : startRecording()
+            }
+            .buttonStyle(BrandButtonStyle(outline: true))
+
+            if !current.isEmpty && !isRecording {
+                Button { store.clearBinding(for: tool) } label: {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 9, weight: .bold))
+                        .foregroundColor(.white.opacity(0.4))
+                        .frame(width: 16, height: 16)
+                }
+                .buttonStyle(.plain)
+                .help("Clear shortcut")
+            }
+        }
+        .onDisappear { stopRecording() }
+    }
+
+    private func startRecording() {
+        isRecording = true
+        monitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
+            if event.keyCode == 53 {
+                self.stopRecording()
+            } else {
+                let shortcut = self.formatShortcut(from: event)
+                if !shortcut.isEmpty {
+                    self.store.setBinding(shortcut, for: self.tool)
+                    self.stopRecording()
+                }
+            }
+            return nil
+        }
+    }
+
+    private func stopRecording() {
+        isRecording = false
+        if let m = monitor { NSEvent.removeMonitor(m); monitor = nil }
+    }
+
+    private func formatShortcut(from event: NSEvent) -> String {
+        let mods = event.modifierFlags.intersection([.command, .shift, .option, .control])
+        guard !mods.isEmpty else { return "" }
+        var parts: [String] = []
+        if mods.contains(.control) { parts.append("⌃") }
+        if mods.contains(.option)  { parts.append("⌥") }
+        if mods.contains(.shift)   { parts.append("⇧") }
+        if mods.contains(.command) { parts.append("⌘") }
+        guard let c = event.charactersIgnoringModifiers?.uppercased(),
+              !c.isEmpty, c != "\u{1b}" else { return "" }
+        parts.append(c)
+        return parts.joined()
     }
 }
 

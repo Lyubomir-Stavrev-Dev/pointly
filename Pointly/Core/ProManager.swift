@@ -1,69 +1,189 @@
 import Foundation
+import StoreKit
 import Combine
+
+// MARK: - ProPlan
+
+enum ProPlan: String, CaseIterable {
+    case annual   = "annual"
+    case lifetime = "lifetime"
+
+    var productID: String {
+        switch self {
+        case .annual:   return "com.pointly.pro.annual"
+        case .lifetime: return "com.pointly.pro.lifetime"
+        }
+    }
+    var displayName: String {
+        switch self {
+        case .annual:   return "Pro"
+        case .lifetime: return "Pro+"
+        }
+    }
+    var fallbackPrice: String {
+        switch self {
+        case .annual:   return "$12.99"
+        case .lifetime: return "$39.99"
+        }
+    }
+    var period: String {
+        switch self {
+        case .annual:   return "/ year"
+        case .lifetime: return "one-time"
+        }
+    }
+    var badge: String {
+        switch self {
+        case .annual:   return "Most Popular"
+        case .lifetime: return "Best Value"
+        }
+    }
+}
 
 // MARK: - ProManager
 
 final class ProManager: ObservableObject {
     static let shared = ProManager()
 
-    @Published private(set) var isPro: Bool
+    @Published private(set) var isPro              = false
     @Published private(set) var purchaseInProgress = false
     @Published private(set) var errorMessage: String? = nil
+    @Published private(set) var loadedProducts: [String: Product] = [:]
 
-    private let udKey = "pointly_isPro"
+    private var updatesTask: Task<Void, Never>?
 
     private init() {
-        isPro = UserDefaults.standard.bool(forKey: udKey)
+        updatesTask = listenForTransactions()
+        Task {
+            await loadProducts()
+            await refreshEntitlements()
+        }
     }
 
-    // Tools that require Pro
+    deinit { updatesTask?.cancel() }
+
+    // MARK: - Locked tools
+
     static let proTools: Set<DrawingTool> = [.blurBrush, .laserPointer, .spotlight, .dotPen, .cutMove]
 
     func isLocked(_ tool: DrawingTool) -> Bool {
         !isPro && Self.proTools.contains(tool)
     }
 
-    // MARK: - Purchase (stub — integrate StoreKit 2 / Paddle here)
-
-    func purchase() async {
-        await MainActor.run { purchaseInProgress = true; errorMessage = nil }
-
-        // TODO: Replace with real StoreKit 2 purchase
-        // let products = try? await Product.products(for: ["com.pointly.pro.lifetime"])
-        // let result = try? await products?.first?.purchase()
-        // handle result...
-
-        // Simulated 1-second purchase delay for UX testing
-        try? await Task.sleep(nanoseconds: 1_000_000_000)
-        unlock()
-
-        await MainActor.run { purchaseInProgress = false }
+    func product(for plan: ProPlan) -> Product? {
+        loadedProducts[plan.productID]
     }
 
-    func restorePurchases() async {
-        await MainActor.run { purchaseInProgress = true; errorMessage = nil }
+    // MARK: - Load Products
 
-        // TODO: Replace with real StoreKit 2 restore
-        // for await result in Transaction.currentEntitlements { ... }
-
-        // For now re-read UserDefaults (persists across launches once unlocked)
-        let stored = UserDefaults.standard.bool(forKey: udKey)
-        await MainActor.run {
-            isPro = stored
-            purchaseInProgress = false
-            if !stored { errorMessage = "No purchase found for this Apple ID." }
+    private func loadProducts() async {
+        let ids = ProPlan.allCases.map(\.productID)
+        do {
+            let products = try await Product.products(for: Set(ids))
+            await MainActor.run {
+                for p in products { loadedProducts[p.id] = p }
+            }
+        } catch {
+            // Not available — no App Store connection or sandbox not configured yet
         }
     }
 
-    // Called on success — persists state and publishes change
-    func unlock() {
-        UserDefaults.standard.set(true, forKey: udKey)
-        DispatchQueue.main.async { self.isPro = true }
+    // MARK: - Purchase
+
+    func purchase(plan: ProPlan = .annual) async {
+        await MainActor.run { purchaseInProgress = true; errorMessage = nil }
+        defer { Task { @MainActor in self.purchaseInProgress = false } }
+
+        guard let product = loadedProducts[plan.productID] else {
+            await MainActor.run {
+                errorMessage = "Product unavailable. Check your connection or try again later."
+            }
+            return
+        }
+
+        do {
+            let result = try await product.purchase()
+            switch result {
+            case .success(let verification):
+                let transaction = try checkVerified(verification)
+                await MainActor.run { isPro = true }
+                await transaction.finish()
+            case .userCancelled:
+                break
+            case .pending:
+                await MainActor.run {
+                    errorMessage = "Purchase is pending approval (e.g. Ask to Buy)."
+                }
+            @unknown default:
+                break
+            }
+        } catch {
+            await MainActor.run { errorMessage = error.localizedDescription }
+        }
+    }
+
+    // MARK: - Restore
+
+    func restorePurchases() async {
+        await MainActor.run { purchaseInProgress = true; errorMessage = nil }
+        defer { Task { @MainActor in self.purchaseInProgress = false } }
+
+        await refreshEntitlements()
+
+        await MainActor.run {
+            if !isPro { errorMessage = "No active purchase found for this Apple ID." }
+        }
+    }
+
+    // MARK: - Entitlement Check
+
+    private func refreshEntitlements() async {
+        let proIDs = Set(ProPlan.allCases.map(\.productID))
+        for await result in Transaction.currentEntitlements {
+            guard case .verified(let tx) = result else { continue }
+            guard proIDs.contains(tx.productID) else { continue }
+            guard tx.revocationDate == nil else { continue }
+            await MainActor.run { isPro = true }
+            return
+        }
+    }
+
+    // MARK: - Transaction Listener
+
+    private func listenForTransactions() -> Task<Void, Never> {
+        Task(priority: .background) { [weak self] in
+            let proIDs = Set(ProPlan.allCases.map(\.productID))
+            for await result in Transaction.updates {
+                guard case .verified(let tx) = result else { continue }
+                guard proIDs.contains(tx.productID) else { continue }
+                await self?.handleTransaction(tx)
+            }
+        }
+    }
+
+    private func handleTransaction(_ tx: Transaction) async {
+        if tx.revocationDate == nil {
+            await MainActor.run { isPro = true }
+        } else {
+            // Refunded or revoked
+            await refreshEntitlements()
+        }
+        await tx.finish()
+    }
+
+    // MARK: - Helpers
+
+    private func checkVerified<T>(_ result: VerificationResult<T>) throws -> T {
+        switch result {
+        case .verified(let value): return value
+        case .unverified(_, let error): throw error
+        }
     }
 }
 
 // MARK: - Notification
 
 extension Notification.Name {
-    static let showPaywall = Notification.Name("ShowProPaywall")
+    static let showPaywall        = Notification.Name("ShowProPaywall")
+    static let showPaywallForPlan = Notification.Name("ShowProPaywallForPlan")
 }

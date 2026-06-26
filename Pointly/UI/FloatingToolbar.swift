@@ -355,88 +355,21 @@ struct FloatingToolbar: View {
 
     @ViewBuilder
     private func regularToolButton(_ tool: DrawingTool) -> some View {
-        let locked   = pro.isLocked(tool)
-        let selected = !locked && drawingState.selectedTool == tool && !tool.isShape
-        Button {
-            if locked {
-                NotificationCenter.default.post(name: .showPaywall, object: tool)
-            } else {
-                drawingState.selectedTool = tool
-            }
-        } label: {
-            ZStack(alignment: .topTrailing) {
-                Image(systemName: tool.systemImage)
-                    .font(.system(size: 14, weight: selected ? .semibold : .regular))
-                    .foregroundColor(locked
-                                     ? .white.opacity(0.28)
-                                     : selected ? .white : .white.opacity(0.55))
-                    .frame(width: 32, height: 32)
-                    .background(
-                        RoundedRectangle(cornerRadius: 8)
-                            .fill(selected
-                                  ? AnyShapeStyle(brandGradient)
-                                  : AnyShapeStyle(Color.white.opacity(0.0)))
-                            .shadow(
-                                color: selected ? (Color(hex: "#F4644D") ?? .orange).opacity(0.5) : .clear,
-                                radius: 6, x: 0, y: 2
-                            )
-                    )
-
-                if locked {
-                    Image(systemName: "lock.fill")
-                        .font(.system(size: 6.5, weight: .bold))
-                        .foregroundColor(.white.opacity(0.75))
-                        .padding(2.5)
-                        .background(Circle().fill(Color.black.opacity(0.55)))
-                        .offset(x: 4, y: -4)
-                }
-            }
-        }
-        .buttonStyle(.plain)
-        .help(locked ? "\(tool.displayName) — Pointly Pro" : tool.displayName)
+        RegularToolButton(tool: tool, drawingState: drawingState, pro: pro)
     }
 
     // MARK: - Shape tool button (outline or filled)
 
     @ViewBuilder
     private func shapeToolButton(_ tool: DrawingTool, filled: Bool) -> some View {
-        let selected = drawingState.selectedTool == tool && drawingState.isFilled == filled
-        let icon = filled ? tool.systemImage + ".fill" : tool.systemImage
-        Button {
-            drawingState.selectedTool = tool
-            drawingState.isFilled = filled
-        } label: {
-            Image(systemName: icon)
-                .font(.system(size: 14, weight: selected ? .semibold : .regular))
-                .foregroundColor(selected ? .white : .white.opacity(0.55))
-                .frame(width: 32, height: 32)
-                .background(
-                    RoundedRectangle(cornerRadius: 8)
-                        .fill(selected
-                              ? AnyShapeStyle(brandGradient)
-                              : AnyShapeStyle(Color.white.opacity(0.0)))
-                        .shadow(
-                            color: selected ? (Color(hex: "#F4644D") ?? .orange).opacity(0.5) : .clear,
-                            radius: 6, x: 0, y: 2
-                        )
-                )
-        }
-        .buttonStyle(.plain)
-        .help(tool.displayName + (filled ? " (filled)" : " (outline)"))
+        ShapeToolButton(tool: tool, filled: filled, drawingState: drawingState)
     }
 
     // MARK: - Icon button
 
     private func iconButton(icon: String, tint: Color, help helpText: String,
                              action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            Image(systemName: icon)
-                .font(.system(size: 14))
-                .foregroundColor(tint)
-                .frame(width: 32, height: 32)
-        }
-        .buttonStyle(.plain)
-        .help(helpText)
+        IconToolButton(icon: icon, tint: tint, helpText: helpText, action: action)
     }
 
     // MARK: - Two-column row helper
@@ -500,5 +433,140 @@ private struct WindowDragHandle: NSViewRepresentable {
             window?.performDrag(with: event)
         }
         override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
+    }
+}
+
+// MARK: - RegularToolButton
+
+private struct RegularToolButton: View {
+    let tool: DrawingTool
+    @ObservedObject var drawingState: DrawingState
+    @ObservedObject var pro: ProManager
+
+    @State private var isHovered = false
+
+    private let gradient = LinearGradient(
+        colors: [Color(hex: "#F4644D") ?? .orange, Color(hex: "#FF8C42") ?? .orange, Color(hex: "#E9458C") ?? .pink],
+        startPoint: .topLeading, endPoint: .bottomTrailing
+    )
+
+    var body: some View {
+        let locked   = pro.isLocked(tool)
+        let selected = !locked && drawingState.selectedTool == tool && !tool.isShape
+
+        Button {
+            if locked {
+                NotificationCenter.default.post(name: .showPaywall, object: tool)
+            } else {
+                drawingState.selectedTool = tool
+            }
+        } label: {
+            ZStack(alignment: .topTrailing) {
+                Image(systemName: tool.systemImage)
+                    .font(.system(size: 14, weight: selected ? .semibold : .regular))
+                    .foregroundColor(locked
+                                     ? .white.opacity(0.28)
+                                     : selected ? .white : .white.opacity(isHovered ? 0.85 : 0.55))
+                    .frame(width: 32, height: 32)
+                    .background(
+                        RoundedRectangle(cornerRadius: 8)
+                            .fill(selected
+                                  ? AnyShapeStyle(gradient)
+                                  : AnyShapeStyle(Color.white.opacity(isHovered ? 0.12 : 0.0)))
+                            .shadow(
+                                color: selected ? (Color(hex: "#F4644D") ?? .orange).opacity(0.5) : .clear,
+                                radius: 6, x: 0, y: 2
+                            )
+                    )
+                    .scaleEffect(isHovered && !selected ? 1.06 : 1.0)
+
+                if locked {
+                    Image(systemName: "lock.fill")
+                        .font(.system(size: 6.5, weight: .bold))
+                        .foregroundColor(.white.opacity(0.75))
+                        .padding(2.5)
+                        .background(Circle().fill(Color.black.opacity(0.55)))
+                        .offset(x: 4, y: -4)
+                }
+            }
+        }
+        .buttonStyle(.plain)
+        .onHover { isHovered = $0 }
+        .animation(.easeInOut(duration: 0.12), value: isHovered)
+        .help(locked ? "\(tool.displayName) — Pointly Pro" : tool.displayName)
+    }
+}
+
+// MARK: - ShapeToolButton
+
+private struct ShapeToolButton: View {
+    let tool: DrawingTool
+    let filled: Bool
+    @ObservedObject var drawingState: DrawingState
+
+    @State private var isHovered = false
+
+    private let gradient = LinearGradient(
+        colors: [Color(hex: "#F4644D") ?? .orange, Color(hex: "#FF8C42") ?? .orange, Color(hex: "#E9458C") ?? .pink],
+        startPoint: .topLeading, endPoint: .bottomTrailing
+    )
+
+    var body: some View {
+        let selected = drawingState.selectedTool == tool && drawingState.isFilled == filled
+        let icon = filled ? tool.systemImage + ".fill" : tool.systemImage
+
+        Button {
+            drawingState.selectedTool = tool
+            drawingState.isFilled = filled
+        } label: {
+            Image(systemName: icon)
+                .font(.system(size: 14, weight: selected ? .semibold : .regular))
+                .foregroundColor(selected ? .white : .white.opacity(isHovered ? 0.85 : 0.55))
+                .frame(width: 32, height: 32)
+                .background(
+                    RoundedRectangle(cornerRadius: 8)
+                        .fill(selected
+                              ? AnyShapeStyle(gradient)
+                              : AnyShapeStyle(Color.white.opacity(isHovered ? 0.12 : 0.0)))
+                        .shadow(
+                            color: selected ? (Color(hex: "#F4644D") ?? .orange).opacity(0.5) : .clear,
+                            radius: 6, x: 0, y: 2
+                        )
+                )
+                .scaleEffect(isHovered && !selected ? 1.06 : 1.0)
+        }
+        .buttonStyle(.plain)
+        .onHover { isHovered = $0 }
+        .animation(.easeInOut(duration: 0.12), value: isHovered)
+        .help(tool.displayName + (filled ? " (filled)" : " (outline)"))
+    }
+}
+
+// MARK: - IconToolButton
+
+private struct IconToolButton: View {
+    let icon: String
+    let tint: Color
+    let helpText: String
+    let action: () -> Void
+
+    @State private var isHovered = false
+
+    var body: some View {
+        Button(action: action) {
+            Image(systemName: icon)
+                .font(.system(size: 14))
+                .foregroundColor(tint)
+                .frame(width: 32, height: 32)
+                .background(
+                    RoundedRectangle(cornerRadius: 8)
+                        .fill(Color.white.opacity(isHovered ? 0.10 : 0.0))
+                )
+                .scaleEffect(isHovered ? 1.06 : 1.0)
+        }
+        .buttonStyle(.plain)
+        .onHover { isHovered = $0 }
+        .animation(.easeInOut(duration: 0.12), value: isHovered)
+        .help(helpText)
     }
 }

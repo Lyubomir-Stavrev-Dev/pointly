@@ -11,6 +11,7 @@ BINARY=".build/arm64-apple-macosx/debug/Pointly"
 APP_BINARY="Pointly.app/Contents/MacOS/Pointly"
 
 cp "$BINARY" "$APP_BINARY"
+codesign --force --deep --sign - --entitlements "Pointly/Pointly.entitlements" "Pointly.app"
 echo "Binary updated."
 
 # Kill existing instance

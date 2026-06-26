@@ -76,29 +76,9 @@ class InteractionModeManager: ObservableObject {
     /// - Parameter mode: Target interaction mode
     func switchTo(mode: InteractionMode) {
         guard canSwitchMode && mode != currentMode else { return }
-        
-        withAnimation(.easeInOut(duration: 0.2)) {
-            isTransitioning = true
-        }
-        
-        // Delay actual mode switch for smooth visual transition
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-            self.currentMode = mode
-            self.applyModeToWindow()
-            
-            // Complete transition
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                withAnimation(.easeInOut(duration: 0.2)) {
-                    self.isTransitioning = false
-                }
-            }
-        }
-        
-        // Send haptic feedback on supported devices
+        currentMode = mode
+        applyModeToWindow()
         NSHapticFeedbackManager.defaultPerformer.perform(.generic, performanceTime: .now)
-        
-        // Log mode change for debugging
-        print("🔄 Interaction mode changed: \(currentMode.displayName)")
     }
     
     /// Toggle between interact and draw modes

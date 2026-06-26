@@ -2,6 +2,7 @@ import AppKit
 import SwiftUI
 import CoreGraphics
 import Combine
+import ScreenCaptureKit
 
 class OverlayWindowManager: ObservableObject {
     private var canvasWindows: [CGDirectDisplayID: NSWindow] = [:]
@@ -37,6 +38,9 @@ class OverlayWindowManager: ObservableObject {
         NotificationCenter.default.addObserver(
             self, selector: #selector(handleShowPaywall(_:)),
             name: .showPaywall, object: nil)
+        NotificationCenter.default.addObserver(
+            self, selector: #selector(handleShowPaywallForPlan(_:)),
+            name: .showPaywallForPlan, object: nil)
         NotificationCenter.default.addObserver(
             self, selector: #selector(handleCaptureAndLift(_:)),
             name: .captureAndLift, object: nil)
@@ -92,6 +96,17 @@ class OverlayWindowManager: ObservableObject {
             let ds = self.sharedDrawingState
             let im = self.sharedInteractionMode
 
+            // Tool shortcut bindings
+            if let tool = Self.matchToolBinding(for: event) {
+                if ProManager.shared.isLocked(tool) {
+                    self.showPaywall(tool: tool, initialPlan: .annual)
+                } else {
+                    ds.selectTool(tool)
+                    if im.currentMode == .interact { im.switchTo(mode: .draw) }
+                }
+                return nil
+            }
+
             switch event.keyCode {
             case 51, 117: // ⌫ backspace (51) or ⌦ forward delete (117)
                 if ds.selectedTool == .select && !ds.selectedElementIDs.isEmpty {
@@ -116,6 +131,21 @@ class OverlayWindowManager: ObservableObject {
             }
             return event
         }
+    }
+
+    private static func matchToolBinding(for event: NSEvent) -> DrawingTool? {
+        let mods = event.modifierFlags.intersection([.command, .shift, .option, .control])
+        guard !mods.isEmpty else { return nil }
+        var parts: [String] = []
+        if mods.contains(.control) { parts.append("⌃") }
+        if mods.contains(.option)  { parts.append("⌥") }
+        if mods.contains(.shift)   { parts.append("⇧") }
+        if mods.contains(.command) { parts.append("⌘") }
+        guard let c = event.charactersIgnoringModifiers?.uppercased(),
+              !c.isEmpty else { return nil }
+        parts.append(c)
+        let shortcut = parts.joined()
+        return ToolBindingsStore.shared.bindings.first { $0.value == shortcut }?.key
     }
 
     // MARK: - Toolbar panel
@@ -239,7 +269,6 @@ class OverlayWindowManager: ObservableObject {
     }
 
     private func showAll() {
-        requestScreenRecordingPermission()
         for (id, win) in canvasWindows {
             if let s = screen(for: id) { win.setFrame(s.frame, display: true) }
             win.orderFrontRegardless()
@@ -292,6 +321,14 @@ class OverlayWindowManager: ObservableObject {
     // MARK: - Cut & Move capture
 
     @objc private func handleCaptureAndLift(_ notification: Notification) {
+        // Preflight is dialog-free. If not granted, open Settings and bail — the OS
+        // dialog never appears this way, so there's nothing stuck on screen.
+        if !CGPreflightScreenCaptureAccess() {
+            sharedInteractionMode.switchTo(mode: .interact)
+            NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture")!)
+            return
+        }
+
         guard let viewRect = notification.object as? CGRect else { return }
         let mainID = displayID(for: NSScreen.main ?? NSScreen.screens[0])
         guard let canvasWin = canvasWindows[mainID] else { return }
@@ -306,8 +343,8 @@ class OverlayWindowManager: ObservableObject {
         )
         let screenRect = canvasWin.convertToScreen(nsViewRect)
 
-        // AppKit screen rect → CG screen rect (CG origin = top-left of primary screen)
-        let primaryH = NSScreen.screens.first?.frame.height ?? canvasWin.screen?.frame.height ?? screenRect.maxY
+        // AppKit → CG coordinates (origin = top-left of primary screen)
+        let primaryH = NSScreen.screens.first?.frame.height ?? screenRect.maxY
         let cgRect = CGRect(
             x: screenRect.origin.x,
             y: primaryH - screenRect.origin.y - screenRect.height,
@@ -315,27 +352,48 @@ class OverlayWindowManager: ObservableObject {
             height: screenRect.height
         )
 
-        // Capture everything visible below our canvas window
-        let canvasID = CGWindowID(canvasWin.windowNumber)
-        guard let fgCG = CGWindowListCreateImage(cgRect, .optionOnScreenBelowWindow,
-                                                  canvasID, .bestResolution) else { return }
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            await self.captureAndLift(viewRect: viewRect, screenRect: screenRect, cgRect: cgRect)
+        }
+    }
 
-        // Erase canvas annotations in the selected area
+    @MainActor
+    private func captureAndLift(viewRect: CGRect, screenRect: NSRect, cgRect: CGRect) async {
+        guard let content = try? await SCShareableContent.current else { return }
+
+        // Find the display that contains the selection
+        guard let display = content.displays.first(where: { $0.frame.intersects(cgRect) })
+                         ?? content.displays.first else { return }
+
+        // Exclude Pointly's own windows so the canvas doesn't appear in the capture
+        let ourPID = pid_t(ProcessInfo.processInfo.processIdentifier)
+        let excluded = content.windows.filter { $0.owningApplication?.processID == ourPID }
+        let filter = SCContentFilter(display: display, excludingWindows: excluded)
+
+        let cfg = SCStreamConfiguration()
+        // sourceRect is relative to the display, in points, top-left origin
+        cfg.sourceRect = CGRect(
+            x: cgRect.minX - display.frame.minX,
+            y: cgRect.minY - display.frame.minY,
+            width: cgRect.width,
+            height: cgRect.height
+        )
+        cfg.width  = Int(cgRect.width)
+        cfg.height = Int(cgRect.height)
+        cfg.scalesToFit = false
+
+        guard let cgImage = try? await SCScreenshotManager.captureImage(
+            contentFilter: filter, configuration: cfg
+        ) else { return }
+
         sharedDrawingState.deleteElements(in: viewRect)
+        sharedInteractionMode.switchTo(mode: .interact)
 
-        // Sample the border pixels of the capture to get the surrounding background color.
-        // Simple solid fill — no background screenshot, no compositing tricks.
-        let fillColor = Color(sampleEdgeColor(of: fgCG))
+        let fillColor = Color(sampleEdgeColor(of: cgImage))
+        let coverID = sharedDrawingState.addLiftedCover(rect: viewRect, image: nil, fillColor: fillColor)
 
-        // Register the cover with DrawingState so OverlayView renders it INSIDE the
-        // canvas window (level 1000) — guaranteed to appear above the real app below.
-        let coverID = sharedDrawingState.addLiftedCover(rect: viewRect,
-                                                         image: nil,
-                                                         fillColor: fillColor)
-
-        // Show the captured region as a floating draggable panel, offset so it's
-        // immediately visually distinct from the erased original position.
-        let fgImage     = NSImage(cgImage: fgCG, size: screenRect.size)
+        let fgImage = NSImage(cgImage: cgImage, size: screenRect.size)
         let floatingRect = NSRect(x: screenRect.minX + 14, y: screenRect.minY - 14,
                                   width: screenRect.width, height: screenRect.height)
         showLiftedCapture(image: fgImage, floatingRect: floatingRect, coverID: coverID)
@@ -353,8 +411,8 @@ class OverlayWindowManager: ObservableObject {
         }
         ctx.draw(cgImage, in: CGRect(x: 0, y: 0, width: side, height: side))
         guard let data = ctx.data else { return NSColor(white: 0.08, alpha: 1) }
-        let ptr   = data.assumingMemoryBound(to: UInt8.self)
-        let edge  = max(1, side / 8)   // sample outer 12.5% on each side
+        let ptr  = data.assumingMemoryBound(to: UInt8.self)
+        let edge = max(1, side / 8)
         var r: Double = 0, g: Double = 0, b: Double = 0, n: Double = 0
 
         func add(_ offset: Int) {
@@ -363,14 +421,14 @@ class OverlayWindowManager: ObservableObject {
         }
         for x in 0..<side {
             for y in 0..<edge {
-                add((y * side + x) * 4)              // top strip
-                add(((side-1-y) * side + x) * 4)     // bottom strip
+                add((y * side + x) * 4)
+                add(((side-1-y) * side + x) * 4)
             }
         }
         for y in edge..<(side-edge) {
             for x in 0..<edge {
-                add((y * side + x) * 4)              // left strip
-                add((y * side + (side-1-x)) * 4)     // right strip
+                add((y * side + x) * 4)
+                add((y * side + (side-1-x)) * 4)
             }
         }
         guard n > 0 else { return NSColor(white: 0.08, alpha: 1) }
@@ -413,13 +471,18 @@ class OverlayWindowManager: ObservableObject {
 
     @objc private func handleShowPaywall(_ notification: Notification) {
         guard let tool = notification.object as? DrawingTool else { return }
-        showPaywall(for: tool)
+        showPaywall(tool: tool, initialPlan: .annual)
     }
 
-    func showPaywall(for tool: DrawingTool) {
+    @objc private func handleShowPaywallForPlan(_ notification: Notification) {
+        guard let plan = notification.object as? ProPlan else { return }
+        showPaywall(tool: nil, initialPlan: plan)
+    }
+
+    func showPaywall(tool: DrawingTool?, initialPlan: ProPlan = .annual) {
         paywallPanel?.orderOut(nil)
 
-        let size = CGSize(width: 400, height: 560)
+        let size = CGSize(width: 400, height: 600)
         let panel = NSPanel(
             contentRect: NSRect(origin: .zero, size: size),
             styleMask: [.titled, .closable, .fullSizeContentView],
@@ -439,15 +502,14 @@ class OverlayWindowManager: ObservableObject {
         panel.level = NSWindow.Level(rawValue: NSWindow.Level.screenSaver.rawValue + 3)
 
         panel.contentView = FirstMouseHostingView(rootView:
-            ProPaywallView(tool: tool, proManager: .shared) { [weak self, weak panel] in
+            ProPaywallView(tool: tool, proManager: .shared, onDismiss: { [weak self, weak panel] in
                 panel?.orderOut(nil)
                 self?.paywallPanel = nil
-                // Re-focus canvas if overlay is active
                 if self?.isOverlayActive == true {
                     let mainID = self?.displayID(for: NSScreen.main ?? NSScreen.screens[0]) ?? 0
                     self?.canvasWindows[mainID]?.makeKey()
                 }
-            }
+            }, initialPlan: initialPlan)
         )
         panel.center()
         paywallPanel = panel
@@ -455,21 +517,6 @@ class OverlayWindowManager: ObservableObject {
         NSApp.activate(ignoringOtherApps: true)
     }
 
-    // MARK: - Screen recording permission
-
-    private func requestScreenRecordingPermission() {
-        guard CGWindowListCopyWindowInfo(.optionOnScreenOnly, kCGNullWindowID) == nil else { return }
-        let alert = NSAlert()
-        alert.messageText     = "Screen Recording Permission Required"
-        alert.informativeText = "Pointly needs screen recording permission in System Settings › Privacy & Security › Screen Recording."
-        alert.alertStyle      = .warning
-        alert.addButton(withTitle: "Open System Settings")
-        alert.addButton(withTitle: "Cancel")
-        if alert.runModal() == .alertFirstButtonReturn,
-           let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture") {
-            NSWorkspace.shared.open(url)
-        }
-    }
 
     // MARK: - Helpers
 

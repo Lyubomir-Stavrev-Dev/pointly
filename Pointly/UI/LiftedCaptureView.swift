@@ -108,7 +108,7 @@ struct LiftedCaptureView: View {
                               let sf = resizeInitialFrame else { return }
                         let cur = NSEvent.mouseLocation
                         let dx  = cur.x - ic.x
-                        let dy  = cur.y - ic.y  // AppKit: positive = upward on screen
+                        let dy  = cur.y - ic.y
                         onSetFrame(resizedFrame(sf, pos, dx, dy))
                     }
                     .onEnded { _ in
@@ -117,11 +117,6 @@ struct LiftedCaptureView: View {
                     }
             )
     }
-
-    // MARK: - Frame math
-    // All values in AppKit screen coords (y increases upward).
-    // Dragging a top handle upward (dy > 0) expands it → maxY += dy.
-    // Dragging a bottom handle downward (dy < 0) expands it → minY += dy.
 
     private func resizedFrame(_ s: NSRect, _ h: HandlePos, _ dx: CGFloat, _ dy: CGFloat) -> NSRect {
         var minX = s.minX, maxX = s.maxX, minY = s.minY, maxY = s.maxY

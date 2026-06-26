@@ -3,23 +3,34 @@ import SwiftUI
 /// Canvas view that renders all drawing elements
 struct DrawingCanvas: View {
     @ObservedObject var state: DrawingState
+    /// Set to false for static snapshot rendering (e.g. ImageRenderer) to avoid
+    /// TimelineView's animation infrastructure which doesn't work in that context.
+    var animated: Bool = true
 
     private var hasLaserElements: Bool {
         state.elements.contains { $0.tool == .laserPointer }
     }
 
     var body: some View {
-        // TimelineView drives animation when laser elements are fading;
-        // paused otherwise so we don't burn CPU on a static canvas.
-        TimelineView(.animation(minimumInterval: 1.0 / 60.0, paused: !hasLaserElements)) { _ in
-            Canvas { context, size in
-                for element in state.elements {
-                    drawElement(element, in: context)
+        // TimelineView is only used when animated AND laser elements exist.
+        // For snapshot rendering (animated = false) or when no laser is active,
+        // use a plain Canvas — avoids TimelineView overhead and the opaque-type
+        // resolution issues that break ImageRenderer.
+        if animated && hasLaserElements {
+            TimelineView(.animation(minimumInterval: 1.0 / 60.0)) { _ in
+                Canvas { context, size in
+                    for element in state.elements { drawElement(element, in: context) }
                 }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .allowsHitTesting(false)
             }
+        } else {
+            Canvas { context, size in
+                for element in state.elements { drawElement(element, in: context) }
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .allowsHitTesting(false)
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .allowsHitTesting(false)
     }
     
     private func drawElement(_ element: DrawingElement, in context: GraphicsContext) {

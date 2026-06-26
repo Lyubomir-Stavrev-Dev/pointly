@@ -5,6 +5,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     var statusItem: NSStatusItem?
     var overlayWindowManager: OverlayWindowManager?
     var globalHotkeyManager: GlobalHotkeyManager?
+    private var mainHotkeyCode: UInt32 = 35
+    private var mainHotkeyMods: NSEvent.ModifierFlags = [.command, .shift]
     private var settingsWindow: NSWindow?
     private var onboardingWindow: NSWindow?
     private var modeMenuItem: NSMenuItem?
@@ -47,18 +49,18 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
         globalHotkeyManager = GlobalHotkeyManager()
         globalHotkeyManager?.delegate = self
-
-        globalHotkeyManager?.registerHotkey(
-            keyCode: 35, // P key
-            modifiers: [.command, .shift]
-        )
-        // Tab is NOT registered globally — it would break every other app.
-        // Tab mode-toggle is handled by OverlayView.onKeyPress when the overlay has focus.
+        reregisterAllHotkeys()
 
         NotificationCenter.default.addObserver(
             self,
             selector: #selector(handleHotkeyChanged(_:)),
             name: .globalHotkeyChanged,
+            object: nil
+        )
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handleToolBindingsChanged),
+            name: .toolBindingsChanged,
             object: nil
         )
 
@@ -114,6 +116,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
         menu.addItem(NSMenuItem.separator())
         menu.addItem(NSMenuItem(title: "Settings...", action: #selector(openSettings), keyEquivalent: ","))
+        menu.addItem(NSMenuItem(title: "Keyboard Shortcuts...", action: #selector(openKeyboardShortcuts), keyEquivalent: ""))
         menu.addItem(NSMenuItem(title: "Show Tutorial", action: #selector(showTutorial), keyEquivalent: ""))
         menu.addItem(NSMenuItem.separator())
         menu.addItem(NSMenuItem(title: "Quit Pointly", action: #selector(quitApp), keyEquivalent: "q"))
@@ -152,9 +155,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         }
         guard !keyChar.isEmpty,
               let keyCode = GlobalHotkeyManager.keyCode(for: keyChar) else { return }
-        globalHotkeyManager?.unregisterAll()
-        globalHotkeyManager?.registerHotkey(keyCode: keyCode, modifiers: modifiers)
-        // Tab is intentionally NOT re-registered as a global hotkey.
+        mainHotkeyCode = keyCode
+        mainHotkeyMods = modifiers
+        reregisterAllHotkeys()
     }
 
     private func showOnboarding(thenShowToolbar: Bool = true) {
@@ -211,8 +214,27 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         showOnboarding(thenShowToolbar: false)
     }
 
+    @objc private func openKeyboardShortcuts() {
+        openSettings()
+        NotificationCenter.default.post(name: .navigateToShortcuts, object: nil)
+    }
+
     @objc private func quitApp() {
         NSApplication.shared.terminate(nil)
+    }
+
+    // MARK: - Hotkey Registration
+
+    private func reregisterAllHotkeys() {
+        globalHotkeyManager?.unregisterAll()
+        // Only the global overlay toggle goes through Carbon; tool shortcuts are
+        // handled by the local key monitor in OverlayWindowManager (no Mission
+        // Control conflicts, no Accessibility permission needed).
+        globalHotkeyManager?.registerHotkey(keyCode: mainHotkeyCode, modifiers: mainHotkeyMods)
+    }
+
+    @objc private func handleToolBindingsChanged() {
+        // Tool bindings are read live by the key monitor — nothing to re-register.
     }
 
     // MARK: - Tool Selection

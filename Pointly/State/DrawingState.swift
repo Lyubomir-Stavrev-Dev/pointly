@@ -546,21 +546,17 @@ class DrawingState: ObservableObject {
     }
     
     // MARK: - Eraser Operations
-    
-    func eraseAt(_ point: CGPoint) {
+
+    // Call once at the start of an eraser drag to capture undo state.
+    func beginEraseStroke() {
         saveStateForUndo()
-        
-        // Find elements that intersect with the eraser point
-        let eraserRadius: CGFloat = strokeThickness * 2
-        
-        elements.removeAll { element in
-            element.points.contains { strokePoint in
-                let distance = sqrt(pow(strokePoint.x - point.x, 2) + pow(strokePoint.y - point.y, 2))
-                return distance <= eraserRadius
-            }
-        }
-        
         redoStack.removeAll()
+    }
+
+    // Call on every drag point — no undo save (beginEraseStroke owns that).
+    func eraseAt(_ point: CGPoint) {
+        let radius: CGFloat = max(24, strokeThickness * 3)
+        elements.removeAll { $0.contains(point, threshold: radius) }
     }
     
     // MARK: - Undo/Redo Operations
@@ -598,8 +594,13 @@ class DrawingState: ObservableObject {
         }
     }
     
+    // For snapshot rendering only — loads elements without touching undo/redo.
+    func loadForSnapshot(_ newElements: [DrawingElement]) {
+        elements = newElements
+    }
+
     // MARK: - Utility Operations
-    
+
     func clearAll() {
         onWillClearAll?()
         saveStateForUndo()
