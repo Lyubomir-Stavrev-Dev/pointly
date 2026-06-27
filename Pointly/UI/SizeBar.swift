@@ -70,7 +70,7 @@ struct SizeBar: View {
                         .transition(.opacity.combined(with: .scale(scale: 0.8)))
 
                     // Vertical slider — expands to fill remaining height
-                    VerticalSizeSlider(value: $drawingState.strokeThickness, range: 1...10)
+                    VerticalSizeSlider(value: $drawingState.strokeThickness, range: 1...30)
                         .frame(width: 12)
                         .frame(maxHeight: .infinity)
 

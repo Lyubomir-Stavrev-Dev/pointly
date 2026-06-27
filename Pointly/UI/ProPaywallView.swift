@@ -62,6 +62,7 @@ struct ProPaywallView: View {
     var initialPlan: ProPlan = .annual
 
     @State private var selectedPlan: ProPlan = .annual
+    @State private var hoverCTA = false
 
     private let proFeatures = [
         ("camera.filters",   "Blur Brush — protect sensitive content"),
@@ -199,11 +200,14 @@ struct ProPaywallView: View {
                             .background(
                                 RoundedRectangle(cornerRadius: 13)
                                     .fill(paywallGradient)
-                                    .shadow(color: (Color(hex: "#F4644D") ?? .orange).opacity(0.48),
-                                            radius: 14, x: 0, y: 6)
+                                    .shadow(color: (Color(hex: "#F4644D") ?? .orange).opacity(hoverCTA ? 0.70 : 0.48),
+                                            radius: hoverCTA ? 20 : 14, x: 0, y: 6)
                             )
+                            .scaleEffect(hoverCTA ? 1.02 : 1.0)
+                            .animation(.easeInOut(duration: 0.14), value: hoverCTA)
                         }
                         .buttonStyle(.plain)
+                        .onHover { if !proManager.purchaseInProgress { hoverCTA = $0 } }
                         .disabled(proManager.purchaseInProgress)
 
                         if let err = proManager.errorMessage {
@@ -246,47 +250,7 @@ struct ProPaywallView: View {
     // MARK: - Plan card
 
     private func planCard(_ plan: ProPlan) -> some View {
-        let selected = selectedPlan == plan
-        return Button { withAnimation(.spring(response: 0.25, dampingFraction: 0.7)) { selectedPlan = plan } } label: {
-            VStack(spacing: 4) {
-                Text(plan.badge)
-                    .font(.system(size: 8, weight: .bold))
-                    .foregroundColor(selected ? .white : .white.opacity(0.4))
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 3)
-                    .background(
-                        Capsule()
-                            .fill(selected ? AnyShapeStyle(paywallGradient) : AnyShapeStyle(Color.white.opacity(0.08)))
-                    )
-
-                Text(plan.displayName)
-                    .font(.system(size: 16, weight: .bold, design: .rounded))
-                    .foregroundColor(.white)
-
-                HStack(alignment: .lastTextBaseline, spacing: 2) {
-                    Text(proManager.product(for: plan)?.displayPrice ?? plan.fallbackPrice)
-                        .font(.system(size: 18, weight: .heavy))
-                        .foregroundStyle(selected ? AnyShapeStyle(paywallGradient) : AnyShapeStyle(Color.white))
-                    Text(plan.period)
-                        .font(.system(size: 10))
-                        .foregroundColor(.white.opacity(0.45))
-                }
-            }
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 14)
-            .background(
-                RoundedRectangle(cornerRadius: 12)
-                    .fill(Color.white.opacity(selected ? 0.07 : 0.04))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 12)
-                            .strokeBorder(
-                                selected ? AnyShapeStyle(paywallGradient) : AnyShapeStyle(Color.white.opacity(0.1)),
-                                lineWidth: selected ? 1.5 : 0.8
-                            )
-                    )
-            )
-        }
-        .buttonStyle(.plain)
+        PaywallPlanCard(plan: plan, selectedPlan: $selectedPlan, proManager: proManager)
     }
 
     private var genericProPreview: some View {
@@ -309,6 +273,66 @@ struct ProPaywallView: View {
                 }
             }
         }
+    }
+}
+
+// MARK: - PaywallPlanCard
+
+private struct PaywallPlanCard: View {
+    let plan: ProPlan
+    @Binding var selectedPlan: ProPlan
+    @ObservedObject var proManager: ProManager
+    @State private var isHovered = false
+
+    var body: some View {
+        let selected = selectedPlan == plan
+        Button {
+            withAnimation(.spring(response: 0.25, dampingFraction: 0.7)) { selectedPlan = plan }
+        } label: {
+            VStack(spacing: 4) {
+                Text(plan.badge)
+                    .font(.system(size: 8, weight: .bold))
+                    .foregroundColor(selected ? .white : .white.opacity(isHovered ? 0.65 : 0.4))
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 3)
+                    .background(
+                        Capsule()
+                            .fill(selected ? AnyShapeStyle(paywallGradient) : AnyShapeStyle(Color.white.opacity(isHovered ? 0.14 : 0.08)))
+                    )
+
+                Text(plan.displayName)
+                    .font(.system(size: 16, weight: .bold, design: .rounded))
+                    .foregroundColor(.white)
+
+                HStack(alignment: .lastTextBaseline, spacing: 2) {
+                    Text(proManager.product(for: plan)?.displayPrice ?? plan.fallbackPrice)
+                        .font(.system(size: 18, weight: .heavy))
+                        .foregroundStyle(selected ? AnyShapeStyle(paywallGradient) : AnyShapeStyle(Color.white))
+                    Text(plan.period)
+                        .font(.system(size: 10))
+                        .foregroundColor(.white.opacity(0.45))
+                }
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 14)
+            .background(
+                RoundedRectangle(cornerRadius: 12)
+                    .fill(Color.white.opacity(selected ? 0.07 : (isHovered ? 0.07 : 0.04)))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 12)
+                            .strokeBorder(
+                                selected
+                                    ? AnyShapeStyle(paywallGradient)
+                                    : AnyShapeStyle(Color.white.opacity(isHovered ? 0.22 : 0.1)),
+                                lineWidth: selected ? 1.5 : 0.8
+                            )
+                    )
+            )
+            .scaleEffect(isHovered && !selected ? 1.02 : 1.0)
+            .animation(.easeInOut(duration: 0.14), value: isHovered)
+        }
+        .buttonStyle(.plain)
+        .onHover { isHovered = $0 }
     }
 }
 

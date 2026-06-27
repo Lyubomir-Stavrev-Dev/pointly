@@ -37,6 +37,8 @@ struct FloatingToolbar: View {
 
     @State private var isExpanded = false
     @State private var isHoveringModeButton = false
+    @State private var hoverMinimize = false
+    @State private var hoverExport   = false
     @StateObject private var exportManager = ExportManager()
 
     var body: some View {
@@ -164,11 +166,14 @@ struct FloatingToolbar: View {
                 Button { interactionMode.switchTo(mode: .interact) } label: {
                     Image(systemName: "minus")
                         .font(.system(size: 9, weight: .semibold))
-                        .foregroundColor(.white.opacity(0.35))
+                        .foregroundColor(.white.opacity(hoverMinimize ? 0.75 : 0.35))
                         .frame(width: 18, height: 18)
-                        .background(Circle().fill(Color.white.opacity(0.08)))
+                        .background(Circle().fill(Color.white.opacity(hoverMinimize ? 0.18 : 0.08)))
+                        .scaleEffect(hoverMinimize ? 1.15 : 1.0)
+                        .animation(.easeInOut(duration: 0.14), value: hoverMinimize)
                 }
                 .buttonStyle(.plain)
+                .onHover { hoverMinimize = $0 }
                 .help("Minimize (Esc)")
             }
         }
@@ -275,31 +280,7 @@ struct FloatingToolbar: View {
     }
 
     private func colorSwatch(_ color: Color) -> some View {
-        let selected = colorMatches(color, drawingState.selectedColor)
-        return Circle()
-            .fill(color)
-            .frame(width: 14, height: 14)
-            .overlay(
-                Circle()
-                    .strokeBorder(
-                        selected
-                            ? AnyShapeStyle(brandGradient)
-                            : AnyShapeStyle(Color.white.opacity(color == .white ? 0.5 : 0.15)),
-                        lineWidth: selected ? 2 : 0.8
-                    )
-            )
-            .scaleEffect(selected ? 1.25 : 1.0)
-            .shadow(color: selected ? color.opacity(0.6) : .clear, radius: 4)
-            .animation(.spring(response: 0.2, dampingFraction: 0.7), value: selected)
-            .onTapGesture { drawingState.selectedColor = color }
-    }
-
-    private func colorMatches(_ a: Color, _ b: Color) -> Bool {
-        guard let ca = NSColor(a).usingColorSpace(.displayP3),
-              let cb = NSColor(b).usingColorSpace(.displayP3) else { return false }
-        return abs(ca.redComponent   - cb.redComponent)   < 0.025 &&
-               abs(ca.greenComponent - cb.greenComponent) < 0.025 &&
-               abs(ca.blueComponent  - cb.blueComponent)  < 0.025
+        ColorSwatchButton(color: color, drawingState: drawingState)
     }
 
     // MARK: - Section label
@@ -414,10 +395,17 @@ struct FloatingToolbar: View {
         } label: {
             Image(systemName: "square.and.arrow.up")
                 .font(.system(size: 14))
-                .foregroundColor(.white.opacity(0.7))
+                .foregroundColor(.white.opacity(hoverExport ? 1.0 : 0.7))
                 .frame(width: 32, height: 32)
+                .background(
+                    RoundedRectangle(cornerRadius: 8)
+                        .fill(Color.white.opacity(hoverExport ? 0.10 : 0.0))
+                )
+                .scaleEffect(hoverExport ? 1.06 : 1.0)
+                .animation(.easeInOut(duration: 0.12), value: hoverExport)
         }
         .menuStyle(.borderlessButton)
+        .onHover { hoverExport = $0 }
         .help("Export canvas")
     }
 }
@@ -539,6 +527,51 @@ private struct ShapeToolButton: View {
         .onHover { isHovered = $0 }
         .animation(.easeInOut(duration: 0.12), value: isHovered)
         .help(tool.displayName + (filled ? " (filled)" : " (outline)"))
+    }
+}
+
+// MARK: - ColorSwatchButton
+
+private struct ColorSwatchButton: View {
+    let color: Color
+    @ObservedObject var drawingState: DrawingState
+    @State private var isHovered = false
+
+    private let gradient = LinearGradient(
+        colors: [Color(hex: "#F4644D") ?? .orange, Color(hex: "#FF8C42") ?? .orange, Color(hex: "#E9458C") ?? .pink],
+        startPoint: .topLeading, endPoint: .bottomTrailing
+    )
+
+    private func colorMatches(_ a: Color, _ b: Color) -> Bool {
+        guard let ca = NSColor(a).usingColorSpace(.displayP3),
+              let cb = NSColor(b).usingColorSpace(.displayP3) else { return false }
+        return abs(ca.redComponent   - cb.redComponent)   < 0.025 &&
+               abs(ca.greenComponent - cb.greenComponent) < 0.025 &&
+               abs(ca.blueComponent  - cb.blueComponent)  < 0.025
+    }
+
+    var body: some View {
+        let selected = colorMatches(color, drawingState.selectedColor)
+        Circle()
+            .fill(color)
+            .frame(width: 14, height: 14)
+            .overlay(
+                Circle()
+                    .strokeBorder(
+                        selected
+                            ? AnyShapeStyle(gradient)
+                            : AnyShapeStyle(Color.white.opacity(
+                                isHovered ? 0.6 : (color == .white ? 0.5 : 0.15)
+                              )),
+                        lineWidth: selected ? 2 : (isHovered ? 1.2 : 0.8)
+                    )
+            )
+            .scaleEffect(selected ? 1.25 : (isHovered ? 1.15 : 1.0))
+            .shadow(color: selected ? color.opacity(0.6) : (isHovered ? color.opacity(0.4) : .clear), radius: selected ? 4 : 6)
+            .animation(.spring(response: 0.2, dampingFraction: 0.7), value: selected)
+            .animation(.easeInOut(duration: 0.12), value: isHovered)
+            .onHover { isHovered = $0 }
+            .onTapGesture { drawingState.selectedColor = color }
     }
 }
 

@@ -357,7 +357,7 @@ private struct AppearanceContent: View {
 
                 SettingsRow(label: "Stroke Thickness") {
                     HStack(spacing: 8) {
-                        Slider(value: $settings.defaultThickness, in: 1...10, step: 1)
+                        Slider(value: $settings.defaultThickness, in: 1...30, step: 1)
                             .tint(Color(hex: "#F4644D") ?? .orange)
                             .frame(width: 130)
                         Text("\(Int(settings.defaultThickness))px")

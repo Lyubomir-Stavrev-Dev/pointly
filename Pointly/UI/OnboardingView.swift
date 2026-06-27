@@ -52,6 +52,12 @@ private let obSteps: [OBStep] = [
 
 struct OnboardingView: View {
     @State private var step = 0
+    @State private var hoverSkip     = false
+    @State private var hoverBack     = false
+    @State private var hoverNext     = false
+    @State private var hoverAnnual   = false
+    @State private var hoverLifetime = false
+    @State private var hoverFree     = false
     let onDismiss: () -> Void
 
     var body: some View {
@@ -73,7 +79,9 @@ struct OnboardingView: View {
                     }
                     .buttonStyle(.plain)
                     .font(.system(size: 12, weight: .medium))
-                    .foregroundColor(.white.opacity(0.28))
+                    .foregroundColor(.white.opacity(hoverSkip ? 0.55 : 0.28))
+                    .animation(.easeInOut(duration: 0.14), value: hoverSkip)
+                    .onHover { hoverSkip = $0 }
                     .opacity(step < obSteps.count - 1 ? 1 : 0)
                     .animation(.easeInOut(duration: 0.2), value: step)
                 }
@@ -173,11 +181,14 @@ struct OnboardingView: View {
                             .background(
                                 RoundedRectangle(cornerRadius: 12)
                                     .fill(obGradient)
-                                    .shadow(color: (Color(hex: "#F4644D") ?? .orange).opacity(0.5),
-                                            radius: 16, x: 0, y: 6)
+                                    .shadow(color: (Color(hex: "#F4644D") ?? .orange).opacity(hoverAnnual ? 0.75 : 0.5),
+                                            radius: hoverAnnual ? 22 : 16, x: 0, y: 6)
                             )
+                            .scaleEffect(hoverAnnual ? 1.02 : 1.0)
+                            .animation(.easeInOut(duration: 0.14), value: hoverAnnual)
                         }
                         .buttonStyle(.plain)
+                        .onHover { hoverAnnual = $0 }
                         .keyboardShortcut(.return, modifiers: [])
 
                         // Pro+ (lifetime)
@@ -209,14 +220,17 @@ struct OnboardingView: View {
                             .frame(height: 52)
                             .background(
                                 RoundedRectangle(cornerRadius: 12)
-                                    .fill(Color.white.opacity(0.07))
+                                    .fill(Color.white.opacity(hoverLifetime ? 0.11 : 0.07))
                                     .overlay(
                                         RoundedRectangle(cornerRadius: 12)
-                                            .strokeBorder(Color.white.opacity(0.18), lineWidth: 0.8)
+                                            .strokeBorder(Color.white.opacity(hoverLifetime ? 0.32 : 0.18), lineWidth: 0.8)
                                     )
                             )
+                            .scaleEffect(hoverLifetime ? 1.02 : 1.0)
+                            .animation(.easeInOut(duration: 0.14), value: hoverLifetime)
                         }
                         .buttonStyle(.plain)
+                        .onHover { hoverLifetime = $0 }
 
                         Button {
                             UserDefaults.standard.set(true, forKey: "hasSeenOnboarding")
@@ -224,11 +238,13 @@ struct OnboardingView: View {
                         } label: {
                             Text("Continue Free")
                                 .font(.system(size: 12, weight: .medium))
-                                .foregroundColor(.white.opacity(0.32))
+                                .foregroundColor(.white.opacity(hoverFree ? 0.55 : 0.32))
                                 .frame(maxWidth: .infinity)
                                 .frame(height: 32)
+                                .animation(.easeInOut(duration: 0.14), value: hoverFree)
                         }
                         .buttonStyle(.plain)
+                        .onHover { hoverFree = $0 }
                     }
                     .padding(.horizontal, 40)
                     .padding(.bottom, 28)
@@ -242,23 +258,26 @@ struct OnboardingView: View {
                             Button { withAnimation { step -= 1 } } label: {
                                 Text("Back")
                                     .font(.system(size: 13, weight: .semibold))
-                                    .foregroundColor(.white.opacity(0.45))
+                                    .foregroundColor(.white.opacity(hoverBack ? 0.70 : 0.45))
                                     .frame(width: 88, height: 44)
                                     .background(
                                         RoundedRectangle(cornerRadius: 12)
-                                            .fill(Color.white.opacity(0.07))
+                                            .fill(Color.white.opacity(hoverBack ? 0.11 : 0.07))
                                             .overlay(RoundedRectangle(cornerRadius: 12)
-                                                .strokeBorder(Color.white.opacity(0.12), lineWidth: 0.8))
+                                                .strokeBorder(Color.white.opacity(hoverBack ? 0.22 : 0.12), lineWidth: 0.8))
                                     )
+                                    .scaleEffect(hoverBack ? 1.03 : 1.0)
+                                    .animation(.easeInOut(duration: 0.14), value: hoverBack)
                             }
                             .buttonStyle(.plain)
+                            .onHover { hoverBack = $0 }
                             .transition(.move(edge: .leading).combined(with: .opacity))
                         }
 
                         Button {
                             withAnimation { step += 1 }
                         } label: {
-                            Text(step == obSteps.count - 2 ? "Next" : "Next")
+                            Text("Next")
                                 .font(.system(size: 14, weight: .bold))
                                 .foregroundColor(.white)
                                 .frame(maxWidth: .infinity)
@@ -266,11 +285,14 @@ struct OnboardingView: View {
                                 .background(
                                     RoundedRectangle(cornerRadius: 12)
                                         .fill(obGradient)
-                                        .shadow(color: (Color(hex: "#F4644D") ?? .orange).opacity(0.48),
-                                                radius: 16, x: 0, y: 6)
+                                        .shadow(color: (Color(hex: "#F4644D") ?? .orange).opacity(hoverNext ? 0.72 : 0.48),
+                                                radius: hoverNext ? 22 : 16, x: 0, y: 6)
                                 )
+                                .scaleEffect(hoverNext ? 1.02 : 1.0)
+                                .animation(.easeInOut(duration: 0.14), value: hoverNext)
                         }
                         .buttonStyle(.plain)
+                        .onHover { hoverNext = $0 }
                         .keyboardShortcut(.return, modifiers: [])
                     }
                     .animation(.spring(response: 0.32, dampingFraction: 0.8), value: step > 0)
