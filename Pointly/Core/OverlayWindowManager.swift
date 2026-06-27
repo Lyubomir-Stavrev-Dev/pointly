@@ -109,6 +109,10 @@ class OverlayWindowManager: ObservableObject {
 
             switch event.keyCode {
             case 51, 117: // ⌫ backspace (51) or ⌦ forward delete (117)
+                if event.modifierFlags.contains(.command) {
+                    DispatchQueue.main.async { ds.clearAll() }
+                    return nil
+                }
                 if ds.selectedTool == .select && !ds.selectedElementIDs.isEmpty {
                     DispatchQueue.main.async { ds.deleteSelected() }
                     return nil
@@ -255,10 +259,8 @@ class OverlayWindowManager: ObservableObject {
             win.ignoresMouseEvents = passThrough
             win.level = passThrough ? .floating : .screenSaver
         }
-        if !passThrough {
-            let mainID = displayID(for: NSScreen.main ?? NSScreen.screens[0])
-            canvasWindows[mainID]?.makeKey()
-        }
+        let mainID = displayID(for: NSScreen.main ?? NSScreen.screens[0])
+        canvasWindows[mainID]?.makeKey()
     }
 
     // MARK: - Show / Hide
@@ -529,6 +531,14 @@ class OverlayWindowManager: ObservableObject {
 
     var currentInteractionMode: InteractionModeManager? { sharedInteractionMode }
     var isActive: Bool { isOverlayActive }
+
+    func lowerCanvasForPanel() {
+        for win in canvasWindows.values { win.level = .normal }
+    }
+
+    @objc func restoreCanvasLevel() {
+        applyModeToWindows()
+    }
 }
 
 // MARK: - ToolbarPanel

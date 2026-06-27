@@ -199,6 +199,14 @@ struct MiniToolbarPill: View {
             .shadow(color: .black.opacity(0.5), radius: 20, x: 0, y: 8)
             .shadow(color: (Color(hex: "#F4644D") ?? .orange).opacity(0.12), radius: 14, x: 0, y: 3)
         )
+        .overlay(alignment: .bottom) {
+            miniGradient
+                .frame(height: 1)
+                .clipShape(Capsule())
+                .shadow(color: (Color(hex: "#E9458C") ?? .pink).opacity(0.7), radius: 6, x: 0, y: 1)
+                .padding(.horizontal, 14)
+                .padding(.bottom, 2)
+        }
     }
 
     private var separator: some View {

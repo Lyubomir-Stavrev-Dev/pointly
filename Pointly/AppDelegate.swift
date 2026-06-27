@@ -9,7 +9,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private var mainHotkeyMods: NSEvent.ModifierFlags = [.command, .shift]
     private var settingsWindow: NSWindow?
     private var onboardingWindow: NSWindow?
-    private var modeMenuItem: NSMenuItem?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         CrashReporter.setup()
@@ -92,27 +91,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         }
 
         let menu = NSMenu()
-        menu.delegate = self
 
         menu.addItem(NSMenuItem(title: "Toggle Overlay (⌘⇧P)", action: #selector(toggleOverlay), keyEquivalent: ""))
-
-        let modeItem = NSMenuItem(title: "Toggle Mode (Tab)", action: #selector(toggleInteractionMode), keyEquivalent: "")
-        modeItem.isEnabled = false
-        menu.addItem(modeItem)
-        modeMenuItem = modeItem
-
-        menu.addItem(NSMenuItem.separator())
-
-        let toolsSubmenu = NSMenu()
-        toolsSubmenu.addItem(NSMenuItem(title: "Pen (1)", action: #selector(selectPenTool), keyEquivalent: "1"))
-        toolsSubmenu.addItem(NSMenuItem(title: "Highlighter (2)", action: #selector(selectHighlighterTool), keyEquivalent: "2"))
-        toolsSubmenu.addItem(NSMenuItem(title: "Marker (3)", action: #selector(selectMarkerTool), keyEquivalent: "3"))
-        toolsSubmenu.addItem(NSMenuItem(title: "Laser Pointer (4)", action: #selector(selectLaserTool), keyEquivalent: "4"))
-        toolsSubmenu.addItem(NSMenuItem(title: "Eraser (E)", action: #selector(selectEraserTool), keyEquivalent: "e"))
-
-        let toolsMenuItem = NSMenuItem(title: "Tools", action: nil, keyEquivalent: "")
-        toolsMenuItem.submenu = toolsSubmenu
-        menu.addItem(toolsMenuItem)
 
         menu.addItem(NSMenuItem.separator())
         menu.addItem(NSMenuItem(title: "Settings...", action: #selector(openSettings), keyEquivalent: ","))
@@ -195,8 +175,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                 defer: false
             )
             window.title = ""
-            window.titlebarAppearsTransparent = true
             window.titleVisibility = .hidden
+            window.titlebarSeparatorStyle = .none
             window.isOpaque = false
             window.backgroundColor = .clear
             window.appearance = NSAppearance(named: .darkAqua)
@@ -205,6 +185,16 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             window.center()
             settingsWindow = window
         }
+        // Lower canvas so Settings (at normal level) renders above it without blending issues
+        overlayWindowManager?.lowerCanvasForPanel()
+        NotificationCenter.default.removeObserver(self, name: NSWindow.willCloseNotification, object: settingsWindow)
+        NotificationCenter.default.addObserver(
+            overlayWindowManager as Any,
+            selector: #selector(OverlayWindowManager.restoreCanvasLevel),
+            name: NSWindow.willCloseNotification,
+            object: settingsWindow
+        )
+        settingsWindow?.level = .floating
         settingsWindow?.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
     }
@@ -227,9 +217,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func reregisterAllHotkeys() {
         globalHotkeyManager?.unregisterAll()
-        // Only the global overlay toggle goes through Carbon; tool shortcuts are
-        // handled by the local key monitor in OverlayWindowManager (no Mission
-        // Control conflicts, no Accessibility permission needed).
         globalHotkeyManager?.registerHotkey(keyCode: mainHotkeyCode, modifiers: mainHotkeyMods)
     }
 
@@ -268,13 +255,6 @@ extension AppDelegate: GlobalHotkeyManagerDelegate {
     }
 }
 
-// MARK: - NSMenuDelegate — update mode item enabled state when menu opens
-
-extension AppDelegate: NSMenuDelegate {
-    func menuWillOpen(_ menu: NSMenu) {
-        modeMenuItem?.isEnabled = overlayWindowManager?.isActive ?? false
-    }
-}
 
 // MARK: - Menu Bar Icon Updates
 

@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Privacy Policy — Pointly</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --brand-1: #F4644D;
+      --brand-2: #FF8C42;
+      --brand-3: #E9458C;
+      --bg: #07070f;
+      --bg-2: #0d0d1a;
+      --border: rgba(255,255,255,0.08);
+      --text: #ffffff;
+      --muted: rgba(255,255,255,0.45);
+      --grad: linear-gradient(135deg, var(--brand-1), var(--brand-2), var(--brand-3));
+    }
+    body {
+      font-family: 'Inter', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      -webkit-font-smoothing: antialiased;
+      line-height: 1.7;
+    }
+    nav {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 18px 60px;
+      background: rgba(7,7,15,0.85);
+      backdrop-filter: blur(20px);
+      border-bottom: 1px solid var(--border);
+    }
+    .nav-logo {
+      display: flex; align-items: center; gap: 10px;
+      font-size: 20px; font-weight: 800;
+      text-decoration: none; color: var(--text);
+    }
+    .nav-logo-icon {
+      width: 34px; height: 34px;
+      background: var(--grad); border-radius: 9px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 16px;
+      box-shadow: 0 4px 16px rgba(244,100,77,0.45);
+    }
+    .nav-back {
+      color: var(--muted); text-decoration: none;
+      font-size: 14px; font-weight: 500;
+      display: flex; align-items: center; gap: 6px;
+      transition: color 0.2s;
+    }
+    .nav-back:hover { color: var(--text); }
+
+    .page {
+      max-width: 720px;
+      margin: 0 auto;
+      padding: 140px 32px 80px;
+    }
+
+    .page-label {
+      font-size: 11px; font-weight: 700; letter-spacing: 0.12em;
+      text-transform: uppercase;
+      background: var(--grad);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      margin-bottom: 16px;
+    }
+
+    h1 {
+      font-size: clamp(32px, 5vw, 48px);
+      font-weight: 900; letter-spacing: -1.5px;
+      margin-bottom: 12px;
+      line-height: 1.1;
+    }
+
+    .updated {
+      font-size: 13px; color: var(--muted);
+      margin-bottom: 56px;
+    }
+
+    .section {
+      margin-bottom: 48px;
+    }
+
+    h2 {
+      font-size: 18px; font-weight: 700;
+      margin-bottom: 12px;
+      color: #fff;
+    }
+
+    p {
+      font-size: 15px; color: rgba(255,255,255,0.7);
+      margin-bottom: 14px;
+    }
+
+    ul {
+      list-style: none;
+      margin-bottom: 14px;
+    }
+
+    ul li {
+      font-size: 15px; color: rgba(255,255,255,0.7);
+      padding: 6px 0;
+      padding-left: 20px;
+      position: relative;
+    }
+
+    ul li::before {
+      content: '✦';
+      position: absolute; left: 0;
+      font-size: 9px;
+      background: var(--grad);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      top: 9px;
+    }
+
+    .highlight-box {
+      background: rgba(244,100,77,0.07);
+      border: 1px solid rgba(244,100,77,0.18);
+      border-radius: 14px;
+      padding: 20px 24px;
+      margin-bottom: 14px;
+    }
+
+    .highlight-box p {
+      margin-bottom: 0;
+      color: rgba(255,255,255,0.8);
+    }
+
+    .divider {
+      height: 1px;
+      background: rgba(255,255,255,0.07);
+      margin: 48px 0;
+    }
+
+    a { color: var(--brand-2); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+
+    footer {
+      text-align: center;
+      padding: 32px;
+      border-top: 1px solid var(--border);
+      color: var(--muted);
+      font-size: 13px;
+    }
+  </style>
+</head>
+<body>
+
+  <nav>
+    <a href="index.html" class="nav-logo">
+      <div class="nav-logo-icon">✦</div>
+      Pointly
+    </a>
+    <a href="index.html" class="nav-back">
+      ← Back to home
+    </a>
+  </nav>
+
+  <div class="page">
+
+    <p class="page-label">Legal</p>
+    <h1>Privacy Policy</h1>
+    <p class="updated">Last updated: June 27, 2026</p>
+
+    <div class="highlight-box">
+      <p><strong>Short version:</strong> Pointly does not collect, store, or share any personal data. Everything you draw stays on your screen. We have no servers, no accounts, and no tracking.</p>
+    </div>
+
+    <div class="section">
+      <h2>1. Who We Are</h2>
+      <p>Pointly is a macOS screen annotation application developed by Lyubomir Stavrev ("we", "us", or "our"). This Privacy Policy explains how we handle information in connection with the Pointly app and this website.</p>
+    </div>
+
+    <div class="section">
+      <h2>2. Data We Collect</h2>
+      <p>Pointly collects no personal data whatsoever. Specifically:</p>
+      <ul>
+        <li>No account or registration is required to use Pointly.</li>
+        <li>No drawings, screenshots, or screen content are ever transmitted to us or any third party.</li>
+        <li>No analytics, telemetry, or crash reporting data is collected.</li>
+        <li>No cookies or tracking technologies are used on this website.</li>
+        <li>We do not know who you are, where you are, or how you use the app.</li>
+      </ul>
+    </div>
+
+    <div class="section">
+      <h2>3. Screen Recording Permission</h2>
+      <p>Pointly requests macOS Screen Recording permission solely to enable the Cut &amp; Move tool, which captures a selected region of your screen into a floating panel. This content:</p>
+      <ul>
+        <li>Is processed entirely on your device.</li>
+        <li>Is never saved to disk unless you explicitly export it.</li>
+        <li>Is never transmitted over the network.</li>
+        <li>Is discarded when you close the app or clear the canvas.</li>
+      </ul>
+      <p>You can revoke this permission at any time in <strong>System Settings → Privacy &amp; Security → Screen Recording</strong>.</p>
+    </div>
+
+    <div class="section">
+      <h2>4. In-App Purchases</h2>
+      <p>Pointly Pro and Pointly Pro+ are purchased through Apple's in-app purchase system. All payment processing, billing information, and transaction data are handled exclusively by Apple Inc. We never see, receive, or store your payment details. Apple's privacy practices are described in the <a href="https://www.apple.com/legal/privacy/" target="_blank" rel="noopener">Apple Privacy Policy</a>.</p>
+    </div>
+
+    <div class="section">
+      <h2>5. This Website</h2>
+      <p>This website (pointly.app) does not use any cookies, analytics tools, or tracking scripts. No personal information is collected when you visit. The site is purely informational and does not require any interaction or sign-up.</p>
+    </div>
+
+    <div class="section">
+      <h2>6. Children's Privacy</h2>
+      <p>Pointly does not knowingly collect any information from children under 13 (or under 16 in the EU). Since we collect no data at all, there is nothing to collect from any age group.</p>
+    </div>
+
+    <div class="section">
+      <h2>7. Your Rights (GDPR / CCPA)</h2>
+      <p>Because we collect no personal data, there is nothing for us to access, correct, delete, or export on your behalf. If you are an EU resident (GDPR) or a California resident (CCPA) and have any questions, please contact us and we will respond within 30 days.</p>
+    </div>
+
+    <div class="section">
+      <h2>8. Third-Party Services</h2>
+      <p>Pointly does not integrate with any third-party analytics, advertising, or data-sharing services. The only third party involved in the Pointly experience is Apple (for app distribution and payment processing).</p>
+    </div>
+
+    <div class="section">
+      <h2>9. Changes to This Policy</h2>
+      <p>If we ever update this policy (for example, if we add a feature that involves data), we will update the "Last updated" date at the top of this page. We encourage you to review this page periodically. Continued use of Pointly after any changes constitutes acceptance of the updated policy.</p>
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="section">
+      <h2>10. Contact</h2>
+      <p>If you have any questions about this Privacy Policy, please contact us at:</p>
+      <p><a href="mailto:lyubomirstavrev02@gmail.com">lyubomirstavrev02@gmail.com</a></p>
+    </div>
+
+  </div>
+
+  <footer>
+    © 2026 Pointly. All rights reserved. &nbsp;·&nbsp;
+    <a href="privacy.html">Privacy Policy</a> &nbsp;·&nbsp;
+    <a href="support.html">Support</a> &nbsp;·&nbsp;
+    <a href="mailto:lyubomirstavrev02@gmail.com">Contact</a>
+  </footer>
+
+</body>
+</html>

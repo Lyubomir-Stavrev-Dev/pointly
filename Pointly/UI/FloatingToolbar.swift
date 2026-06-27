@@ -114,7 +114,7 @@ struct FloatingToolbar: View {
             toolGrid2(
                 left: { exportMenuButton },
                 right: {
-                    iconButton(icon: "trash", tint: Color(hex: "#F4644D") ?? .red, help: "Clear all") {
+                    iconButton(icon: "trash", tint: Color(hex: "#F4644D") ?? .red, help: "Clear all  ⌘⌫") {
                         drawingState.clearAll()
                     }
                 }
@@ -142,6 +142,19 @@ struct FloatingToolbar: View {
             .shadow(color: .black.opacity(0.5), radius: 28, x: 0, y: 10)
             .shadow(color: (Color(hex: "#F4644D") ?? .orange).opacity(0.12), radius: 18, x: 0, y: 4)
         )
+        .overlay(alignment: .bottom) {
+            let isInteract = interactionMode.currentMode != .draw
+            if isInteract {
+                brandGradient
+                    .frame(height: 3)
+                    .clipShape(Capsule())
+                    .shadow(color: (Color(hex: "#E9458C") ?? .pink).opacity(0.9), radius: 10, x: 0, y: 2)
+                    .padding(.horizontal, 10)
+                    .padding(.bottom, 2)
+                    .transition(.opacity.combined(with: .scale(scale: 0.6, anchor: .bottom)))
+            }
+        }
+        .animation(.spring(response: 0.25, dampingFraction: 0.75), value: interactionMode.currentMode)
         .contentShape(RoundedRectangle(cornerRadius: 22))
         .fixedSize()
     }
@@ -446,7 +459,7 @@ private struct RegularToolButton: View {
             if locked {
                 NotificationCenter.default.post(name: .showPaywall, object: tool)
             } else {
-                drawingState.selectedTool = tool
+                drawingState.selectTool(tool)
             }
         } label: {
             ZStack(alignment: .topTrailing) {
@@ -504,7 +517,7 @@ private struct ShapeToolButton: View {
         let icon = filled ? tool.systemImage + ".fill" : tool.systemImage
 
         Button {
-            drawingState.selectedTool = tool
+            drawingState.selectTool(tool)
             drawingState.isFilled = filled
         } label: {
             Image(systemName: icon)

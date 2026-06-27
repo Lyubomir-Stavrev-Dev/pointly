@@ -290,6 +290,7 @@ class DrawingState: ObservableObject {
     @Published var selectedTool: DrawingTool = .pen
     @Published var selectedColor: Color = Color(hex: "#F4644D") ?? Color(red: 0.957, green: 0.392, blue: 0.302)
     @Published var strokeThickness: CGFloat = 3.0
+    private var toolThicknesses: [DrawingTool: CGFloat] = [:]
     @Published var isFilled: Bool = false
     @Published var selectedElementIDs: Set<UUID> = []
     @Published var selectionRubberBand: CGRect? = nil
@@ -610,13 +611,14 @@ class DrawingState: ObservableObject {
     }
     
     func selectTool(_ tool: DrawingTool) {
+        toolThicknesses[selectedTool] = strokeThickness
         selectedTool = tool
-
-        // Update UI for tool-specific properties
-        NotificationCenter.default.post(
-            name: .toolChanged,
-            object: tool
-        )
+        let defaultThickness: CGFloat = {
+            let v = UserDefaults.standard.double(forKey: "defaultThickness")
+            return v > 0 ? CGFloat(v) : 3.0
+        }()
+        strokeThickness = toolThicknesses[tool] ?? defaultThickness
+        NotificationCenter.default.post(name: .toolChanged, object: tool)
     }
 
     // MARK: - Selection

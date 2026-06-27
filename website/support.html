@@ -1,0 +1,454 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Support — Pointly</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --brand-1: #F4644D;
+      --brand-2: #FF8C42;
+      --brand-3: #E9458C;
+      --bg: #07070f;
+      --bg-2: #0d0d1a;
+      --border: rgba(255,255,255,0.08);
+      --text: #ffffff;
+      --muted: rgba(255,255,255,0.45);
+      --grad: linear-gradient(135deg, var(--brand-1), var(--brand-2), var(--brand-3));
+    }
+    body {
+      font-family: 'Inter', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      -webkit-font-smoothing: antialiased;
+      line-height: 1.7;
+    }
+    nav {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 18px 60px;
+      background: rgba(7,7,15,0.85);
+      backdrop-filter: blur(20px);
+      border-bottom: 1px solid var(--border);
+    }
+    .nav-logo {
+      display: flex; align-items: center; gap: 10px;
+      font-size: 20px; font-weight: 800;
+      text-decoration: none; color: var(--text);
+    }
+    .nav-logo-icon {
+      width: 34px; height: 34px;
+      background: var(--grad); border-radius: 9px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 16px;
+      box-shadow: 0 4px 16px rgba(244,100,77,0.45);
+    }
+    .nav-back {
+      color: var(--muted); text-decoration: none;
+      font-size: 14px; font-weight: 500;
+      display: flex; align-items: center; gap: 6px;
+      transition: color 0.2s;
+    }
+    .nav-back:hover { color: var(--text); }
+
+    .page {
+      max-width: 720px;
+      margin: 0 auto;
+      padding: 140px 32px 80px;
+    }
+
+    .page-label {
+      font-size: 11px; font-weight: 700; letter-spacing: 0.12em;
+      text-transform: uppercase;
+      background: var(--grad);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      margin-bottom: 16px;
+    }
+
+    h1 {
+      font-size: clamp(32px, 5vw, 48px);
+      font-weight: 900; letter-spacing: -1.5px;
+      margin-bottom: 12px;
+      line-height: 1.1;
+    }
+
+    .subtitle {
+      font-size: 16px; color: var(--muted);
+      margin-bottom: 56px;
+    }
+
+    .section {
+      margin-bottom: 48px;
+    }
+
+    h2 {
+      font-size: 18px; font-weight: 700;
+      margin-bottom: 16px;
+      color: #fff;
+    }
+
+    p {
+      font-size: 15px; color: rgba(255,255,255,0.7);
+      margin-bottom: 14px;
+    }
+
+    ul {
+      list-style: none;
+      margin-bottom: 14px;
+    }
+
+    ul li {
+      font-size: 15px; color: rgba(255,255,255,0.7);
+      padding: 6px 0;
+      padding-left: 20px;
+      position: relative;
+    }
+
+    ul li::before {
+      content: '✦';
+      position: absolute; left: 0;
+      font-size: 9px;
+      background: var(--grad);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      top: 9px;
+    }
+
+    .highlight-box {
+      background: rgba(244,100,77,0.07);
+      border: 1px solid rgba(244,100,77,0.18);
+      border-radius: 14px;
+      padding: 20px 24px;
+      margin-bottom: 14px;
+    }
+
+    .highlight-box p {
+      margin-bottom: 0;
+      color: rgba(255,255,255,0.8);
+    }
+
+    /* FAQ accordion */
+    .faq-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin-bottom: 14px;
+    }
+
+    details {
+      background: rgba(255,255,255,0.03);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+      transition: border-color 0.2s;
+    }
+
+    details[open] {
+      border-color: rgba(244,100,77,0.3);
+    }
+
+    summary {
+      list-style: none;
+      padding: 16px 20px;
+      font-size: 15px; font-weight: 600; color: #fff;
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: space-between;
+      gap: 12px;
+      user-select: none;
+    }
+
+    summary::-webkit-details-marker { display: none; }
+
+    summary::after {
+      content: '+';
+      font-size: 20px; font-weight: 300;
+      color: var(--muted);
+      flex-shrink: 0;
+      transition: transform 0.2s, color 0.2s;
+    }
+
+    details[open] summary::after {
+      transform: rotate(45deg);
+      color: #FF8C42;
+    }
+
+    .faq-body {
+      padding: 0 20px 16px;
+      font-size: 15px; color: rgba(255,255,255,0.65);
+      line-height: 1.65;
+    }
+
+    .faq-body p { margin-bottom: 0; color: rgba(255,255,255,0.65); }
+    .faq-body a { color: var(--brand-2); text-decoration: none; }
+    .faq-body a:hover { text-decoration: underline; }
+
+    /* Contact card */
+    .contact-card {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+      background: rgba(255,255,255,0.03);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 24px 28px;
+    }
+
+    .contact-icon {
+      width: 48px; height: 48px;
+      background: rgba(244,100,77,0.1);
+      border: 1px solid rgba(244,100,77,0.2);
+      border-radius: 12px;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+      color: #F4644D;
+    }
+
+    .contact-icon svg { width: 22px; height: 22px; }
+
+    .contact-text h3 {
+      font-size: 15px; font-weight: 700;
+      margin-bottom: 4px;
+    }
+
+    .contact-text p {
+      font-size: 14px; color: var(--muted);
+      margin-bottom: 0;
+    }
+
+    .contact-text a {
+      color: var(--brand-2); font-weight: 500;
+    }
+
+    .divider {
+      height: 1px;
+      background: rgba(255,255,255,0.07);
+      margin: 48px 0;
+    }
+
+    a { color: var(--brand-2); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+
+    footer {
+      text-align: center;
+      padding: 32px;
+      border-top: 1px solid var(--border);
+      color: var(--muted);
+      font-size: 13px;
+    }
+  </style>
+</head>
+<body>
+
+  <nav>
+    <a href="index.html" class="nav-logo">
+      <div class="nav-logo-icon">✦</div>
+      Pointly
+    </a>
+    <a href="index.html" class="nav-back">
+      ← Back to home
+    </a>
+  </nav>
+
+  <div class="page">
+
+    <p class="page-label">Help</p>
+    <h1>Support</h1>
+    <p class="subtitle">Everything you need to get the most out of Pointly.</p>
+
+    <div class="highlight-box">
+      <p><strong>Quick tip:</strong> Most questions are answered below. If you still need help, email us directly — we respond within 24 hours on business days.</p>
+    </div>
+
+    <!-- Getting Started -->
+    <div class="section">
+      <h2>Getting Started</h2>
+      <div class="faq-list">
+
+        <details>
+          <summary>How do I activate the drawing overlay?</summary>
+          <div class="faq-body">
+            <p>Press the global hotkey (default <strong>⌥ Option + D</strong>) from anywhere on your Mac. The Pointly toolbar will appear on screen and you can start annotating immediately. You can customise the hotkey in Settings.</p>
+          </div>
+        </details>
+
+        <details>
+          <summary>How do I clear the canvas?</summary>
+          <div class="faq-body">
+            <p>Click the <strong>Eraser</strong> tool and drag over any drawing, or press <strong>⌘ Cmd + Z</strong> to undo step by step. To wipe everything at once, use the trash icon in the toolbar header.</p>
+          </div>
+        </details>
+
+        <details>
+          <summary>Can I use Pointly during a screen share or recording?</summary>
+          <div class="faq-body">
+            <p>Yes. Pointly draws directly on a transparent overlay window, so your annotations appear in any screen share or recording software (Zoom, Teams, Loom, QuickTime, etc.) just like they do on your own screen.</p>
+          </div>
+        </details>
+
+        <details>
+          <summary>Does Pointly work on multiple displays?</summary>
+          <div class="faq-body">
+            <p>Yes. Pointly covers all connected displays. The toolbar can be dragged to whichever screen you prefer.</p>
+          </div>
+        </details>
+
+      </div>
+    </div>
+
+    <!-- Tools -->
+    <div class="section">
+      <h2>Tools &amp; Features</h2>
+      <div class="faq-list">
+
+        <details>
+          <summary>What is the Cut &amp; Move tool?</summary>
+          <div class="faq-body">
+            <p>Cut &amp; Move lets you select a region of your screen and lift it into a freely draggable floating panel. It's useful for moving a diagram or code snippet next to another window without Alt-Tabbing. The captured content never leaves your device.</p>
+          </div>
+        </details>
+
+        <details>
+          <summary>Why does Pointly ask for Screen Recording permission?</summary>
+          <div class="faq-body">
+            <p>macOS requires Screen Recording permission for any app that reads pixel content from the screen. Pointly uses this only for the <strong>Cut &amp; Move</strong> tool. All other tools (pen, highlighter, spotlight, etc.) do not use screen recording at all. You can revoke the permission at any time in <strong>System Settings → Privacy &amp; Security → Screen Recording</strong> — this simply disables the Cut &amp; Move tool.</p>
+          </div>
+        </details>
+
+        <details>
+          <summary>What is the Spotlight tool?</summary>
+          <div class="faq-body">
+            <p>Spotlight dims everything on screen except a glowing circle that follows a chosen point, focusing your audience's attention on a specific area. It's ideal for presentations and walkthroughs.</p>
+          </div>
+        </details>
+
+        <details>
+          <summary>What is the Laser Pointer?</summary>
+          <div class="faq-body">
+            <p>The Laser Pointer renders a glowing red dot with a fading trail, simulating a physical laser pointer. It's great for drawing attention in recordings or live demos.</p>
+          </div>
+        </details>
+
+        <details>
+          <summary>Can I export my drawings?</summary>
+          <div class="faq-body">
+            <p>Yes. Use the export button in the toolbar to save the current canvas as a PNG or PDF. Exports are saved directly to your chosen folder — nothing is uploaded anywhere.</p>
+          </div>
+        </details>
+
+      </div>
+    </div>
+
+    <!-- Pro & Purchases -->
+    <div class="section">
+      <h2>Pro &amp; In-App Purchases</h2>
+      <div class="faq-list">
+
+        <details>
+          <summary>How do I unlock Pro or Pro+?</summary>
+          <div class="faq-body">
+            <p>Open Pointly, tap any locked tool (shown with a lock icon) or go to <strong>Settings → Upgrade</strong>. The purchase is processed entirely by Apple's App Store — no account with us is needed.</p>
+          </div>
+        </details>
+
+        <details>
+          <summary>How do I restore a previous purchase?</summary>
+          <div class="faq-body">
+            <p>Go to <strong>Settings → Restore Purchases</strong> inside Pointly. Make sure you're signed in to the same Apple ID used for the original purchase. Apple will verify and unlock your plan automatically.</p>
+          </div>
+        </details>
+
+        <details>
+          <summary>I was charged but the app still shows locked tools. What do I do?</summary>
+          <div class="faq-body">
+            <p>First, try <strong>Settings → Restore Purchases</strong>. If that doesn't work, quit and relaunch Pointly. Still stuck? Email us at <a href="mailto:lyubomirstavrev02@gmail.com">lyubomirstavrev02@gmail.com</a> with your Apple Order ID and we'll help you sort it out.</p>
+          </div>
+        </details>
+
+        <details>
+          <summary>Can I get a refund?</summary>
+          <div class="faq-body">
+            <p>Refunds are handled by Apple, not by us. Visit <a href="https://reportaproblem.apple.com" target="_blank" rel="noopener">reportaproblem.apple.com</a>, sign in with your Apple ID, find the Pointly purchase, and request a refund there.</p>
+          </div>
+        </details>
+
+        <details>
+          <summary>What's the difference between Pro and Pro+?</summary>
+          <div class="faq-body">
+            <p><strong>Pro</strong> is a yearly subscription that unlocks all advanced tools: Laser Pointer, Spotlight, Dot Pen, and Cut &amp; Move. <strong>Pro+</strong> is a one-time lifetime purchase — pay once, own it forever, and get all future Pro features and early access to new tools.</p>
+          </div>
+        </details>
+
+      </div>
+    </div>
+
+    <!-- Troubleshooting -->
+    <div class="section">
+      <h2>Troubleshooting</h2>
+      <div class="faq-list">
+
+        <details>
+          <summary>The toolbar doesn't appear when I press the hotkey.</summary>
+          <div class="faq-body">
+            <p>Make sure Pointly is running (check the menu bar). If another app has claimed the same shortcut, open <strong>Pointly Settings → Hotkey</strong> and assign a different one. Also verify that Pointly has Accessibility permission in <strong>System Settings → Privacy &amp; Security → Accessibility</strong>.</p>
+          </div>
+        </details>
+
+        <details>
+          <summary>My drawings don't appear on top of other windows.</summary>
+          <div class="faq-body">
+            <p>Pointly requires Accessibility permission to draw above all windows. Go to <strong>System Settings → Privacy &amp; Security → Accessibility</strong> and make sure Pointly is enabled. Restart Pointly after granting permission.</p>
+          </div>
+        </details>
+
+        <details>
+          <summary>Cut &amp; Move doesn't capture anything / shows a black panel.</summary>
+          <div class="faq-body">
+            <p>This tool requires Screen Recording permission. Go to <strong>System Settings → Privacy &amp; Security → Screen Recording</strong>, enable Pointly, then relaunch the app. A black panel usually means the permission was granted after the app launched — a relaunch fixes it.</p>
+          </div>
+        </details>
+
+        <details>
+          <summary>Pointly is slow or the canvas flickers.</summary>
+          <div class="faq-body">
+            <p>Try reducing the stroke thickness, which lowers rendering load. If you're on a display with a very high refresh rate, make sure macOS is not running in a compatibility mode. Quitting and relaunching Pointly usually resolves temporary glitches.</p>
+          </div>
+        </details>
+
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <!-- Contact -->
+    <div class="section">
+      <h2>Still need help?</h2>
+      <p>We're a small indie team and we read every message. Send us an email and we'll get back to you within 24 hours on business days.</p>
+      <div class="contact-card">
+        <div class="contact-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="2" y="4" width="20" height="16" rx="3"/>
+            <polyline points="2,4 12,13 22,4"/>
+          </svg>
+        </div>
+        <div class="contact-text">
+          <h3>Email Support</h3>
+          <p><a href="mailto:lyubomirstavrev02@gmail.com">lyubomirstavrev02@gmail.com</a></p>
+          <p>Response within 24 hours on business days.</p>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <footer>
+    © 2026 Pointly. All rights reserved. &nbsp;·&nbsp;
+    <a href="privacy.html">Privacy Policy</a> &nbsp;·&nbsp;
+    <a href="support.html">Support</a> &nbsp;·&nbsp;
+    <a href="mailto:lyubomirstavrev02@gmail.com">Contact</a>
+  </footer>
+
+</body>
+</html>

@@ -659,6 +659,37 @@ private struct ShortcutsContent: View {
                 }
             }
 
+            SettingsCard(title: "Built-in Shortcuts") {
+                VStack(spacing: 0) {
+                    ForEach(Array(builtInShortcuts.enumerated()), id: \.offset) { idx, row in
+                        HStack {
+                            Text(row.label)
+                                .font(.system(size: 12, weight: .medium))
+                                .foregroundColor(.white.opacity(0.9))
+                            Spacer()
+                            Text(row.keys)
+                                .font(.system(size: 11, weight: .medium, design: .monospaced))
+                                .foregroundColor(.white.opacity(0.85))
+                                .padding(.horizontal, 7)
+                                .padding(.vertical, 3)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 5)
+                                        .fill(Color.white.opacity(0.10))
+                                        .overlay(RoundedRectangle(cornerRadius: 5)
+                                            .strokeBorder(Color.white.opacity(0.12), lineWidth: 0.7))
+                                )
+                        }
+                        .padding(.vertical, 6)
+                        if idx < builtInShortcuts.count - 1 {
+                            Rectangle()
+                                .fill(Color.white.opacity(0.06))
+                                .frame(height: 0.7)
+                                .padding(.vertical, 2)
+                        }
+                    }
+                }
+            }
+
             HStack {
                 Spacer()
                 Button("Reset to Defaults") { store.resetToDefaults() }
@@ -666,6 +697,14 @@ private struct ShortcutsContent: View {
             }
         }
     }
+
+    private let builtInShortcuts: [(label: String, keys: String)] = [
+        ("Clear all drawings",   "⌘⌫"),
+        ("Undo",                 "⌘Z"),
+        ("Redo",                 "⌘⇧Z"),
+        ("Delete selected",      "⌫"),
+        ("Toggle draw / interact", "Esc"),
+    ]
 }
 
 private struct ShortcutRow: View {

@@ -1,0 +1,1771 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Pointly — Draw, Annotate & Present on Your Mac</title>
+  <meta name="description" content="Pointly lets you draw, highlight, and annotate anything on your screen in real time. Perfect for presentations, code reviews, and live demos." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --brand-1: #F4644D;
+      --brand-2: #FF8C42;
+      --brand-3: #E9458C;
+      --bg:      #07070f;
+      --bg-2:    #0d0d1a;
+      --glass:   rgba(255,255,255,0.04);
+      --border:  rgba(255,255,255,0.08);
+      --text:    #ffffff;
+      --muted:   rgba(255,255,255,0.45);
+      --grad: linear-gradient(135deg, var(--brand-1), var(--brand-2), var(--brand-3));
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: 'Inter', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      overflow-x: hidden;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* ── Noise texture overlay ── */
+    body::before {
+      content: '';
+      position: fixed; inset: 0; z-index: 0; pointer-events: none;
+      opacity: 0.025;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+    }
+
+    /* ── Nav ── */
+    nav {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 18px 60px;
+      background: rgba(7,7,15,0.7);
+      backdrop-filter: blur(20px);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .nav-logo {
+      display: flex; align-items: center; gap: 10px;
+      font-size: 20px; font-weight: 800; letter-spacing: -0.3px;
+      text-decoration: none; color: var(--text);
+    }
+
+    .nav-logo-icon {
+      width: 34px; height: 34px;
+      background: var(--grad);
+      border-radius: 9px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 16px;
+      box-shadow: 0 4px 16px rgba(244,100,77,0.45);
+    }
+
+    .nav-links {
+      display: flex; align-items: center; gap: 32px;
+      list-style: none;
+    }
+
+    .nav-links a {
+      color: var(--muted); text-decoration: none;
+      font-size: 14px; font-weight: 500;
+      transition: color 0.2s;
+    }
+
+    .nav-links a:hover { color: var(--text); }
+
+    .nav-cta {
+      background: var(--grad);
+      color: #fff; border: none; border-radius: 10px;
+      padding: 9px 20px; font-size: 14px; font-weight: 600;
+      cursor: pointer; text-decoration: none;
+      transition: opacity 0.2s, transform 0.2s;
+      box-shadow: 0 4px 18px rgba(244,100,77,0.35);
+    }
+
+    .nav-cta:hover { opacity: 0.88; transform: translateY(-1px); }
+
+    /* ── Hero ── */
+    .hero {
+      min-height: 100vh;
+      display: grid;
+      grid-template-columns: 1fr 1.4fr;
+      align-items: center;
+      gap: 40px;
+      padding: 120px 60px 80px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    /* Background glow blobs */
+    .hero::after {
+      content: '';
+      position: absolute;
+      width: 700px; height: 700px;
+      background: radial-gradient(circle, rgba(244,100,77,0.12) 0%, transparent 70%);
+      top: -100px; right: -100px; pointer-events: none;
+      border-radius: 50%;
+    }
+
+    .hero-blob-2 {
+      position: absolute;
+      width: 500px; height: 500px;
+      background: radial-gradient(circle, rgba(233,69,140,0.08) 0%, transparent 70%);
+      bottom: 0; left: 10%; pointer-events: none;
+      border-radius: 50%;
+    }
+
+    .hero-left { position: relative; z-index: 2; }
+
+    .hero-badge {
+      display: inline-flex; align-items: center; gap: 8px;
+      background: rgba(244,100,77,0.1);
+      border: 1px solid rgba(244,100,77,0.25);
+      border-radius: 100px;
+      padding: 6px 14px; margin-bottom: 28px;
+      font-size: 12px; font-weight: 600;
+      color: var(--brand-2);
+    }
+
+    .hero-badge-dot {
+      width: 6px; height: 6px; border-radius: 50%;
+      background: var(--brand-1);
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.5; transform: scale(0.8); }
+    }
+
+    .hero-tagline {
+      font-size: clamp(13px, 1.4vw, 16px);
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      background: var(--grad);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      margin-bottom: 14px;
+    }
+
+    h1 {
+      font-size: clamp(42px, 5vw, 72px);
+      font-weight: 900;
+      line-height: 1.05;
+      letter-spacing: -2px;
+      margin-bottom: 22px;
+    }
+
+    h1 span {
+      background: var(--grad);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .hero-sub {
+      font-size: clamp(15px, 1.6vw, 18px);
+      color: var(--muted);
+      line-height: 1.65;
+      max-width: 440px;
+      margin-bottom: 40px;
+    }
+
+    .hero-actions { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+
+    .btn-primary {
+      display: inline-flex; align-items: center; gap: 12px;
+      background: var(--text);
+      color: #000; border-radius: 14px;
+      padding: 15px 26px; font-size: 16px; font-weight: 700;
+      text-decoration: none;
+      transition: transform 0.2s, box-shadow 0.2s;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.35);
+    }
+
+    .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 12px 40px rgba(0,0,0,0.5); }
+
+    .btn-primary svg { width: 22px; height: 22px; fill: #000; }
+
+    .btn-secondary {
+      display: inline-flex; align-items: center; gap: 8px;
+      color: var(--muted); font-size: 14px; font-weight: 500;
+      text-decoration: none;
+      transition: color 0.2s;
+    }
+
+    .btn-secondary:hover { color: var(--text); }
+
+    .hero-note {
+      margin-top: 18px;
+      font-size: 12px; color: rgba(255,255,255,0.25);
+      display: flex; align-items: center; gap: 6px;
+    }
+
+    .hero-note svg { width: 14px; height: 14px; fill: rgba(255,255,255,0.2); }
+
+    /* ── MacBook Mockup ── */
+    .hero-right {
+      position: relative; z-index: 2;
+      display: flex; align-items: center; justify-content: center;
+    }
+
+    .macbook-wrap {
+      position: relative;
+      width: 100%; max-width: 820px;
+      filter: drop-shadow(0 40px 80px rgba(0,0,0,0.6))
+              drop-shadow(0 0 60px rgba(244,100,77,0.15));
+      animation: float 6s ease-in-out infinite;
+    }
+
+    @keyframes float {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-12px); }
+    }
+
+    .macbook-screen {
+      background: #0d0d1a;
+      border-radius: 16px 16px 0 0;
+      overflow: hidden;
+      border: 1.5px solid rgba(255,255,255,0.12);
+      position: relative;
+    }
+
+    .macbook-titlebar {
+      background: #1a1a2e;
+      padding: 10px 16px;
+      display: flex; align-items: center; gap: 7px;
+      border-bottom: 1px solid rgba(255,255,255,0.07);
+    }
+
+    .dot { width: 11px; height: 11px; border-radius: 50%; }
+    .dot-r { background: #ff5f57; }
+    .dot-y { background: #ffbd2e; }
+    .dot-g { background: #28ca41; }
+
+    .macbook-content {
+      padding: 0;
+      background: #0d0d1a;
+      min-height: 480px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    /* Fake screen content */
+    .screen-bg {
+      position: absolute; inset: 0;
+      background: linear-gradient(135deg, #0a0a18 0%, #0f0f22 50%, #0a0f1a 100%);
+    }
+
+    /* Toolbar pill */
+    .toolbar-pill {
+      position: absolute;
+      top: 16px; left: 50%; transform: translateX(-50%);
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 16px;
+      padding: 8px 14px;
+      display: flex; align-items: center; gap: 6px;
+      backdrop-filter: blur(20px);
+      box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+      z-index: 10;
+    }
+
+    .tb-btn {
+      width: 30px; height: 30px; border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 13px;
+      transition: background 0.2s;
+    }
+
+    .tb-btn.active {
+      background: var(--grad);
+      box-shadow: 0 3px 10px rgba(244,100,77,0.5);
+    }
+
+    .tb-btn:not(.active) { color: rgba(255,255,255,0.45); }
+
+    /* Blog skeleton screen — content clearly visible so spotlight can reveal it */
+    .blog-skeleton {
+      position: absolute;
+      top: 12px; left: 18px; right: 18px; bottom: 18px;
+      background: rgba(16, 18, 42, 0.98);
+      border: 1px solid rgba(255,255,255,0.09);
+      border-radius: 12px;
+      padding: 20px 22px;
+      overflow: hidden;
+      display: flex; flex-direction: column; gap: 9px;
+    }
+    .sk-img {
+      height: 72px; flex-shrink: 0;
+      background: linear-gradient(135deg, rgba(255,255,255,0.13), rgba(255,255,255,0.07));
+      border-radius: 8px;
+    }
+    .sk-title {
+      height: 13px; width: 68%;
+      background: rgba(255,255,255,0.48); border-radius: 4px;
+    }
+    .sk-sub {
+      height: 9px; width: 44%;
+      background: rgba(255,255,255,0.22); border-radius: 4px;
+    }
+    .sk-meta { display: flex; align-items: center; gap: 8px; }
+    .sk-av {
+      width: 22px; height: 22px; border-radius: 50%;
+      background: rgba(255,255,255,0.24); flex-shrink: 0;
+    }
+    .sk-by { display: flex; flex-direction: column; gap: 4px; }
+    .sk-ln {
+      height: 7px; border-radius: 3px;
+      background: rgba(255,255,255,0.22);
+    }
+    .sk-sep { height: 1px; background: rgba(255,255,255,0.08); flex-shrink: 0; }
+    .sk-gap { height: 3px; flex-shrink: 0; }
+
+    /* Spotlight: smooth radial-gradient overlay using @property for animated center */
+    @property --spot-x {
+      syntax: '<percentage>';
+      initial-value: 36%;
+      inherits: false;
+    }
+    @property --spot-y {
+      syntax: '<percentage>';
+      initial-value: 30%;
+      inherits: false;
+    }
+
+    .spotlight-overlay {
+      position: absolute; inset: 0;
+      pointer-events: none; z-index: 5;
+      background: radial-gradient(
+        circle 145px at var(--spot-x) var(--spot-y),
+        rgba(9,9,28,0)    0%,
+        rgba(9,9,28,0)    30%,
+        rgba(9,9,28,0.84) 60%,
+        rgba(9,9,28,0.96) 100%
+      );
+      animation: spot-pos 6s ease-in-out infinite;
+    }
+    @keyframes spot-pos {
+      0%   { --spot-x: 36%; --spot-y: 30%; }
+      30%  { --spot-x: 52%; --spot-y: 62%; }
+      65%  { --spot-x: 26%; --spot-y: 46%; }
+      100% { --spot-x: 36%; --spot-y: 30%; }
+    }
+
+    /* Warm inner glow — sits below the overlay, visible through the transparent center */
+    .spotlight-glow {
+      position: absolute;
+      width: 290px; height: 290px;
+      border-radius: 50%;
+      pointer-events: none; z-index: 4;
+      transform: translate(-50%, -50%);
+      background: radial-gradient(
+        circle,
+        rgba(255,238,190,0.28) 0%,
+        rgba(255,220,140,0.12) 42%,
+        transparent 72%
+      );
+      animation: glow-pos 6s ease-in-out infinite;
+    }
+    @keyframes glow-pos {
+      0%   { left: 36%; top: 30%; }
+      30%  { left: 52%; top: 62%; }
+      65%  { left: 26%; top: 46%; }
+      100% { left: 36%; top: 30%; }
+    }
+
+    /* Pointly toolbar overlay */
+    .pt-overlay {
+      position: absolute;
+      top: 50%; right: 14px;
+      transform: translateY(-50%);
+      display: flex; gap: 6px; align-items: stretch;
+      z-index: 10;
+    }
+    .pt-toolbar {
+      background: rgba(8,8,20,0.94);
+      border: 1px solid rgba(255,255,255,0.11);
+      border-radius: 18px;
+      padding: 8px 7px;
+      display: flex; flex-direction: column; gap: 4px;
+      width: 96px;
+      backdrop-filter: blur(24px);
+      box-shadow: 0 20px 50px rgba(0,0,0,0.75), inset 0 1px 0 rgba(255,255,255,0.07);
+    }
+    .pt-hdr { display: flex; justify-content: space-between; padding: 0 1px 2px; }
+    .pt-hbtn {
+      width: 22px; height: 20px; border-radius: 6px;
+      background: rgba(255,255,255,0.07); border: 1px solid rgba(255,255,255,0.06);
+      display: flex; align-items: center; justify-content: center;
+      color: rgba(255,255,255,0.3);
+    }
+    .pt-hbtn svg { width: 10px; height: 10px; }
+    .pt-draw {
+      background: linear-gradient(135deg, #F4644D, #FF8C42 50%, #E9458C);
+      border-radius: 9px; padding: 5px 7px;
+      display: flex; align-items: center; gap: 5px;
+      font-size: 10px; font-weight: 700; color: #fff;
+      box-shadow: 0 3px 10px rgba(244,100,77,0.5);
+    }
+    .pt-draw svg { width: 11px; height: 11px; flex-shrink: 0; }
+    .pt-sec {
+      font-size: 6px; font-weight: 700; letter-spacing: 0.1em;
+      color: rgba(255,255,255,0.2); padding: 2px 1px 0;
+    }
+    .pt-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 3px; }
+    .pt-t {
+      height: 28px; border-radius: 7px;
+      display: flex; align-items: center; justify-content: center;
+      color: rgba(255,255,255,0.4); position: relative;
+    }
+    .pt-t svg { width: 13px; height: 13px; }
+    .pt-t.on {
+      background: linear-gradient(135deg, rgba(244,100,77,0.22), rgba(233,69,140,0.13));
+      border: 1px solid rgba(244,100,77,0.4); color: rgba(255,255,255,0.95);
+    }
+    .pt-t.lk { color: rgba(255,255,255,0.22); }
+    .pt-t.lk::after {
+      content: ''; position: absolute; top: 3px; right: 3px;
+      width: 7px; height: 7px;
+      background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect x='3' y='11' width='18' height='11' rx='2' fill='none' stroke='rgba(255,255,255,0.35)' stroke-width='2'/%3E%3Cpath d='M7 11V7a5 5 0 0 1 10 0v4' fill='none' stroke='rgba(255,255,255,0.35)' stroke-width='2'/%3E%3C/svg%3E") center/contain no-repeat;
+    }
+    .pt-div { height: 1px; background: rgba(255,255,255,0.07); margin: 1px 0; }
+    .pt-cols { display: flex; gap: 4px; justify-content: center; padding: 1px 0; }
+    .pt-clr { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
+    .pt-clr.sel { box-shadow: 0 0 0 2px rgba(8,8,20,0.9), 0 0 0 3.5px rgba(255,255,255,0.5); }
+
+    /* SIZE bar */
+    .pt-sz {
+      background: rgba(8,8,20,0.94);
+      border: 1px solid rgba(255,255,255,0.11);
+      border-radius: 16px; padding: 10px 5px;
+      display: flex; flex-direction: column; align-items: center; gap: 5px;
+      width: 28px;
+      backdrop-filter: blur(24px);
+      box-shadow: 0 20px 50px rgba(0,0,0,0.75), inset 0 1px 0 rgba(255,255,255,0.07);
+    }
+    .pt-sz-ic { color: rgba(255,255,255,0.3); }
+    .pt-sz-ic svg { width: 11px; height: 11px; }
+    .pt-sz-tr {
+      flex: 1; width: 7px;
+      background: rgba(255,255,255,0.09); border-radius: 4px; position: relative;
+    }
+    .pt-sz-fi {
+      position: absolute; bottom: 0; left: 0; right: 0; height: 60%;
+      background: linear-gradient(to top, #F4644D, #FF8C42, #E9458C); border-radius: 4px;
+    }
+    .pt-sz-th {
+      position: absolute; bottom: 59%; left: 50%;
+      transform: translate(-50%, 50%);
+      width: 15px; height: 3px; background: #fff; border-radius: 2px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.5);
+    }
+    .pt-sz-v {
+      font-size: 8px; font-weight: 800; font-family: 'SF Mono', monospace;
+      background: linear-gradient(135deg, #F4644D, #E9458C);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    }
+    .pt-sz-l { font-size: 5px; font-weight: 700; letter-spacing: 0.1em; color: rgba(255,255,255,0.2); }
+
+    /* MacBook base */
+    .macbook-base {
+      background: linear-gradient(180deg, #2a2a3a 0%, #1a1a28 100%);
+      height: 22px; border-radius: 0 0 4px 4px;
+      border: 1px solid rgba(255,255,255,0.08);
+      border-top: none;
+      position: relative;
+    }
+
+    .macbook-base::after {
+      content: '';
+      position: absolute;
+      bottom: -10px; left: 50%; transform: translateX(-50%);
+      width: 60%; height: 10px;
+      background: linear-gradient(180deg, #1a1a28 0%, #111120 100%);
+      border-radius: 0 0 8px 8px;
+    }
+
+    /* ── Stats bar ── */
+    .stats {
+      display: flex; justify-content: center; gap: 0;
+      padding: 16px 60px 0;
+      position: relative; z-index: 2;
+    }
+
+    .stat-item {
+      flex: 1; max-width: 220px;
+      display: flex; align-items: center; gap: 14px;
+      padding: 18px 24px;
+      border-right: 1px solid var(--border);
+    }
+
+    .stat-item:last-child { border-right: none; }
+
+    .stat-icon {
+      width: 36px; height: 36px; border-radius: 10px;
+      background: rgba(244,100,77,0.1);
+      border: 1px solid rgba(244,100,77,0.2);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 16px; flex-shrink: 0;
+    }
+
+    .stat-text strong {
+      display: block; font-size: 13px; font-weight: 700; color: var(--text);
+    }
+
+    .stat-text span {
+      font-size: 11px; color: var(--muted);
+    }
+
+    /* ── Section shared ── */
+    section { position: relative; z-index: 2; }
+
+    .section-label {
+      font-size: 11px; font-weight: 700; letter-spacing: 0.12em;
+      text-transform: uppercase;
+      background: var(--grad);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      margin-bottom: 12px;
+    }
+
+    .section-title {
+      font-size: clamp(30px, 3.5vw, 48px);
+      font-weight: 800; letter-spacing: -1.5px;
+      line-height: 1.1; margin-bottom: 16px;
+    }
+
+    .section-sub {
+      font-size: 16px; color: var(--muted);
+      line-height: 1.65; max-width: 520px;
+    }
+
+    /* ── Features ── */
+    .features {
+      padding: 100px 60px;
+    }
+
+    .features-header { text-align: center; margin-bottom: 64px; }
+    .features-header .section-sub { margin: 0 auto; }
+
+    .features-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 16px;
+    }
+
+    .feature-card {
+      background: var(--glass);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 28px;
+      transition: border-color 0.25s, transform 0.25s, box-shadow 0.25s;
+      cursor: default;
+    }
+
+    .feature-card:hover {
+      border-color: rgba(244,100,77,0.3);
+      transform: translateY(-4px);
+      box-shadow: 0 20px 48px rgba(0,0,0,0.3), 0 0 0 1px rgba(244,100,77,0.1);
+    }
+
+    .feature-card.featured {
+      background: linear-gradient(135deg, rgba(244,100,77,0.08), rgba(233,69,140,0.06));
+      border-color: rgba(244,100,77,0.2);
+      grid-column: span 1;
+    }
+
+    .fc-icon-wrap {
+      width: 44px; height: 44px; border-radius: 12px;
+      background: rgba(244,100,77,0.1);
+      border: 1px solid rgba(244,100,77,0.2);
+      display: flex; align-items: center; justify-content: center;
+      margin-bottom: 18px;
+      color: #F4644D;
+    }
+    .fc-icon-wrap svg { width: 22px; height: 22px; }
+
+    .feature-card h3 {
+      font-size: 17px; font-weight: 700; margin-bottom: 8px;
+    }
+
+    .feature-card p {
+      font-size: 13.5px; color: var(--muted); line-height: 1.6;
+    }
+
+    .feature-tag {
+      display: inline-block;
+      margin-top: 14px;
+      background: rgba(244,100,77,0.12);
+      border: 1px solid rgba(244,100,77,0.2);
+      border-radius: 100px;
+      padding: 3px 10px;
+      font-size: 11px; font-weight: 600;
+      color: var(--brand-2);
+    }
+
+    /* ── Tools showcase ── */
+    .tools-section { padding: 0 60px 100px; }
+
+    .tools-inner {
+      background: var(--glass);
+      border: 1px solid var(--border);
+      border-radius: 28px;
+      overflow: hidden;
+      display: grid;
+      grid-template-columns: 340px 1fr;
+      min-height: 520px;
+    }
+
+    .tools-left {
+      padding: 44px 36px;
+      display: flex; flex-direction: column; justify-content: center;
+      border-right: 1px solid var(--border);
+    }
+
+    .tools-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 7px; margin-top: 24px;
+    }
+
+    .tool-chip {
+      display: flex; align-items: center; gap: 9px;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid var(--border);
+      border-radius: 11px;
+      padding: 9px 12px;
+      font-size: 12.5px; font-weight: 500;
+      cursor: pointer;
+      transition: background 0.18s, border-color 0.18s, color 0.18s;
+      user-select: none;
+    }
+
+    .tool-chip:hover { background: rgba(244,100,77,0.08); border-color: rgba(244,100,77,0.28); }
+    .tool-chip.tc-active { background: rgba(244,100,77,0.14); border-color: rgba(244,100,77,0.4); }
+
+    .tool-chip-icon { width: 18px; height: 18px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
+    .tool-chip-icon svg { width: 16px; height: 16px; }
+
+    .tool-chip-pro {
+      margin-left: auto; font-size: 9px; font-weight: 700;
+      background: var(--grad);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+    }
+
+    /* Canvas area */
+    .tools-canvas {
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      padding: 28px 24px;
+      background: linear-gradient(135deg, rgba(244,100,77,0.03), rgba(233,69,140,0.02));
+      position: relative; overflow: hidden;
+    }
+
+    .tools-canvas::before {
+      content: ''; position: absolute; inset: 0;
+      background: radial-gradient(ellipse at 50% 40%, rgba(244,100,77,0.09), transparent 62%);
+      pointer-events: none;
+    }
+
+    #toolCanvas {
+      border-radius: 14px;
+      border: 1px solid rgba(255,255,255,0.07);
+      position: relative; z-index: 1;
+      display: block;
+      max-width: 100%; height: auto;
+    }
+
+    .tool-name-label {
+      margin-top: 14px; font-size: 12px; font-weight: 600;
+      color: rgba(255,255,255,0.35); letter-spacing: 0.06em;
+      text-transform: uppercase; z-index: 1; position: relative;
+    }
+
+    /* Toolbar column */
+    .tools-toolbar {
+      background: rgba(8,8,18,0.95);
+      border-left: 1px solid var(--border);
+      display: flex; flex-direction: column; align-items: center;
+      padding: 12px 0; gap: 1px;
+      overflow-y: auto;
+    }
+
+    .tb-icon-btn {
+      width: 46px; height: 38px;
+      display: flex; align-items: center; justify-content: center;
+      border-radius: 9px; margin: 1px 6px;
+      cursor: pointer;
+      color: rgba(255,255,255,0.32);
+      transition: background 0.15s, color 0.15s;
+      flex-shrink: 0;
+    }
+
+    .tb-icon-btn:hover { background: rgba(255,255,255,0.07); color: rgba(255,255,255,0.7); }
+    .tb-icon-btn.tb-active {
+      background: linear-gradient(135deg, #F4644D, #FF8C42, #E9458C);
+      color: white;
+      box-shadow: 0 3px 10px rgba(244,100,77,0.5);
+    }
+    .tb-icon-btn svg { width: 17px; height: 17px; }
+
+    .tb-sep { height: 1px; width: 32px; background: rgba(255,255,255,0.07); margin: 3px 0; }
+
+    /* ── Pricing ── */
+    .pricing {
+      padding: 0 60px 100px;
+    }
+
+    .pricing-header { text-align: center; margin-bottom: 52px; }
+    .pricing-header .section-sub { margin: 0 auto; }
+
+    .pricing-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 20px;
+      max-width: 900px; margin: 0 auto;
+      align-items: stretch;
+    }
+
+    .price-card {
+      background: var(--glass);
+      border: 1px solid var(--border);
+      border-radius: 22px;
+      padding: 20px 28px;
+      padding-top: 52px;
+      display: flex; flex-direction: column;
+      position: relative;
+      transition: transform 0.25s, box-shadow 0.25s;
+    }
+
+    .price-card:hover { transform: translateY(-4px); }
+
+    .price-card.popular {
+      background: linear-gradient(135deg, rgba(244,100,77,0.1), rgba(233,69,140,0.07));
+      border-color: rgba(244,100,77,0.35);
+      box-shadow: 0 0 0 1px rgba(244,100,77,0.15), 0 24px 60px rgba(244,100,77,0.12);
+    }
+
+    .price-badge {
+      position: absolute;
+      top: 20px; left: 28px;
+      background: var(--grad);
+      border-radius: 100px;
+      padding: 4px 12px;
+      font-size: 10px; font-weight: 700;
+      width: fit-content;
+    }
+
+    .price-name {
+      font-size: 20px; font-weight: 800; margin-bottom: 4px;
+    }
+
+    .price-amount {
+      font-size: 42px; font-weight: 900; letter-spacing: -2px;
+      line-height: 1; margin: 12px 0 4px;
+    }
+
+    .price-amount sup { font-size: 22px; font-weight: 700; vertical-align: top; margin-top: 8px; }
+    .price-amount.grad { background: var(--grad); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+
+    .price-period { font-size: 13px; color: var(--muted); margin-bottom: 24px; }
+
+    .price-features { list-style: none; margin-bottom: 28px; }
+
+    .price-features li {
+      display: flex; align-items: flex-start; gap: 10px;
+      font-size: 13.5px; color: rgba(255,255,255,0.75);
+      padding: 6px 0;
+      border-bottom: 1px solid rgba(255,255,255,0.05);
+    }
+
+    .price-features li:last-child { border-bottom: none; }
+
+    .check {
+      flex-shrink: 0; margin-top: 1px;
+      font-size: 13px;
+      background: var(--grad);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+    }
+
+    .price-btn {
+      display: block; text-align: center;
+      padding: 13px; border-radius: 12px;
+      font-size: 14px; font-weight: 700;
+      text-decoration: none;
+      transition: opacity 0.2s, transform 0.2s;
+    }
+
+    .price-btn.grad-btn {
+      background: var(--grad);
+      color: #fff;
+      box-shadow: 0 6px 20px rgba(244,100,77,0.35);
+    }
+
+    .price-btn.outline-btn {
+      background: rgba(255,255,255,0.05);
+      border: 1px solid var(--border);
+      color: var(--text);
+    }
+
+    .price-btn:hover { opacity: 0.85; transform: translateY(-1px); }
+
+    .iap-note {
+      display: flex; align-items: center; justify-content: center; gap: 5px;
+      margin-top: 10px;
+      font-size: 11px; color: rgba(255,255,255,0.3);
+    }
+
+    /* ── CTA Banner ── */
+    .cta-banner {
+      padding: 0 60px 100px;
+    }
+
+    .cta-inner {
+      background: linear-gradient(135deg, rgba(244,100,77,0.1) 0%, rgba(233,69,140,0.08) 100%);
+      border: 1px solid rgba(244,100,77,0.2);
+      border-radius: 28px;
+      padding: 64px;
+      text-align: center;
+      position: relative; overflow: hidden;
+    }
+
+    .cta-inner::before {
+      content: '';
+      position: absolute; top: -60px; left: 50%; transform: translateX(-50%);
+      width: 400px; height: 200px;
+      background: radial-gradient(ellipse, rgba(244,100,77,0.2), transparent 70%);
+      pointer-events: none;
+    }
+
+    .cta-inner h2 {
+      font-size: clamp(28px, 3.5vw, 44px);
+      font-weight: 800; letter-spacing: -1.5px;
+      margin-bottom: 14px; position: relative;
+    }
+
+    .cta-inner p {
+      font-size: 16px; color: var(--muted); margin-bottom: 36px;
+      position: relative;
+    }
+
+    .cta-actions {
+      display: flex; align-items: center; justify-content: center;
+      gap: 16px; position: relative;
+    }
+
+    .btn-appstore {
+      display: inline-flex; align-items: center; gap: 13px;
+      background: #fff;
+      color: #000; border-radius: 14px;
+      padding: 14px 28px; font-size: 15px; font-weight: 700;
+      text-decoration: none;
+      transition: transform 0.2s, box-shadow 0.2s;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.35);
+    }
+
+    .btn-appstore:hover { transform: translateY(-2px); box-shadow: 0 14px 44px rgba(0,0,0,0.4); }
+
+    .btn-appstore svg { width: 22px; height: 22px; fill: #000; }
+
+    /* ── Footer ── */
+    footer {
+      border-top: 1px solid var(--border);
+      padding: 40px 60px;
+      display: flex; align-items: center; justify-content: space-between;
+      flex-wrap: wrap; gap: 20px;
+    }
+
+    .footer-logo {
+      display: flex; align-items: center; gap: 10px;
+      font-size: 16px; font-weight: 800;
+      text-decoration: none; color: var(--text);
+    }
+
+    .footer-links {
+      display: flex; gap: 28px; list-style: none;
+    }
+
+    .footer-links a {
+      color: var(--muted); text-decoration: none;
+      font-size: 13px; font-weight: 500;
+      transition: color 0.2s;
+    }
+
+    .footer-links a:hover { color: var(--text); }
+
+    .footer-copy {
+      font-size: 12px; color: rgba(255,255,255,0.2);
+    }
+
+    /* ── Divider ── */
+    .section-divider {
+      height: 1px;
+      background: linear-gradient(90deg, transparent, var(--border), transparent);
+      margin: 0 60px;
+    }
+
+    /* ── Scroll animations ── */
+    .reveal {
+      opacity: 0;
+      transform: translateY(28px);
+      transition: opacity 0.6s ease, transform 0.6s ease;
+    }
+
+    .reveal.visible {
+      opacity: 1;
+      transform: none;
+    }
+
+    /* ── Responsive ── */
+    @media (max-width: 900px) {
+      nav { padding: 16px 24px; }
+      .nav-links { display: none; }
+
+      .hero {
+        grid-template-columns: 1fr;
+        padding: 100px 24px 60px;
+        text-align: center;
+      }
+
+      .hero-sub { margin: 0 auto 40px; }
+      .hero-actions { justify-content: center; }
+      .hero-note { justify-content: center; }
+      .hero::after { display: none; }
+
+      .hero-right { order: -1; }
+      .macbook-wrap { max-width: 380px; }
+
+      .stats { flex-direction: column; align-items: center; padding: 40px 24px 0; }
+      .stat-item { border-right: none; border-bottom: 1px solid var(--border); width: 100%; max-width: 320px; }
+      .stat-item:last-child { border-bottom: none; }
+
+      .features { padding: 60px 24px; }
+      .features-grid { grid-template-columns: 1fr; }
+
+      .tools-section { padding: 0 24px 60px; }
+      .tools-inner { grid-template-columns: 1fr; }
+      .tools-canvas, .tools-toolbar { display: none; }
+      .tools-left { padding: 36px; }
+
+      .pricing { padding: 0 24px 60px; }
+      .pricing-grid { grid-template-columns: 1fr; max-width: 400px; }
+
+      .cta-banner { padding: 0 24px 60px; }
+      .cta-inner { padding: 40px 24px; }
+
+      .section-divider { margin: 0 24px; }
+
+      footer { padding: 32px 24px; flex-direction: column; align-items: center; text-align: center; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Nav -->
+  <nav>
+    <a href="#" class="nav-logo">
+      <div class="nav-logo-icon">✦</div>
+      Pointly
+    </a>
+    <ul class="nav-links">
+      <li><a href="#features">Features</a></li>
+      <li><a href="#tools">Tools</a></li>
+      <li><a href="#pricing">Pricing</a></li>
+    </ul>
+    <a href="#" class="nav-cta">Download Free</a>
+  </nav>
+
+  <!-- Hero -->
+  <section class="hero">
+    <div class="hero-left">
+      <div class="hero-badge">
+        <div class="hero-badge-dot"></div>
+        Now available on macOS
+      </div>
+      <p class="hero-tagline">Point. Explain. Impact.</p>
+      <h1>Annotate your<br/><span>screen, live.</span></h1>
+      <p class="hero-sub">Draw, highlight, and present directly on top of any app — in real time. Built for presenters, teachers, and engineers who communicate visually.</p>
+      <div class="hero-actions">
+        <a href="#" class="btn-primary">
+          <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.8-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z"/></svg>
+          Download for macOS
+        </a>
+        <a href="#features" class="btn-secondary">
+          See features →
+        </a>
+      </div>
+      <p class="hero-note">
+        <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>
+        Free to download · No account required · macOS 14+
+      </p>
+    </div>
+
+    <div class="hero-right">
+      <div class="macbook-wrap">
+        <!-- Screen -->
+        <div class="macbook-screen">
+          <div class="macbook-titlebar">
+            <div class="dot dot-r"></div>
+            <div class="dot dot-y"></div>
+            <div class="dot dot-g"></div>
+          </div>
+          <div class="macbook-content">
+            <div class="screen-bg"></div>
+
+            <!-- Blog skeleton -->
+            <div class="blog-skeleton">
+              <div class="sk-img"></div>
+              <div class="sk-title"></div>
+              <div class="sk-sub"></div>
+              <div class="sk-meta">
+                <div class="sk-av"></div>
+                <div class="sk-by">
+                  <div class="sk-ln" style="width:80px"></div>
+                  <div class="sk-ln" style="width:55px;opacity:0.6"></div>
+                </div>
+              </div>
+              <div class="sk-sep"></div>
+              <div class="sk-ln" style="width:100%"></div>
+              <div class="sk-ln" style="width:92%"></div>
+              <div class="sk-ln" style="width:78%"></div>
+              <div class="sk-gap"></div>
+              <div class="sk-ln" style="width:100%"></div>
+              <div class="sk-ln" style="width:88%"></div>
+              <div class="sk-ln" style="width:65%"></div>
+              <div class="sk-gap"></div>
+              <div class="sk-ln" style="width:96%"></div>
+              <div class="sk-ln" style="width:72%"></div>
+            </div>
+
+            <!-- Spotlight: warm glow (below overlay) + dark radial overlay -->
+            <div class="spotlight-glow"></div>
+            <div class="spotlight-overlay"></div>
+
+            <!-- Pointly floating toolbar + SIZE bar -->
+            <div class="pt-overlay">
+              <div class="pt-toolbar">
+                <!-- Header: hamburger + minimize -->
+                <div class="pt-hdr">
+                  <div class="pt-hbtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="3" y1="7" x2="21" y2="7"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="17" x2="21" y2="17"/></svg></div>
+                  <div class="pt-hbtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="5" y1="12" x2="19" y2="12"/></svg></div>
+                </div>
+                <!-- Draw mode button -->
+                <div class="pt-draw">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+                  Draw
+                </div>
+                <!-- DRAW tools section -->
+                <div class="pt-sec">DRAW</div>
+                <div class="pt-grid">
+                  <div class="pt-t"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a8 8 0 1 0 5.66 13.66"/><path d="M17.66 16.66 L21 21"/></svg></div>
+                  <div class="pt-t"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></div>
+                  <div class="pt-t"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11 3 17v3h9l3-3"/><path d="m22 12-4.6 4.6a2 2 0 0 1-2.8 0l-5.2-5.2a2 2 0 0 1 0-2.8L14 4Z"/></svg></div>
+                  <div class="pt-t"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75Z"/><path d="M20.71 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75Z"/></svg></div>
+                  <div class="pt-t"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 20H7L3 16l10-10 7 7-3.5 3.5"/><path d="m6 11 7 7"/></svg></div>
+                  <div class="pt-t"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 7 4 4 20 4 20 7"/><line x1="9" y1="20" x2="15" y2="20"/><line x1="12" y1="4" x2="12" y2="20"/></svg></div>
+                  <div class="pt-t on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="5"/><path d="M12 1v3M12 20v3M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h3M20 12h3M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg></div>
+                  <div class="pt-t lk"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="2"/><path d="M12 2v3M12 19v3M4.22 4.22l2.12 2.12M17.66 17.66l2.12 2.12M2 12h3M19 12h3M4.22 19.78l2.12-2.12M17.66 6.34l2.12-2.12"/></svg></div>
+                  <div class="pt-t lk"><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg></div>
+                  <div class="pt-t lk"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6" r="2.5"/><circle cx="6" cy="18" r="2.5"/><path d="M5.69 5.1 20 12 5.69 18.9"/></svg></div>
+                </div>
+                <div class="pt-div"></div>
+                <!-- LINES section -->
+                <div class="pt-sec">LINES</div>
+                <div class="pt-grid">
+                  <div class="pt-t"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="19" x2="19" y2="5"/><polyline points="13 5 19 5 19 11"/></svg></div>
+                  <div class="pt-t"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="5" y1="19" x2="19" y2="5"/></svg></div>
+                </div>
+                <div class="pt-div"></div>
+                <!-- Colors -->
+                <div class="pt-cols">
+                  <div class="pt-clr sel" style="background:#ffffff"></div>
+                  <div class="pt-clr" style="background:#F4644D"></div>
+                  <div class="pt-clr" style="background:#82aaff"></div>
+                  <div class="pt-clr" style="background:#c3e88d"></div>
+                  <div class="pt-clr" style="background:#c792ea"></div>
+                </div>
+              </div>
+              <!-- SIZE bar -->
+              <div class="pt-sz">
+                <div class="pt-sz-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 2v3M12 19v3M4.22 4.22l2.12 2.12M17.66 17.66l2.12 2.12M2 12h3M19 12h3"/></svg></div>
+                <div class="pt-sz-tr">
+                  <div class="pt-sz-fi"></div>
+                  <div class="pt-sz-th"></div>
+                </div>
+                <div class="pt-sz-v">10</div>
+                <div class="pt-sz-l">SIZE</div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <!-- Base -->
+        <div class="macbook-base"></div>
+      </div>
+    </div>
+
+    <div class="hero-blob-2"></div>
+  </section>
+
+  <div class="section-divider" style="margin-top: 60px;"></div>
+
+  <!-- Features -->
+  <section class="features" id="features">
+    <div class="features-header reveal">
+      <p class="section-label">Features</p>
+      <h2 class="section-title">Everything you need<br/>to present clearly</h2>
+      <p class="section-sub">Pointly sits invisibly over your screen until you need it. Then it's there — instant, fluid, and out of your way.</p>
+    </div>
+
+    <div class="features-grid">
+
+      <div class="feature-card reveal">
+        <div class="fc-icon-wrap">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+        </div>
+        <h3>Pen</h3>
+        <p>Draw precise freehand strokes directly on your screen with smooth, natural lines.</p>
+      </div>
+
+      <div class="feature-card reveal" style="transition-delay:0.04s">
+        <div class="fc-icon-wrap">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a8 8 0 1 0 5.66 13.66"/><path d="M17.66 16.66 L21 21"/></svg>
+        </div>
+        <h3>Lasso</h3>
+        <p>Select any group of annotations, then move or resize them together as one.</p>
+      </div>
+
+      <div class="feature-card reveal" style="transition-delay:0.08s">
+        <div class="fc-icon-wrap">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11 3 17v3h9l3-3"/><path d="m22 12-4.6 4.6a2 2 0 0 1-2.8 0l-5.2-5.2a2 2 0 0 1 0-2.8L14 4Z"/></svg>
+        </div>
+        <h3>Highlighter</h3>
+        <p>Semi-transparent color marks to highlight key areas without hiding what's underneath.</p>
+      </div>
+
+      <div class="feature-card reveal" style="transition-delay:0.12s">
+        <div class="fc-icon-wrap">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75Z"/><path d="M20.71 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75Z"/></svg>
+        </div>
+        <h3>Marker</h3>
+        <p>Bold, fully opaque strokes for strong, visible emphasis on any part of your screen.</p>
+      </div>
+
+      <div class="feature-card reveal" style="transition-delay:0.04s">
+        <div class="fc-icon-wrap">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 20H7L3 16l10-10 7 7-3.5 3.5"/><path d="m6 11 7 7"/></svg>
+        </div>
+        <h3>Eraser</h3>
+        <p>Remove any part of your annotations cleanly — stroke by stroke or down to bare pixels.</p>
+      </div>
+
+      <div class="feature-card reveal" style="transition-delay:0.08s">
+        <div class="fc-icon-wrap">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 7 4 4 20 4 20 7"/><line x1="9" y1="20" x2="15" y2="20"/><line x1="12" y1="4" x2="12" y2="20"/></svg>
+        </div>
+        <h3>Text</h3>
+        <p>Add crisp text labels and callouts anywhere on your screen in any size.</p>
+      </div>
+
+      <div class="feature-card reveal" style="transition-delay:0.12s">
+        <div class="fc-icon-wrap">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="19" x2="19" y2="5"/><polyline points="13 5 19 5 19 11"/></svg>
+        </div>
+        <h3>Arrow</h3>
+        <p>Draw arrows to direct your audience's attention to exactly the right spot.</p>
+      </div>
+
+      <div class="feature-card reveal" style="transition-delay:0.16s">
+        <div class="fc-icon-wrap">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/></svg>
+        </div>
+        <h3>Shapes</h3>
+        <p>Rectangles, circles and more — for structured, clean visual diagrams.</p>
+      </div>
+
+      <div class="feature-card reveal" style="transition-delay:0.08s">
+        <div class="fc-icon-wrap">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="2"/><path d="M12 2v3M12 19v3M4.22 4.22l2.12 2.12M17.66 17.66l2.12 2.12M2 12h3M19 12h3M4.22 19.78l2.12-2.12M17.66 6.34l2.12-2.12"/></svg>
+        </div>
+        <h3>Laser Pointer</h3>
+        <p>A glowing dot with a fading trail that sweeps freely across your screen — like a real pointer.</p>
+        <span class="feature-tag">Pro</span>
+      </div>
+
+      <div class="feature-card reveal" style="transition-delay:0.12s">
+        <div class="fc-icon-wrap">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="5"/><path d="M12 1v3M12 20v3M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h3M20 12h3M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
+        </div>
+        <h3>Spotlight</h3>
+        <p>Dim everything except your focus area to instantly guide your audience's attention.</p>
+        <span class="feature-tag">Pro</span>
+      </div>
+
+      <div class="feature-card reveal" style="transition-delay:0.16s">
+        <div class="fc-icon-wrap">
+          <svg viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg>
+        </div>
+        <h3>Dot Pen</h3>
+        <p>Leave a dotted trail as you draw — subtle annotations that don't overpower your content.</p>
+        <span class="feature-tag">Pro</span>
+      </div>
+
+      <div class="feature-card reveal" style="transition-delay:0.20s">
+        <div class="fc-icon-wrap">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6" r="2.5"/><circle cx="6" cy="18" r="2.5"/><path d="M5.69 5.1 20 12 5.69 18.9"/></svg>
+        </div>
+        <h3>Cut &amp; Move</h3>
+        <p>Capture any region of your screen into a floating, draggable panel and reposition it anywhere.</p>
+        <span class="feature-tag">Pro</span>
+      </div>
+
+    </div>
+  </section>
+
+  <div class="section-divider"></div>
+
+  <!-- Tools -->
+  <section class="tools-section" id="tools" style="padding-top: 100px;">
+    <div class="tools-inner reveal">
+
+      <!-- LEFT: Clickable tool list -->
+      <div class="tools-left">
+        <p class="section-label">All Tools</p>
+        <h2 class="section-title" style="font-size: clamp(26px, 3vw, 38px);">Every tool a<br/>presenter needs</h2>
+        <div class="tools-grid" id="toolChips">
+
+          <div class="tool-chip tc-active" data-tool="pen">
+            <span class="tool-chip-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></span>
+            Pen
+          </div>
+
+          <div class="tool-chip" data-tool="select">
+            <span class="tool-chip-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a8 8 0 1 0 5.66 13.66"/><path d="M17.66 16.66 L21 21"/></svg></span>
+            Lasso
+          </div>
+
+          <div class="tool-chip" data-tool="highlighter">
+            <span class="tool-chip-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11 3 17v3h9l3-3"/><path d="m22 12-4.6 4.6a2 2 0 0 1-2.8 0l-5.2-5.2a2 2 0 0 1 0-2.8L14 4Z"/></svg></span>
+            Highlighter
+          </div>
+
+          <div class="tool-chip" data-tool="marker">
+            <span class="tool-chip-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75Z"/><path d="M20.71 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75Z"/></svg></span>
+            Marker
+          </div>
+
+          <div class="tool-chip" data-tool="eraser">
+            <span class="tool-chip-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 20H7L3 16l10-10 7 7-3.5 3.5"/><path d="m6 11 7 7"/></svg></span>
+            Eraser
+          </div>
+
+          <div class="tool-chip" data-tool="text">
+            <span class="tool-chip-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 7 4 4 20 4 20 7"/><line x1="9" y1="20" x2="15" y2="20"/><line x1="12" y1="4" x2="12" y2="20"/></svg></span>
+            Text
+          </div>
+
+          <div class="tool-chip" data-tool="arrow">
+            <span class="tool-chip-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="19" x2="19" y2="5"/><polyline points="13 5 19 5 19 11"/></svg></span>
+            Arrow
+          </div>
+
+          <div class="tool-chip" data-tool="shapes">
+            <span class="tool-chip-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/></svg></span>
+            Shapes
+          </div>
+
+          <div class="tool-chip" data-tool="laser">
+            <span class="tool-chip-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="2"/><path d="M12 2v3M12 19v3M4.22 4.22l2.12 2.12M17.66 17.66l2.12 2.12M2 12h3M19 12h3M4.22 19.78l2.12-2.12M17.66 6.34l2.12-2.12"/></svg></span>
+            Laser
+            <span class="tool-chip-pro">PRO</span>
+          </div>
+
+          <div class="tool-chip" data-tool="spotlight">
+            <span class="tool-chip-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="5"/><path d="M12 1v3M12 20v3M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h3M20 12h3M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg></span>
+            Spotlight
+            <span class="tool-chip-pro">PRO</span>
+          </div>
+
+          <div class="tool-chip" data-tool="dotpen">
+            <span class="tool-chip-icon"><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg></span>
+            Dot Pen
+            <span class="tool-chip-pro">PRO</span>
+          </div>
+
+          <div class="tool-chip" data-tool="cutmove">
+            <span class="tool-chip-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6" r="2.5"/><circle cx="6" cy="18" r="2.5"/><path d="M5.69 5.1 20 12 5.69 18.9"/></svg></span>
+            Cut &amp; Move
+            <span class="tool-chip-pro">PRO</span>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- CENTER: Animation canvas -->
+      <div class="tools-canvas">
+        <canvas id="toolCanvas" width="400" height="290"></canvas>
+        <div class="tool-name-label" id="toolNameLabel">Pen</div>
+      </div>
+
+    </div>
+  </section>
+
+  <div class="section-divider"></div>
+
+  <!-- Pricing -->
+  <section class="pricing" id="pricing" style="padding-top: 100px;">
+    <div class="pricing-header reveal">
+      <p class="section-label">Pricing</p>
+      <h2 class="section-title">Free to start,<br/>Pro when you're ready</h2>
+      <p class="section-sub">Get the core tools for free. Unlock the full power of Pointly with Pro.</p>
+    </div>
+
+    <div class="pricing-grid">
+      <!-- Free -->
+      <div class="price-card reveal">
+        <div class="price-name">Free</div>
+        <div class="price-amount"><sup>$</sup>0</div>
+        <div class="price-period">forever</div>
+        <ul class="price-features">
+          <li><span class="check">✦</span> Pen & Highlighter</li>
+          <li><span class="check">✦</span> Marker & Eraser</li>
+          <li><span class="check">✦</span> Text tool</li>
+          <li><span class="check">✦</span> Arrows & Shapes</li>
+          <li><span class="check">✦</span> Export PNG / PDF</li>
+          <li><span class="check">✦</span> Global hotkey</li>
+        </ul>
+        <a href="#" class="price-btn outline-btn">Download Free</a>
+        <p class="iap-note" style="visibility:hidden;">placeholder</p>
+      </div>
+
+      <!-- Pro+ Lifetime — center / most popular -->
+      <div class="price-card popular reveal" style="transition-delay:0.1s">
+        <div class="price-badge">Most Popular</div>
+        <div class="price-name">Pro+</div>
+        <div class="price-amount grad"><sup>$</sup>39<span style="font-size:24px;letter-spacing:-1px">.99</span></div>
+        <div class="price-period">one-time · lifetime access</div>
+        <ul class="price-features">
+          <li><span class="check">✦</span> Everything in Pro</li>
+          <li><span class="check">✦</span> Lifetime updates</li>
+          <li><span class="check">✦</span> Pay once, own forever</li>
+          <li><span class="check">✦</span> Priority support</li>
+          <li><span class="check">✦</span> All future Pro features</li>
+          <li><span class="check">✦</span> Early access to new features</li>
+        </ul>
+        <a href="#" class="price-btn grad-btn">Get Pro+ — $39.99</a>
+        <p class="iap-note">
+          <svg viewBox="0 0 24 24" fill="currentColor" width="11" height="11"><path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.3.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.8-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z"/></svg>
+          In-App Purchase
+        </p>
+      </div>
+
+      <!-- Pro Annual -->
+      <div class="price-card reveal" style="transition-delay:0.2s">
+        <div class="price-name">Pro</div>
+        <div class="price-amount"><sup>$</sup>12<span style="font-size:24px;letter-spacing:-1px">.99</span></div>
+        <div class="price-period">per year · billed annually</div>
+        <ul class="price-features">
+          <li><span class="check">✦</span> Everything in Free</li>
+          <li><span class="check">✦</span> Laser Pointer</li>
+          <li><span class="check">✦</span> Spotlight Mode</li>
+          <li><span class="check">✦</span> Dot Pen</li>
+          <li><span class="check">✦</span> Cut & Move</li>
+          <li><span class="check">✦</span> Priority support</li>
+        </ul>
+        <a href="#" class="price-btn outline-btn">Get Pro — $12.99/yr</a>
+        <p class="iap-note">
+          <svg viewBox="0 0 24 24" fill="currentColor" width="11" height="11"><path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.3.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.8-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z"/></svg>
+          In-App Purchase
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- CTA Banner -->
+  <section class="cta-banner">
+    <div class="cta-inner reveal">
+      <h2>Start annotating<br/>your screen today.</h2>
+      <p>Free forever. No account. No setup. Just download and go.</p>
+      <div class="cta-actions">
+        <a href="#" class="btn-appstore">
+          <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.8-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z"/></svg>
+          Download on the Mac App Store
+        </a>
+      </div>
+      <p style="margin-top:16px; font-size:12px; color:rgba(255,255,255,0.2);">Requires macOS 14 Sonoma or later</p>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer>
+    <a href="#" class="footer-logo">
+      <div class="nav-logo-icon" style="width:28px;height:28px;font-size:13px;">✦</div>
+      Pointly
+    </a>
+    <ul class="footer-links">
+      <li><a href="privacy.html">Privacy Policy</a></li>
+      <li><a href="support.html">Support</a></li>
+      <li><a href="mailto:lyubomirstavrev02@gmail.com">Contact</a></li>
+    </ul>
+    <span class="footer-copy">© 2026 Pointly. All rights reserved.</span>
+  </footer>
+
+  <script>
+    // Scroll reveal
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(e => {
+        if (e.isIntersecting) {
+          e.target.classList.add('visible');
+          observer.unobserve(e.target);
+        }
+      });
+    }, { threshold: 0.12 });
+    document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+
+    // ── Tool Canvas Animations ──
+    (function () {
+      const canvas = document.getElementById('toolCanvas');
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+      const W = canvas.width, H = canvas.height;
+      const label = document.getElementById('toolNameLabel');
+      const DURATION = 4000;
+
+      const L=44; // code left margin
+      const LY=[46,70,94,118,142,166,190]; // line Y positions
+
+      function brandGrad(x0,y0,x1,y1){const g=ctx.createLinearGradient(x0,y0,x1,y1);g.addColorStop(0,'#F4644D');g.addColorStop(0.5,'#FF8C42');g.addColorStop(1,'#E9458C');return g;}
+      function ease(t){return t<0.5?2*t*t:-1+(4-2*t)*t;}
+      function seeded(n){return Math.abs(Math.sin(n*127.1+311)*43758.5453%1);}
+
+      // Code token rows: [x, width, color] per line
+      const ROWS=[
+        [[L,36,'#c792ea'],[L+40,24,'rgba(255,255,255,0.4)'],[L+68,52,'#c3e88d']],
+        [],
+        [[L,44,'#c792ea'],[L+48,56,'#82aaff'],[L+108,8,'rgba(255,255,255,0.35)']],
+        [[L+16,28,'#c792ea'],[L+48,24,'rgba(255,255,255,0.42)'],[L+76,28,'#82aaff'],[L+108,22,'rgba(255,255,255,0.35)']],
+        [[L+16,16,'#c792ea'],[L+36,20,'rgba(255,255,255,0.42)'],[L+60,28,'#c792ea'],[L+92,44,'#c3e88d']],
+        [[L+16,36,'#c792ea'],[L+56,40,'rgba(255,255,255,0.42)']],
+        [[L,8,'rgba(255,255,255,0.28)']],
+      ];
+
+      function drawContent(){
+        ctx.fillStyle='#09091c'; ctx.fillRect(0,0,W,H);
+        ctx.strokeStyle='rgba(255,255,255,0.03)'; ctx.lineWidth=1;
+        for(let x=0;x<=W;x+=32){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,H);ctx.stroke();}
+        for(let y=0;y<=H;y+=32){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(W,y);ctx.stroke();}
+        LY.forEach(y=>{ctx.fillStyle='rgba(255,255,255,0.15)';ctx.fillRect(20,y,12,6);});
+        ROWS.forEach((row,ri)=>{row.forEach(([x,w,c])=>{ctx.fillStyle=c;ctx.fillRect(x,LY[ri],w,7);});});
+      }
+
+      function fadeOut(t,from){
+        if(t>from){ctx.fillStyle=`rgba(9,9,28,${Math.min(1,(t-from)/(1-from))})`;ctx.fillRect(0,0,W,H);}
+      }
+
+      /* LASSO – freehand rope loop drawn around strokes, then selection moves */
+      function drawSelect(t){
+        // Background with some existing drawn strokes to select
+        ctx.fillStyle='#09091c'; ctx.fillRect(0,0,W,H);
+        ctx.strokeStyle='rgba(255,255,255,0.03)'; ctx.lineWidth=1;
+        for(let x=0;x<=W;x+=32){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,H);ctx.stroke();}
+        for(let y=0;y<=H;y+=32){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(W,y);ctx.stroke();}
+
+        // Existing strokes on canvas
+        ctx.lineCap='round'; ctx.lineJoin='round';
+        ctx.strokeStyle='rgba(130,170,255,0.6)'; ctx.lineWidth=2.5;
+        ctx.beginPath(); ctx.moveTo(85,95); ctx.bezierCurveTo(130,78,185,118,255,95); ctx.stroke();
+        ctx.strokeStyle='rgba(244,100,77,0.55)'; ctx.lineWidth=2.5;
+        ctx.beginPath(); ctx.moveTo(100,135); ctx.bezierCurveTo(150,155,210,115,278,142); ctx.stroke();
+        ctx.strokeStyle='rgba(233,69,140,0.55)'; ctx.lineWidth=2.5;
+        ctx.beginPath(); ctx.moveTo(95,172); ctx.bezierCurveTo(145,160,215,182,268,168); ctx.stroke();
+
+        const cx=182, cy=138, rx=118, ry=60;
+
+        if(t<=0.44){
+          // Lasso rope loop being drawn freehand
+          const p=ease(t/0.42);
+          const steps=90, pts=[];
+          for(let i=0;i<=steps;i++){
+            if(i/steps>p) break;
+            const a=-Math.PI/2+(i/steps)*Math.PI*2;
+            const w=Math.sin(i*0.9)*4, w2=Math.cos(i*0.55)*3;
+            pts.push([cx+Math.cos(a)*(rx+w), cy+Math.sin(a)*(ry+w2)]);
+          }
+          // Rope stroke (white, slightly translucent)
+          ctx.strokeStyle='rgba(255,255,255,0.75)'; ctx.lineWidth=1.8; ctx.setLineDash([]);
+          if(pts.length>1){ctx.beginPath();ctx.moveTo(pts[0][0],pts[0][1]);pts.slice(1).forEach(pt=>ctx.lineTo(pt[0],pt[1]));ctx.stroke();}
+          // Cursor/nib dot at tip
+          if(pts.length){
+            const last=pts[pts.length-1];
+            ctx.fillStyle='rgba(255,255,255,0.9)';
+            ctx.beginPath(); ctx.arc(last[0],last[1],3.5,0,Math.PI*2); ctx.fill();
+          }
+
+        } else if(t>=0.50&&t<=0.96){
+          // Selection confirmed: dashed marquee + handles + group moves
+          const mv=ease(Math.min(1,(t-0.55)/0.38));
+          const ox=50*mv, oy=-30*mv;
+
+          // Redraw strokes offset (they move with selection)
+          ctx.lineCap='round';
+          ctx.strokeStyle=`rgba(130,170,255,${0.6+0.2*mv})`; ctx.lineWidth=2.5;
+          ctx.beginPath(); ctx.moveTo(85+ox,95+oy); ctx.bezierCurveTo(130+ox,78+oy,185+ox,118+oy,255+ox,95+oy); ctx.stroke();
+          ctx.strokeStyle=`rgba(244,100,77,${0.55+0.2*mv})`; ctx.lineWidth=2.5;
+          ctx.beginPath(); ctx.moveTo(100+ox,135+oy); ctx.bezierCurveTo(150+ox,155+oy,210+ox,115+oy,278+ox,142+oy); ctx.stroke();
+          ctx.strokeStyle=`rgba(233,69,140,${0.55+0.2*mv})`; ctx.lineWidth=2.5;
+          ctx.beginPath(); ctx.moveTo(95+ox,172+oy); ctx.bezierCurveTo(145+ox,160+oy,215+ox,182+oy,268+ox,168+oy); ctx.stroke();
+
+          // Bounding box dashes
+          const bx=72+ox, by=80+oy, bw=210, bh=105;
+          ctx.fillStyle='rgba(244,100,77,0.06)'; ctx.fillRect(bx,by,bw,bh);
+          ctx.setLineDash([6,4]);
+          ctx.strokeStyle=brandGrad(bx,by,bx+bw,by+bh); ctx.lineWidth=1.8;
+          ctx.strokeRect(bx,by,bw,bh); ctx.setLineDash([]);
+
+          // Resize handles at corners
+          [[bx,by],[bx+bw,by],[bx+bw,by+bh],[bx,by+bh]].forEach(([hx,hy])=>{
+            ctx.fillStyle='#fff'; ctx.strokeStyle='rgba(244,100,77,0.85)'; ctx.lineWidth=1.5;
+            ctx.beginPath(); ctx.arc(hx,hy,5,0,Math.PI*2); ctx.fill(); ctx.stroke();
+          });
+        }
+        if(t>0.44&&t<0.50){ctx.fillStyle=`rgba(9,9,28,${(t-0.44)/0.06})`;ctx.fillRect(0,0,W,H);}
+        if(t>0.94){ctx.fillStyle=`rgba(9,9,28,${(t-0.94)/0.06})`;ctx.fillRect(0,0,W,H);}
+      }
+
+      /* PEN – freehand loop circles lines 4-5 on the code */
+      function drawPen(t){
+        drawContent();
+        const p=ease(Math.min(1,t/0.75));
+        const cx=200,cy=154,rx=155,ry=24;
+        ctx.strokeStyle=brandGrad(cx-rx,cy,cx+rx,cy); ctx.lineWidth=2.5; ctx.lineCap='round';
+        const pts=[];
+        for(let i=0;i<=80;i++){
+          if(i/80>p) break;
+          const a=-Math.PI/2+(i/80)*Math.PI*2.25, w=Math.sin(i*0.7)*2.5;
+          pts.push([cx+Math.cos(a)*(rx+w),cy+Math.sin(a)*(ry+w)]);
+        }
+        if(pts.length>1){ctx.beginPath();ctx.moveTo(pts[0][0],pts[0][1]);pts.slice(1).forEach(pt=>ctx.lineTo(pt[0],pt[1]));ctx.stroke();}
+        if(p<1&&pts.length){const last=pts[pts.length-1];ctx.fillStyle='#fff';ctx.beginPath();ctx.arc(last[0],last[1],4,0,Math.PI*2);ctx.fill();}
+        fadeOut(t,0.84);
+      }
+
+      /* HIGHLIGHTER – yellow band sweeps over lines 2-3 (function header) */
+      function drawHighlighter(t){
+        drawContent();
+        const p=ease(Math.min(1,t/0.65));
+        const bx=L-4,by=LY[2]-7,bh=(LY[3]-LY[2])+18,bw=(W-bx-28)*p;
+        ctx.globalAlpha=0.33; ctx.fillStyle='#FFD700'; ctx.fillRect(bx,by,bw,bh);
+        ctx.globalAlpha=0.5; ctx.fillStyle='rgba(255,200,0,0.12)'; ctx.fillRect(bx,by,bw,bh); ctx.globalAlpha=1;
+        if(p<0.98){ctx.fillStyle='rgba(255,215,0,0.55)';ctx.fillRect(bx+bw,by-2,12,bh+4);}
+        fadeOut(t,0.84);
+      }
+
+      /* MARKER – bold underlines under lines 4 and 5 */
+      function drawMarker(t){
+        drawContent();
+        [{y:LY[4]+11,w:148,d:0},{y:LY[5]+11,w:88,d:0.2}].forEach(l=>{
+          const p=ease(Math.max(0,Math.min(1,(t-l.d)/0.44)));
+          if(p<=0) return;
+          ctx.strokeStyle=brandGrad(L+16,l.y,L+16+l.w,l.y); ctx.lineWidth=4; ctx.lineCap='round';
+          ctx.beginPath(); ctx.moveTo(L+16,l.y); ctx.lineTo(L+16+l.w*p,l.y); ctx.stroke();
+        });
+        fadeOut(t,0.84);
+      }
+
+      /* ERASER – red squiggle drawn on line 4, then erased */
+      function drawEraser(t){
+        drawContent();
+        const SQ=[[L+16,LY[4]-5],[L+46,LY[4]+6],[L+76,LY[4]-5],[L+106,LY[4]+6],[L+140,LY[4]-5]];
+        if(t<0.40){
+          const p=ease(t/0.38), d=p*(SQ.length-1);
+          ctx.strokeStyle='rgba(244,100,77,0.95)'; ctx.lineWidth=2.5; ctx.lineCap='round'; ctx.lineJoin='round';
+          ctx.beginPath(); ctx.moveTo(SQ[0][0],SQ[0][1]);
+          for(let i=1;i<SQ.length;i++){const sp=Math.min(1,d-(i-1));if(sp<=0)break;ctx.lineTo(SQ[i-1][0]+(SQ[i][0]-SQ[i-1][0])*sp,SQ[i-1][1]+(SQ[i][1]-SQ[i-1][1])*sp);}
+          ctx.stroke();
+        } else {
+          ctx.strokeStyle='rgba(244,100,77,0.95)'; ctx.lineWidth=2.5; ctx.lineCap='round'; ctx.lineJoin='round';
+          ctx.beginPath(); ctx.moveTo(SQ[0][0],SQ[0][1]); SQ.slice(1).forEach(p=>ctx.lineTo(p[0],p[1])); ctx.stroke();
+          if(t>0.46){
+            const ep=ease(Math.min(1,(t-0.46)/0.46));
+            const tW=SQ[SQ.length-1][0]-SQ[0][0]+16, ex0=SQ[0][0]-4, ey0=LY[4]-12, eh=28, ew=tW*ep;
+            ctx.fillStyle='#09091c'; ctx.fillRect(ex0,ey0,ew,eh);
+            ctx.strokeStyle='rgba(255,255,255,0.03)'; ctx.lineWidth=1;
+            for(let x=ex0;x<=ex0+ew;x+=32){ctx.beginPath();ctx.moveTo(x,ey0);ctx.lineTo(x,ey0+eh);ctx.stroke();}
+            ROWS[4].forEach(([x,w,c])=>{if(x<ex0+ew){ctx.fillStyle=c;ctx.fillRect(x,LY[4],Math.min(w,ex0+ew-x),7);}});
+            ctx.fillStyle='rgba(240,240,255,0.1)'; ctx.strokeStyle='rgba(255,255,255,0.25)'; ctx.lineWidth=1.5;
+            ctx.beginPath(); ctx.roundRect(ex0+ew-26,ey0-3,50,eh+6,5); ctx.fill(); ctx.stroke();
+          }
+        }
+        fadeOut(t,0.92);
+      }
+
+      /* TEXT – click then type "// TODO:" label above line 4 */
+      function drawText(t){
+        drawContent();
+        const full='// TODO: fix edge case';
+        if(t>0.10){
+          const p=ease(Math.min(1,(t-0.10)/0.66)), chars=Math.floor(p*full.length);
+          ctx.font='bold 12px monospace'; ctx.textBaseline='middle'; ctx.textAlign='left';
+          const tx=L, ty=LY[4]-26, tw=ctx.measureText(full.slice(0,chars)).width;
+          ctx.fillStyle='rgba(244,100,77,0.14)'; ctx.beginPath(); ctx.roundRect(tx-5,ty-9,Math.max(tw+12,18),18,4); ctx.fill();
+          ctx.fillStyle='#FF8C42'; ctx.fillText(full.slice(0,chars),tx,ty);
+          if(chars<full.length||Math.floor(t*4)%2===0){ctx.fillStyle='rgba(255,140,66,0.85)';ctx.fillRect(tx+tw+2,ty-8,2,16);}
+        }
+        if(t<0.25){const rp=t/0.24;ctx.strokeStyle=`rgba(244,100,77,${0.7*(1-rp)})`;ctx.lineWidth=1.5;ctx.beginPath();ctx.arc(L,LY[4]-26,rp*18,0,Math.PI*2);ctx.stroke();}
+        fadeOut(t,0.88);
+      }
+
+      /* ARROW – grows from right pointing at the await line */
+      function drawArrow(t){
+        drawContent();
+        const tx=L+96,ty=LY[3]+3, sx=W-22,sy=LY[3]-44;
+        const p=ease(Math.min(1,t/0.68)), cx2=sx+(tx-sx)*p, cy2=sy+(ty-sy)*p;
+        ctx.strokeStyle=brandGrad(sx,sy,tx,ty); ctx.lineWidth=2.5; ctx.lineCap='round';
+        ctx.beginPath(); ctx.moveTo(sx,sy); ctx.lineTo(cx2,cy2); ctx.stroke();
+        if(p>0.82){
+          const a=(p-0.82)/0.18, angle=Math.atan2(ty-sy,tx-sx);
+          ctx.globalAlpha=a; ctx.fillStyle='#F4644D';
+          ctx.beginPath(); ctx.moveTo(tx,ty); ctx.lineTo(tx-14*Math.cos(angle-0.42),ty-14*Math.sin(angle-0.42)); ctx.lineTo(tx-14*Math.cos(angle+0.42),ty-14*Math.sin(angle+0.42)); ctx.closePath(); ctx.fill(); ctx.globalAlpha=1;
+        }
+        fadeOut(t,0.84);
+      }
+
+      /* SHAPES – rectangle traces around the function body */
+      function drawShapes(t){
+        const rx=L-10,ry=LY[2]-10,rw=W-rx-22,rh=LY[5]+20-ry,perim=2*(rw+rh);
+        drawContent();
+        ctx.strokeStyle=brandGrad(rx,ry,rx+rw,ry+rh); ctx.lineWidth=2; ctx.lineCap='round';
+        if(t<=0.46){
+          const drawn=perim*ease(t/0.46);
+          ctx.beginPath();
+          if(drawn>0){ctx.moveTo(rx,ry);ctx.lineTo(rx+Math.min(drawn,rw),ry);}
+          if(drawn>rw){ctx.moveTo(rx+rw,ry);ctx.lineTo(rx+rw,ry+Math.min(drawn-rw,rh));}
+          if(drawn>rw+rh){ctx.moveTo(rx+rw,ry+rh);ctx.lineTo(rx+rw-Math.min(drawn-rw-rh,rw),ry+rh);}
+          if(drawn>2*rw+rh){ctx.moveTo(rx,ry+rh);ctx.lineTo(rx,ry+rh-Math.min(drawn-2*rw-rh,rh));}
+          ctx.stroke();
+          if(t>0.28){ctx.fillStyle=`rgba(244,100,77,${0.04*(t-0.28)/0.18})`;ctx.fillRect(rx,ry,rw,rh);}
+        } else if(t>=0.50){
+          ctx.strokeRect(rx,ry,rw,rh); ctx.fillStyle='rgba(244,100,77,0.04)'; ctx.fillRect(rx,ry,rw,rh);
+        }
+        if(t>0.46&&t<0.50){ctx.fillStyle=`rgba(9,9,28,${(t-0.46)/0.04})`;ctx.fillRect(0,0,W,H);}
+        if(t>0.95){ctx.fillStyle=`rgba(9,9,28,${(t-0.95)/0.05})`;ctx.fillRect(0,0,W,H);}
+      }
+
+      /* LASER – glowing red dot moves across the code lines */
+      function drawLaser(t){
+        drawContent();
+        // Organic freehand movement via overlapping sine waves — not snapped to code lines
+        function laserXY(u){
+          const x=W*0.5+Math.sin(u*Math.PI*2.7)*118+Math.sin(u*Math.PI*1.1)*36;
+          const y=H*0.5+Math.sin(u*Math.PI*1.9+1.1)*72+Math.sin(u*Math.PI*3.4)*16;
+          return{x:Math.max(32,Math.min(W-32,x)),y:Math.max(32,Math.min(H-32,y))};
+        }
+        const {x:sx,y:sy}=laserXY(t);
+        // Fading trail of glowing dots
+        const trailLen=20;
+        for(let i=trailLen;i>=1;i--){
+          const {x:px,y:py}=laserXY(Math.max(0,t-i*0.019));
+          const a=(1-i/trailLen)*0.52;
+          const r=3.5*(1-i/trailLen)+0.5;
+          ctx.globalAlpha=a; ctx.fillStyle='#FF2040';
+          ctx.beginPath(); ctx.arc(px,py,r,0,Math.PI*2); ctx.fill();
+        }
+        ctx.globalAlpha=1;
+        // Outer ambient glow
+        const grd=ctx.createRadialGradient(sx,sy,0,sx,sy,22);
+        grd.addColorStop(0,'rgba(255,32,64,0.72)');
+        grd.addColorStop(0.45,'rgba(255,32,64,0.22)');
+        grd.addColorStop(1,'rgba(255,32,64,0)');
+        ctx.fillStyle=grd; ctx.beginPath(); ctx.arc(sx,sy,22,0,Math.PI*2); ctx.fill();
+        // White-hot center with red inner glow
+        const cg=ctx.createRadialGradient(sx,sy,0,sx,sy,5);
+        cg.addColorStop(0,'rgba(255,255,255,1)');
+        cg.addColorStop(0.5,'rgba(255,140,120,0.9)');
+        cg.addColorStop(1,'rgba(255,32,64,0)');
+        ctx.fillStyle=cg; ctx.beginPath(); ctx.arc(sx,sy,5,0,Math.PI*2); ctx.fill();
+      }
+
+      /* SPOTLIGHT – dims screen, shows bright circle over code */
+      function drawSpotlight(t){
+        drawContent();
+        const angle=t*Math.PI*1.8, sx=W/2+Math.cos(angle)*85, sy=H/2+Math.sin(angle*0.7)*46, r=68;
+        const dark=ctx.createRadialGradient(sx,sy,r*0.5,sx,sy,Math.max(W,H)*0.9);
+        dark.addColorStop(0,'rgba(9,9,28,0)'); dark.addColorStop(0.18,'rgba(9,9,28,0.91)'); dark.addColorStop(1,'rgba(9,9,28,0.97)');
+        ctx.fillStyle=dark; ctx.fillRect(0,0,W,H);
+        const glow=ctx.createRadialGradient(sx,sy,0,sx,sy,r);
+        glow.addColorStop(0,'rgba(255,200,120,0.07)'); glow.addColorStop(1,'rgba(255,200,120,0)');
+        ctx.fillStyle=glow; ctx.beginPath(); ctx.arc(sx,sy,r,0,Math.PI*2); ctx.fill();
+      }
+
+      /* DOT PEN – dotted underline beneath the if-statement line */
+      function drawDotpen(t){
+        drawContent();
+        const p=ease(Math.min(1,t/0.72)), total=22, sx2=L+16, ex2=L+164, y=LY[4]+13;
+        for(let i=0;i<total*p;i++){
+          const x=sx2+(ex2-sx2)*(i/(total-1));
+          ctx.globalAlpha=Math.min(1,(p*total-i)/3);
+          ctx.fillStyle=brandGrad(sx2,0,ex2,0);
+          ctx.beginPath(); ctx.arc(x,y,2.8,0,Math.PI*2); ctx.fill();
+        }
+        ctx.globalAlpha=1;
+        fadeOut(t,0.88);
+      }
+
+      /* CUT & MOVE – selects lines 3-4 and floats them upward */
+      function drawCutMove(t){
+        const rx=L-8,ry=LY[3]-8,rw=W-rx-22,rh=LY[4]+20-ry;
+        if(t<=0.45){
+          drawContent();
+          const p=ease(t/0.44);
+          ctx.globalAlpha=p; ctx.setLineDash([7,4]);
+          ctx.strokeStyle=brandGrad(rx,ry,rx+rw,ry+rh); ctx.lineWidth=1.8;
+          ctx.strokeRect(rx,ry,rw,rh); ctx.setLineDash([]); ctx.globalAlpha=1;
+          ctx.fillStyle=`rgba(244,100,77,${0.07*p})`; ctx.fillRect(rx,ry,rw,rh);
+        } else if(t>=0.50&&t<=0.97){
+          const p=ease((t-0.50)/0.46), oy=-62*p;
+          drawContent();
+          ctx.fillStyle='#09091c'; ctx.fillRect(rx,ry,rw,rh);
+          ctx.strokeStyle='rgba(255,255,255,0.03)'; ctx.lineWidth=1;
+          for(let x=rx;x<=rx+rw;x+=32){ctx.beginPath();ctx.moveTo(x,ry);ctx.lineTo(x,ry+rh);ctx.stroke();}
+          ctx.fillStyle=`rgba(0,0,0,${0.32*p})`; ctx.fillRect(rx+10,ry+10+oy,rw,rh);
+          ctx.fillStyle='rgba(9,9,24,0.95)'; ctx.fillRect(rx,ry+oy,rw,rh);
+          ctx.setLineDash([6,4]); ctx.strokeStyle=brandGrad(rx,ry+oy,rx+rw,ry+rh+oy); ctx.lineWidth=1.5;
+          ctx.strokeRect(rx,ry+oy,rw,rh); ctx.setLineDash([]);
+          ROWS[3].forEach(([x,w,c])=>{ctx.fillStyle=c;ctx.fillRect(x,LY[3]+oy,w,7);});
+          ROWS[4].forEach(([x,w,c])=>{ctx.fillStyle=c;ctx.fillRect(x,LY[4]+oy,w,7);});
+        } else if(t>0.45&&t<0.50){
+          drawContent(); ctx.fillStyle=`rgba(9,9,28,${(t-0.45)/0.05})`; ctx.fillRect(0,0,W,H);
+        }
+        if(t>0.95){ctx.fillStyle=`rgba(9,9,28,${(t-0.95)/0.05})`;ctx.fillRect(0,0,W,H);}
+      }
+
+      const animations={select:drawSelect,pen:drawPen,highlighter:drawHighlighter,marker:drawMarker,eraser:drawEraser,text:drawText,arrow:drawArrow,shapes:drawShapes,laser:drawLaser,spotlight:drawSpotlight,dotpen:drawDotpen,cutmove:drawCutMove};
+
+      const toolNames={select:'Lasso',pen:'Pen',highlighter:'Highlighter',marker:'Marker',eraser:'Eraser',text:'Text',arrow:'Arrow',shapes:'Shapes',laser:'Laser Pointer',spotlight:'Spotlight',dotpen:'Dot Pen',cutmove:'Cut & Move'};
+      let activeTool='pen', startTime=performance.now(), userPicked=false, cycleIdx=0;
+      const toolOrder=['select','pen','highlighter','marker','eraser','text','arrow','shapes','laser','spotlight','dotpen','cutmove'];
+
+      function setTool(key){
+        activeTool=key; startTime=performance.now();
+        if(label) label.textContent=toolNames[key]||key;
+        document.querySelectorAll('.tool-chip').forEach(c=>c.classList.toggle('tc-active',c.dataset.tool===key));
+      }
+
+      document.querySelectorAll('.tool-chip[data-tool]').forEach(c=>c.addEventListener('click',()=>{userPicked=true;setTool(c.dataset.tool);}));
+      setInterval(()=>{if(!userPicked){cycleIdx=(cycleIdx+1)%toolOrder.length;setTool(toolOrder[cycleIdx]);}},4400);
+
+      function loop(now){const t=((now-startTime)%DURATION)/DURATION;const fn=animations[activeTool];if(fn)fn(t);requestAnimationFrame(loop);}
+      requestAnimationFrame(loop);
+    })();
+  </script>
+</body>
+</html>
