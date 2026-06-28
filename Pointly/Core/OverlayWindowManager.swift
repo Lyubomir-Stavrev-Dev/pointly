@@ -179,7 +179,7 @@ class OverlayWindowManager: ObservableObject {
         panel.level              = .init(rawValue: NSWindow.Level.screenSaver.rawValue + 1)
         panel.backgroundColor    = .clear
         panel.isOpaque           = false
-        panel.hasShadow          = false
+        panel.hasShadow          = true
         panel.ignoresMouseEvents = false
         panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
         panel.isMovable          = true   // lets performDrag work

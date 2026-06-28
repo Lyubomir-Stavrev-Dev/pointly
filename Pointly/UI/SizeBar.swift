@@ -109,8 +109,6 @@ struct SizeBar: View {
                                 lineWidth: 0.8
                             )
                     )
-                    .shadow(color: .black.opacity(0.5), radius: 20, x: 0, y: 8)
-                    .shadow(color: (Color(hex: "#F4644D") ?? .orange).opacity(0.1), radius: 12, x: 0, y: 3)
                 )
                 .frame(width: 38)
             }

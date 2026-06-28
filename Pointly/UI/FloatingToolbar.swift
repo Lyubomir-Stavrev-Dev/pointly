@@ -139,8 +139,6 @@ struct FloatingToolbar: View {
                         lineWidth: 0.8
                     )
             )
-            .shadow(color: .black.opacity(0.5), radius: 28, x: 0, y: 10)
-            .shadow(color: (Color(hex: "#F4644D") ?? .orange).opacity(0.12), radius: 18, x: 0, y: 4)
         )
         .overlay(alignment: .bottom) {
             let isInteract = interactionMode.currentMode != .draw
