@@ -11,6 +11,11 @@ struct OverlayView: View {
     @State private var showModeIndicator = false
     @State private var modeIndicatorOpacity = 0.0
 
+    @State private var hintTool: DrawingTool? = nil
+    @State private var hintKey: String = ""
+    @State private var hintVisible = false
+    @State private var hintWorkItem: DispatchWorkItem? = nil
+
     @State private var textInputPosition: CGPoint? = nil
     @State private var pendingText = ""
 
@@ -115,6 +120,20 @@ struct OverlayView: View {
                 SpotlightOverlay(center: pos,
                                  radius: CGFloat(drawingState.strokeThickness) * 60)
             }
+
+            // Keystroke hint HUD
+            if hintVisible, let tool = hintTool {
+                VStack {
+                    Spacer()
+                    KeystrokeHintView(tool: tool, key: hintKey)
+                        .transition(.asymmetric(
+                            insertion: .scale(scale: 0.82).combined(with: .opacity),
+                            removal: .opacity
+                        ))
+                    Spacer().frame(height: 110)
+                }
+                .allowsHitTesting(false)
+            }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(
@@ -139,6 +158,9 @@ struct OverlayView: View {
             textInputPosition = nil
             pendingText = ""
             drawingState.isTextInputActive = false
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .keystrokeHint)) { note in
+            showKeystrokeHint(note)
         }
     }
 
@@ -376,6 +398,22 @@ struct OverlayView: View {
         case .draw:     ToolCursor.cursor(for: drawingState.selectedTool).set()
         }
     }
+
+    // MARK: - Keystroke hint
+
+    private func showKeystrokeHint(_ note: Notification) {
+        guard let tool = note.userInfo?["tool"] as? DrawingTool,
+              let key  = note.userInfo?["key"]  as? String else { return }
+        hintTool = tool
+        hintKey  = key
+        hintWorkItem?.cancel()
+        withAnimation(.spring(response: 0.3, dampingFraction: 0.65)) { hintVisible = true }
+        let item = DispatchWorkItem {
+            withAnimation(.easeOut(duration: 0.25)) { hintVisible = false }
+        }
+        hintWorkItem = item
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.4, execute: item)
+    }
 }
 
 // MARK: - Spotlight Overlay
@@ -521,9 +559,50 @@ private struct WhiteboardBackground: View {
     }
 }
 
+// MARK: - Keystroke Hint HUD
+
+private struct KeystrokeHintView: View {
+    let tool: DrawingTool
+    let key: String
+
+    private let orange = Color(red: 0.96, green: 0.45, blue: 0.08)
+    private let pink   = Color(red: 0.91, green: 0.16, blue: 0.60)
+
+    var body: some View {
+        HStack(spacing: 11) {
+            Image(systemName: tool.systemImage)
+                .font(.system(size: 17, weight: .semibold))
+                .foregroundStyle(LinearGradient(
+                    colors: [orange, pink],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                ))
+                .frame(width: 26, height: 26)
+
+            VStack(alignment: .leading, spacing: 1) {
+                Text(tool.displayName)
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundColor(.white)
+                Text(key)
+                    .font(.system(size: 11, weight: .medium, design: .monospaced))
+                    .foregroundColor(.white.opacity(0.45))
+            }
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 10)
+        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .stroke(Color.white.opacity(0.10), lineWidth: 1)
+        )
+        .shadow(color: orange.opacity(0.25), radius: 16, x: 0, y: 4)
+    }
+}
+
 // MARK: - Notifications
 
 extension Notification.Name {
     static let hideOverlay    = Notification.Name("HideOverlay")
     static let captureAndLift = Notification.Name("CaptureAndLift")
+    static let keystrokeHint  = Notification.Name("KeystrokeHint")
 }

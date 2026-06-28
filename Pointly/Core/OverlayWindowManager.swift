@@ -107,6 +107,10 @@ class OverlayWindowManager: ObservableObject {
                 } else {
                     ds.selectTool(tool)
                     if im.currentMode == .interact { im.switchTo(mode: .draw) }
+                    if let binding = ToolBindingsStore.shared.bindings[tool] {
+                        NotificationCenter.default.post(name: .keystrokeHint, object: nil,
+                            userInfo: ["tool": tool, "key": binding])
+                    }
                 }
                 return nil
             }
@@ -311,6 +315,10 @@ class OverlayWindowManager: ObservableObject {
                     } else {
                         ds.selectTool(tool)
                         self.sharedInteractionMode.switchTo(mode: .draw)
+                        if let binding = ToolBindingsStore.shared.bindings[tool] {
+                            NotificationCenter.default.post(name: .keystrokeHint, object: nil,
+                                userInfo: ["tool": tool, "key": binding])
+                        }
                     }
                 }
                 return
