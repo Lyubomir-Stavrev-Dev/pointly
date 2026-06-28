@@ -12,6 +12,7 @@ class OverlayWindowManager: ObservableObject {
     private var isOverlayActive = false
     private var colorPanelObserver: NSKeyValueObservation?
     private var keyMonitor: Any?
+    private var globalKeyMonitor: Any?
     private var toolCancellable: AnyCancellable?
 
     let sharedDrawingState    = DrawingState()
@@ -35,6 +36,9 @@ class OverlayWindowManager: ObservableObject {
         NotificationCenter.default.addObserver(
             self, selector: #selector(appDidResignActive),
             name: NSApplication.didResignActiveNotification, object: nil)
+        NotificationCenter.default.addObserver(
+            self, selector: #selector(appDidBecomeActive),
+            name: NSApplication.didBecomeActiveNotification, object: nil)
         NotificationCenter.default.addObserver(
             self, selector: #selector(handleShowPaywall(_:)),
             name: .showPaywall, object: nil)
@@ -119,6 +123,20 @@ class OverlayWindowManager: ObservableObject {
                 }
                 if !self.liftedCaptures.isEmpty {
                     DispatchQueue.main.async { self.dismissLastLiftedCapture() }
+                    return nil
+                }
+
+            case 13: // W — toggle whiteboard canvas (Pro)
+                if event.modifierFlags.contains(.command) {
+                    if ProManager.shared.isPro {
+                        DispatchQueue.main.async {
+                            withAnimation(.easeInOut(duration: 0.4)) { ds.whiteboardMode.toggle() }
+                        }
+                    } else {
+                        DispatchQueue.main.async {
+                            self.showPaywall(tool: nil, isWhiteboardCanvas: true, initialPlan: .annual)
+                        }
+                    }
                     return nil
                 }
 
@@ -235,6 +253,14 @@ class OverlayWindowManager: ObservableObject {
         toolbarPanel?.orderFrontRegardless()
     }
 
+    @objc private func appDidBecomeActive() {
+        guard isOverlayActive else { return }
+        toolbarPanel?.orderFrontRegardless()
+        // Restore canvas key status so drawing works immediately without a re-click
+        let mainID = displayID(for: NSScreen.main ?? NSScreen.screens[0])
+        canvasWindows[mainID]?.makeKey()
+    }
+
     @objc private func screensChanged() {
         let liveIDs = Set(NSScreen.screens.map { displayID(for: $0) })
         for id in Set(canvasWindows.keys).subtracting(liveIDs) {
@@ -261,6 +287,53 @@ class OverlayWindowManager: ObservableObject {
         }
         let mainID = displayID(for: NSScreen.main ?? NSScreen.screens[0])
         canvasWindows[mainID]?.makeKey()
+
+        if isInteract { installGlobalKeyMonitor() } else { removeGlobalKeyMonitor() }
+    }
+
+    // MARK: - Global key monitor (interact mode only)
+    // Local monitor fires only when Pointly is key. In interact mode the user
+    // clicks other apps, so we add a global observer that runs regardless of
+    // which app is frontmost. Global monitors cannot consume events, but they
+    // can dispatch Pointly-side actions.
+
+    private func installGlobalKeyMonitor() {
+        guard globalKeyMonitor == nil else { return }
+        globalKeyMonitor = NSEvent.addGlobalMonitorForEvents(matching: .keyDown) { [weak self] event in
+            guard let self, self.isOverlayActive,
+                  self.sharedInteractionMode.currentMode == .interact else { return }
+            let ds = self.sharedDrawingState
+
+            if let tool = Self.matchToolBinding(for: event) {
+                DispatchQueue.main.async {
+                    if ProManager.shared.isLocked(tool) {
+                        self.showPaywall(tool: tool, initialPlan: .annual)
+                    } else {
+                        ds.selectTool(tool)
+                        self.sharedInteractionMode.switchTo(mode: .draw)
+                    }
+                }
+                return
+            }
+
+            switch event.keyCode {
+            case 51, 117: // ⌫ / ⌦
+                if event.modifierFlags.contains(.command) {
+                    DispatchQueue.main.async { ds.clearAll() }
+                }
+            case 13: // W
+                if event.modifierFlags.contains(.command) {
+                    DispatchQueue.main.async { self.toggleWhiteboardMode() }
+                }
+            case 53: // Escape
+                DispatchQueue.main.async { self.sharedInteractionMode.switchTo(mode: .draw) }
+            default: break
+            }
+        }
+    }
+
+    private func removeGlobalKeyMonitor() {
+        if let m = globalKeyMonitor { NSEvent.removeMonitor(m); globalKeyMonitor = nil }
     }
 
     // MARK: - Show / Hide
@@ -303,6 +376,7 @@ class OverlayWindowManager: ObservableObject {
         dismissAllLiftedCaptures()
         colorPanelObserver = nil
         NSColorPanel.shared.level = .floating
+        removeGlobalKeyMonitor()
     }
 
     // MARK: - Lifted capture management
@@ -481,7 +555,7 @@ class OverlayWindowManager: ObservableObject {
         showPaywall(tool: nil, initialPlan: plan)
     }
 
-    func showPaywall(tool: DrawingTool?, initialPlan: ProPlan = .annual) {
+    func showPaywall(tool: DrawingTool?, isWhiteboardCanvas: Bool = false, initialPlan: ProPlan = .annual) {
         paywallPanel?.orderOut(nil)
 
         let size = CGSize(width: 400, height: 600)
@@ -504,7 +578,8 @@ class OverlayWindowManager: ObservableObject {
         panel.level = NSWindow.Level(rawValue: NSWindow.Level.screenSaver.rawValue + 3)
 
         panel.contentView = FirstMouseHostingView(rootView:
-            ProPaywallView(tool: tool, proManager: .shared, onDismiss: { [weak self, weak panel] in
+            ProPaywallView(tool: tool, isWhiteboardCanvas: isWhiteboardCanvas,
+                           proManager: .shared, onDismiss: { [weak self, weak panel] in
                 panel?.orderOut(nil)
                 self?.paywallPanel = nil
                 if self?.isOverlayActive == true {
@@ -538,6 +613,15 @@ class OverlayWindowManager: ObservableObject {
 
     @objc func restoreCanvasLevel() {
         applyModeToWindows()
+    }
+
+    func toggleWhiteboardMode() {
+        guard ProManager.shared.isPro else {
+            showPaywall(tool: nil, isWhiteboardCanvas: true, initialPlan: .annual)
+            return
+        }
+        if !isOverlayActive { toggleOverlay() }
+        withAnimation(.easeInOut(duration: 0.4)) { sharedDrawingState.whiteboardMode.toggle() }
     }
 }
 

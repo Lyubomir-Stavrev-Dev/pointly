@@ -57,6 +57,7 @@ extension DrawingTool {
 
 struct ProPaywallView: View {
     let tool: DrawingTool?
+    var isWhiteboardCanvas: Bool = false
     @ObservedObject var proManager: ProManager
     var onDismiss: () -> Void
     var initialPlan: ProPlan = .annual
@@ -70,6 +71,7 @@ struct ProPaywallView: View {
         ("rays",             "Spotlight — focus your audience"),
         ("circle.dotted",    "Dot Pen — math-style dotted drawing"),
         ("scissors",         "Cut & Move — rearrange annotations freely"),
+        ("grid",             "Whiteboard Canvas — draw on a dark grid canvas"),
     ]
 
     var body: some View {
@@ -99,7 +101,9 @@ struct ProPaywallView: View {
 
                 // Feature animation
                 ZStack {
-                    if let tool {
+                    if isWhiteboardCanvas {
+                        WhiteboardCanvasPreview()
+                    } else if let tool {
                         switch tool {
                         case .blurBrush:    BlurBrushPreview()
                         case .laserPointer: LaserPointerPreview()
@@ -131,11 +135,11 @@ struct ProPaywallView: View {
                                 .fill(paywallGradient)
                                 .frame(width: 36, height: 36)
                                 .shadow(color: (Color(hex: "#F4644D") ?? .orange).opacity(0.5), radius: 10, x: 0, y: 4)
-                            Image(systemName: tool != nil ? "lock.fill" : "crown.fill")
+                            Image(systemName: (tool != nil || isWhiteboardCanvas) ? "lock.fill" : "crown.fill")
                                 .font(.system(size: 14, weight: .semibold))
                                 .foregroundColor(.white)
                         }
-                        Text(tool != nil ? "\(tool!.proTitle) is Pro" : "Unlock Pointly Pro")
+                        Text(isWhiteboardCanvas ? "Whiteboard Canvas is Pro" : tool != nil ? "\(tool!.proTitle) is Pro" : "Unlock Pointly Pro")
                             .font(.system(size: 19, weight: .bold, design: .rounded))
                             .foregroundColor(.white)
                         if let tool {
@@ -253,7 +257,62 @@ struct ProPaywallView: View {
         PaywallPlanCard(plan: plan, selectedPlan: $selectedPlan, proManager: proManager)
     }
 
-    private var genericProPreview: some View {
+}
+
+// MARK: - WhiteboardCanvasPreview
+
+private struct WhiteboardCanvasPreview: View {
+    @State private var appeared = false
+    @State private var phase: CGFloat = 0
+
+    private let strokes: [(CGFloat, CGFloat, Double)] = [
+        (140, 5, 0.0),
+        (90,  4, 0.12),
+        (190, 5, 0.24),
+        (70,  3, 0.36),
+        (160, 4, 0.48),
+    ]
+
+    var body: some View {
+        ZStack {
+            // Dark grid background (mirrors actual whiteboard)
+            Canvas { ctx, size in
+                ctx.fill(Path(CGRect(origin: .zero, size: size)),
+                         with: .color(Color(red: 0.05, green: 0.05, blue: 0.10)))
+                var lines = Path()
+                let step: CGFloat = 26
+                var x: CGFloat = 0
+                while x <= size.width  { lines.move(to: .init(x: x, y: 0)); lines.addLine(to: .init(x: x, y: size.height)); x += step }
+                var y: CGFloat = 0
+                while y <= size.height { lines.move(to: .init(x: 0, y: y)); lines.addLine(to: .init(x: size.width, y: y)); y += step }
+                ctx.stroke(lines, with: .color(Color.white.opacity(0.07)), lineWidth: 0.5)
+            }
+
+            // Animated brand-coloured strokes appearing
+            VStack(spacing: 10) {
+                ForEach(Array(strokes.enumerated()), id: \.offset) { i, s in
+                    let (width, height, delay) = s
+                    Capsule()
+                        .fill(LinearGradient(
+                            colors: [Color(hex: "#F4644D") ?? .orange,
+                                     Color(hex: "#E9458C") ?? .pink],
+                            startPoint: .leading, endPoint: .trailing))
+                        .frame(width: appeared ? width : 0, height: height)
+                        .shadow(color: (Color(hex: "#F4644D") ?? .orange).opacity(0.45),
+                                radius: 6, x: 0, y: 0)
+                        .animation(.spring(response: 0.55, dampingFraction: 0.78)
+                            .delay(delay), value: appeared)
+                }
+            }
+        }
+        .onAppear {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) { appeared = true }
+        }
+    }
+}
+
+private extension ProPaywallView {
+    var genericProPreview: some View {
         ZStack {
             Color(red: 0.06, green: 0.06, blue: 0.12)
             HStack(spacing: 20) {

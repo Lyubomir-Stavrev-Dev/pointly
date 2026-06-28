@@ -296,6 +296,7 @@ class DrawingState: ObservableObject {
     @Published var selectionRubberBand: CGRect? = nil
     @Published var isTextInputActive: Bool = false
     @Published var liftedCovers: [LiftedCover] = []
+    @Published var whiteboardMode: Bool = false
 
     // Drawing elements and undo/redo stacks
     @Published private(set) var elements: [DrawingElement] = []

@@ -93,6 +93,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         let menu = NSMenu()
 
         menu.addItem(NSMenuItem(title: "Toggle Overlay (⌘⇧P)", action: #selector(toggleOverlay), keyEquivalent: ""))
+        menu.addItem(NSMenuItem(title: "Whiteboard Canvas (⌘W)", action: #selector(toggleWhiteboardMode), keyEquivalent: ""))
 
         menu.addItem(NSMenuItem.separator())
         menu.addItem(NSMenuItem(title: "Settings...", action: #selector(openSettings), keyEquivalent: ","))
@@ -118,6 +119,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     @objc private func toggleInteractionMode() {
         overlayWindowManager?.currentInteractionMode?.toggleMode()
+    }
+
+    @objc private func toggleWhiteboardMode() {
+        overlayWindowManager?.toggleWhiteboardMode()
     }
 
     @objc private func handleHotkeyChanged(_ notification: Notification) {

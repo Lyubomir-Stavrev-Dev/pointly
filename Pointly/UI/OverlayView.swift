@@ -29,6 +29,12 @@ struct OverlayView: View {
 
     var body: some View {
         ZStack {
+            // Whiteboard background — full-screen dark grid canvas
+            if drawingState.whiteboardMode {
+                WhiteboardBackground()
+                    .transition(.opacity)
+            }
+
             // Erase covers for Cut & Move — rendered at canvas level so they reliably
             // hide real app content beneath the transparent canvas window.
             ForEach(drawingState.liftedCovers) { cover in
@@ -492,9 +498,32 @@ struct MetalView: NSViewRepresentable {
     }
 }
 
+// MARK: - Whiteboard Background
+
+private struct WhiteboardBackground: View {
+    private let bg    = Color(red: 0.05, green: 0.05, blue: 0.10)
+    private let grid  = Color(red: 0.20, green: 0.20, blue: 0.40)
+    private let step: CGFloat = 50
+
+    var body: some View {
+        Canvas { ctx, size in
+            ctx.fill(Path(CGRect(origin: .zero, size: size)), with: .color(bg))
+
+            var lines = Path()
+            var x: CGFloat = 0
+            while x <= size.width  { lines.move(to: CGPoint(x: x, y: 0)); lines.addLine(to: CGPoint(x: x, y: size.height)); x += step }
+            var y: CGFloat = 0
+            while y <= size.height { lines.move(to: CGPoint(x: 0, y: y)); lines.addLine(to: CGPoint(x: size.width, y: y)); y += step }
+            ctx.stroke(lines, with: .color(grid.opacity(0.25)), lineWidth: 0.5)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .allowsHitTesting(false)
+    }
+}
+
 // MARK: - Notifications
 
 extension Notification.Name {
-    static let hideOverlay   = Notification.Name("HideOverlay")
+    static let hideOverlay    = Notification.Name("HideOverlay")
     static let captureAndLift = Notification.Name("CaptureAndLift")
 }
