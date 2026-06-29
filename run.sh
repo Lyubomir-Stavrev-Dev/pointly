@@ -8,9 +8,17 @@ echo "Building..."
 swift build 2>&1 | tail -5
 
 BINARY=".build/arm64-apple-macosx/debug/Pointly"
+BUNDLE=".build/arm64-apple-macosx/debug/Pointly_Pointly.bundle"
 APP_BINARY="Pointly.app/Contents/MacOS/Pointly"
+APP_RESOURCES="Pointly.app/Contents/Resources"
 
 cp "$BINARY" "$APP_BINARY"
+
+# Copy SwiftPM resource bundle (Metal shaders, asset catalog) into the app
+if [ -d "$BUNDLE" ]; then
+    cp -R "$BUNDLE" "$APP_RESOURCES/"
+fi
+
 codesign --force --deep --sign - --entitlements "Pointly/Pointly.entitlements" "Pointly.app"
 echo "Binary updated."
 
