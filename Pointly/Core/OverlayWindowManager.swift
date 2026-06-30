@@ -404,6 +404,18 @@ class OverlayWindowManager: ObservableObject {
                 DispatchQueue.main.async { self.showPaywall(tool: nil, isWhiteboardCanvas: true) }
             }
         }
+
+        // Cmd+= → increase size (keyCode 24 = equals/plus key)
+        toolHotkeyManager.registerHotkey(keyCode: 24, modifiers: .command) { [weak self] in
+            guard let self, self.isOverlayActive, ds.selectedTool.supportsThickness else { return }
+            DispatchQueue.main.async { ds.strokeThickness = min(30, ds.strokeThickness + 1) }
+        }
+
+        // Cmd+- → decrease size (keyCode 27 = minus key)
+        toolHotkeyManager.registerHotkey(keyCode: 27, modifiers: .command) { [weak self] in
+            guard let self, self.isOverlayActive, ds.selectedTool.supportsThickness else { return }
+            DispatchQueue.main.async { ds.strokeThickness = max(1, ds.strokeThickness - 1) }
+        }
     }
 
     // MARK: - Global key monitor (interact mode only)

@@ -55,70 +55,39 @@ enum ToolCursor {
     static func invalidateShapeCursor() { _shapeCursor = nil }
 
     private static func buildCursorArrow() -> NSCursor {
-        let iconSize: CGFloat = 20
-        let pad:      CGFloat = 8
-        let total              = iconSize + pad * 2   // 56 pt
+        // Match the same canvas size as other tool cursors (iconPt:20 + pad:12 each side)
+        let pad:  CGFloat = 12
+        let icon: CGFloat = 20
+        let total = icon + pad * 2   // 44 pt
+        let c     = CGPoint(x: total / 2, y: total / 2)
+        let arm:  CGFloat = 9
+        let gap:  CGFloat = 2.5
+        let lw:   CGFloat = 1.2
+        let dotR: CGFloat = 2.0
 
-        let drawRect = NSRect(x: pad, y: pad, width: iconSize, height: iconSize)
-
-        let cfg = NSImage.SymbolConfiguration(pointSize: iconSize, weight: .semibold)
-            .applying(.init(paletteColors: [.white]))
-        guard let sym = NSImage(systemSymbolName: "cursorarrow",
-                                accessibilityDescription: nil)?
-                .withSymbolConfiguration(cfg) else { return .arrow }
-
-        // Gradient: orange at tip (top-left) → pink at tail (bottom-right)
-        let orange = CGColor(red: 0.96, green: 0.45, blue: 0.08, alpha: 1.0)
-        let pink   = CGColor(red: 0.91, green: 0.16, blue: 0.60, alpha: 1.0)
-        let cs     = CGColorSpaceCreateDeviceRGB()
-        let grad   = CGGradient(colorsSpace: cs,
-                                colors: [orange, pink] as CFArray,
-                                locations: [0, 1])!
-
-        // NSImage is flipped:false (y-up) — tip sits at high-y/low-x corner
-        let gradStart = CGPoint(x: drawRect.minX, y: drawRect.maxY)
-        let gradEnd   = CGPoint(x: drawRect.maxX, y: drawRect.minY)
+        func drawCrosshair(_ ctx: CGContext) {
+            ctx.setLineCap(.round)
+            ctx.setLineWidth(lw)
+            ctx.setStrokeColor(CGColor.white)
+            let p = CGMutablePath()
+            p.move(to: CGPoint(x: c.x - arm, y: c.y)); p.addLine(to: CGPoint(x: c.x - gap, y: c.y))
+            p.move(to: CGPoint(x: c.x + gap, y: c.y)); p.addLine(to: CGPoint(x: c.x + arm, y: c.y))
+            p.move(to: CGPoint(x: c.x, y: c.y + arm)); p.addLine(to: CGPoint(x: c.x, y: c.y + gap))
+            p.move(to: CGPoint(x: c.x, y: c.y - arm)); p.addLine(to: CGPoint(x: c.x, y: c.y - gap))
+            ctx.addPath(p)
+            ctx.strokePath()
+            ctx.setFillColor(CGColor.white)
+            ctx.fillEllipse(in: CGRect(x: c.x - dotR, y: c.y - dotR, width: dotR * 2, height: dotR * 2))
+        }
 
         let img = NSImage(size: NSSize(width: total, height: total), flipped: false) { _ in
             guard let ctx = NSGraphicsContext.current?.cgContext else { return false }
-            func drawSym() { sym.draw(in: drawRect) }
-
-            // Orange glow — tight, near tip
-            ctx.saveGState()
-            ctx.setShadow(offset: CGSize(width: -0.5, height: 1.5), blur: 4,
-                          color: CGColor(red: 1.0, green: 0.50, blue: 0.08, alpha: 0.9))
-            ctx.beginTransparencyLayer(auxiliaryInfo: nil); drawSym(); ctx.endTransparencyLayer()
-            ctx.restoreGState()
-
-            // Pink glow — tight, near tail
-            ctx.saveGState()
-            ctx.setShadow(offset: CGSize(width: 1.5, height: -1.5), blur: 5,
-                          color: CGColor(red: 0.85, green: 0.0, blue: 0.65, alpha: 0.9))
-            ctx.beginTransparencyLayer(auxiliaryInfo: nil); drawSym(); ctx.endTransparencyLayer()
-            ctx.restoreGState()
-
-            // White outline — very tight
-            ctx.saveGState()
-            ctx.setShadow(offset: .zero, blur: 1.5,
-                          color: CGColor.white.copy(alpha: 1.0))
-            ctx.beginTransparencyLayer(auxiliaryInfo: nil); drawSym(); ctx.endTransparencyLayer()
-            ctx.restoreGState()
-
-            // Gradient-filled arrow (symbol alpha used as clip mask via sourceIn)
-            ctx.saveGState()
-            ctx.beginTransparencyLayer(auxiliaryInfo: nil)
-            drawSym()                               // lays down the symbol's alpha
-            ctx.setBlendMode(.sourceIn)
-            ctx.drawLinearGradient(grad, start: gradStart, end: gradEnd,
-                                   options: [.drawsBeforeStartLocation, .drawsAfterEndLocation])
-            ctx.endTransparencyLayer()
-            ctx.restoreGState()
-
+            glowLayers(ctx: ctx, orange: brandOrange, warm: brandWarm) { drawCrosshair(ctx) }
+            drawCrosshair(ctx)
             return true
         }
-
-        // Hot spot: tip of arrow = top-left in cursor-image coords (0,0 at top-left)
-        return NSCursor(image: img, hotSpot: NSPoint(x: pad + 1, y: pad + 1))
+        // Hot spot at visual center
+        return NSCursor(image: img, hotSpot: NSPoint(x: total / 2, y: total / 2))
     }
 
     // MARK: - Shared glow helper
