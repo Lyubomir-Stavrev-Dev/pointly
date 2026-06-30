@@ -10,8 +10,8 @@ enum ProPlan: String, CaseIterable {
 
     var productID: String {
         switch self {
-        case .annual:   return "com.pointly.pro.annual"
-        case .lifetime: return "com.pointly.pro.lifetime"
+        case .annual:   return "com.pointly.macos.pro.annual"
+        case .lifetime: return "com.pointly.macos.pro.lifetime"
         }
     }
     var displayName: String {
