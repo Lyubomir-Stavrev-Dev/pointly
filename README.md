@@ -4,7 +4,7 @@ A screen annotation tool for macOS — floating toolbar, live drawing, spotlight
 
 ## Download
 
-[![Download](https://img.shields.io/badge/⬇%20Download-Pointly%20v1.1.0-FF6B6B?style=for-the-badge)](https://github.com/Lyubomir-Stavrev-Dev/pointly/releases/latest/download/Pointly-v1.1.0.zip)
+[![Download](https://img.shields.io/badge/⬇%20Download-Pointly%20v1.2.0-FF6B6B?style=for-the-badge)](https://github.com/Lyubomir-Stavrev-Dev/pointly/releases/latest/download/Pointly-v1.2.0.zip)
 
 > **macOS 14+** · Unzip → drag **Pointly.app** to `/Applications`
 >

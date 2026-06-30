@@ -16,6 +16,13 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         NSApp.setActivationPolicy(.accessory)
         setupMenuBarItem()
 
+        // Prompt for Accessibility permission on first launch — required for
+        // global keyboard shortcuts (⌃1…, ⌘⌫, etc.) in interact mode.
+        if !AXIsProcessTrusted() {
+            let opts = [kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: true] as CFDictionary
+            AXIsProcessTrustedWithOptions(opts)
+        }
+
         // Prevent macOS from restoring SwiftUI scene windows on future launches.
         UserDefaults.standard.set(false, forKey: "NSQuitAlwaysKeepsWindows")
 
