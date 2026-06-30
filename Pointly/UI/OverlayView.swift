@@ -140,7 +140,7 @@ struct OverlayView: View {
             GeometryReader { geo in
                 Color.clear
                     .onAppear { canvasSize = geo.size; initializeMetalRenderer() }
-                    .onChange(of: geo.size) { canvasSize = $0 }
+                    .onChange(of: geo.size) { _, newSize in canvasSize = newSize }
             }
         )
         .onAppear { drawingState.loadAnnotations() }
@@ -150,7 +150,7 @@ struct OverlayView: View {
             ToolCursor.cursor(for: drawingState.selectedTool).set()
         }
         .onReceive(NotificationCenter.default.publisher(for: .interactionModeChanged)) { handleModeChange($0) }
-        .onChange(of: drawingState.selectedTool) { tool in
+        .onChange(of: drawingState.selectedTool) { _, tool in
             if tool != .select && tool != .cutMove { drawingState.clearSelection() }
             updateCursor()
         }

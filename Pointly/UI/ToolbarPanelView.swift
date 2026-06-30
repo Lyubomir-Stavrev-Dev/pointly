@@ -34,7 +34,7 @@ struct ToolbarPanelView: View {
                             GeometryReader { geo in
                                 Color.clear
                                     .onAppear    { toolbarHeight = geo.size.height }
-                                    .onChange(of: geo.size) { toolbarHeight = $0.height }
+                                    .onChange(of: geo.size) { _, newSize in toolbarHeight = newSize.height }
                             }
                         )
 
@@ -55,7 +55,7 @@ struct ToolbarPanelView: View {
             GeometryReader { geo in
                 Color.clear
                     .onAppear    { onSizeChange?(geo.size) }
-                    .onChange(of: geo.size) { onSizeChange?($0) }
+                    .onChange(of: geo.size) { _, newSize in onSizeChange?(newSize) }
             }
         )
         .fixedSize()

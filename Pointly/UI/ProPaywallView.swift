@@ -83,22 +83,6 @@ struct ProPaywallView: View {
             .ignoresSafeArea()
 
             VStack(spacing: 0) {
-                // Close button
-                HStack {
-                    Spacer()
-                    Button { onDismiss() } label: {
-                        Image(systemName: "xmark")
-                            .font(.system(size: 9, weight: .bold))
-                            .foregroundColor(.white.opacity(0.35))
-                            .frame(width: 22, height: 22)
-                            .background(Circle().fill(Color.white.opacity(0.08)))
-                    }
-                    .buttonStyle(.plain)
-                    .help("Close")
-                }
-                .padding(.top, 18)
-                .padding(.trailing, 20)
-
                 // Feature animation
                 ZStack {
                     if isWhiteboardCanvas {
@@ -116,10 +100,10 @@ struct ProPaywallView: View {
                         genericProPreview
                     }
                 }
-                .frame(height: 160)
+                .frame(height: 148)
                 .clipShape(RoundedRectangle(cornerRadius: 12))
-                .padding(.horizontal, 28)
-                .padding(.top, 4)
+                .padding(.horizontal, 24)
+                .padding(.top, 12)
 
                 // Divider
                 Rectangle()
@@ -127,9 +111,9 @@ struct ProPaywallView: View {
                     .frame(height: 0.8)
                     .padding(.top, 16)
 
-                VStack(spacing: 16) {
+                VStack(spacing: 12) {
                     // Header
-                    VStack(spacing: 6) {
+                    VStack(spacing: 5) {
                         ZStack {
                             Circle()
                                 .fill(paywallGradient)
@@ -151,10 +135,10 @@ struct ProPaywallView: View {
                                 .padding(.horizontal, 24)
                         }
                     }
-                    .padding(.top, 16)
+                    .padding(.top, 12)
 
                     // Feature list (compact)
-                    VStack(alignment: .leading, spacing: 7) {
+                    VStack(alignment: .leading, spacing: 6) {
                         ForEach(proFeatures, id: \.0) { icon, label in
                             HStack(spacing: 9) {
                                 Image(systemName: icon)
@@ -240,13 +224,13 @@ struct ProPaywallView: View {
                     .padding(.horizontal, 28)
                 }
 
-                Spacer(minLength: 16)
+                Spacer(minLength: 12)
             }
         }
-        .frame(width: 400, height: 600)
+        .frame(width: 400, height: 580)
         .preferredColorScheme(.dark)
         .onAppear { selectedPlan = initialPlan }
-        .onChange(of: proManager.isPro) { isPro in
+        .onChange(of: proManager.isPro) { _, isPro in
             if isPro { onDismiss() }
         }
     }

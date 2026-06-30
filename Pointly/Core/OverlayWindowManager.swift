@@ -13,6 +13,7 @@ class OverlayWindowManager: ObservableObject {
     private var colorPanelObserver: NSKeyValueObservation?
     private var keyMonitor: Any?
     private var globalKeyMonitor: Any?
+    private var globalDrawKeyMonitor: Any?
     private var toolCancellable: AnyCancellable?
 
     let sharedDrawingState    = DrawingState()
@@ -95,42 +96,52 @@ class OverlayWindowManager: ObservableObject {
     // MARK: - Global key monitor
 
     private func installKeyMonitor() {
+        // Local monitor: handles events when Pointly's window IS key (e.g. text input cancel)
         keyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
             guard let self, self.isOverlayActive else { return event }
             let ds = self.sharedDrawingState
+            // Only handle escape for text input cancellation here; everything else is in the global monitor
+            if event.keyCode == 53, ds.isTextInputActive {
+                NotificationCenter.default.post(name: .cancelTextInput, object: nil)
+                return nil
+            }
+            return event
+        }
+
+        // Global draw monitor: fires regardless of which app is active — fixes shortcuts
+        // not firing when the overlay hasn't been clicked yet.
+        // Global monitors cannot consume events (can't return nil), so we just dispatch actions.
+        globalDrawKeyMonitor = NSEvent.addGlobalMonitorForEvents(matching: .keyDown) { [weak self] event in
+            guard let self, self.isOverlayActive,
+                  self.sharedInteractionMode.currentMode == .draw else { return }
+            let ds = self.sharedDrawingState
             let im = self.sharedInteractionMode
 
-            // Tool shortcut bindings
             if let tool = Self.matchToolBinding(for: event) {
-                if ProManager.shared.isLocked(tool) {
-                    self.showPaywall(tool: tool, initialPlan: .annual)
-                } else {
-                    ds.selectTool(tool)
-                    if im.currentMode == .interact { im.switchTo(mode: .draw) }
-                    if let binding = ToolBindingsStore.shared.bindings[tool] {
-                        NotificationCenter.default.post(name: .keystrokeHint, object: nil,
-                            userInfo: ["tool": tool, "key": binding])
+                DispatchQueue.main.async {
+                    if ProManager.shared.isLocked(tool) {
+                        self.showPaywall(tool: tool, initialPlan: .annual)
+                    } else {
+                        ds.selectTool(tool)
+                        if let binding = ToolBindingsStore.shared.bindings[tool] {
+                            NotificationCenter.default.post(name: .keystrokeHint, object: nil,
+                                userInfo: ["tool": tool, "key": binding])
+                        }
                     }
                 }
-                return nil
+                return
             }
 
             switch event.keyCode {
-            case 51, 117: // ⌫ backspace (51) or ⌦ forward delete (117)
+            case 51, 117: // ⌫ / ⌦
                 if event.modifierFlags.contains(.command) {
                     DispatchQueue.main.async { ds.clearAll() }
-                    return nil
-                }
-                if ds.selectedTool == .select && !ds.selectedElementIDs.isEmpty {
+                } else if ds.selectedTool == .select && !ds.selectedElementIDs.isEmpty {
                     DispatchQueue.main.async { ds.deleteSelected() }
-                    return nil
-                }
-                if !self.liftedCaptures.isEmpty {
+                } else if !self.liftedCaptures.isEmpty {
                     DispatchQueue.main.async { self.dismissLastLiftedCapture() }
-                    return nil
                 }
-
-            case 13: // W — toggle whiteboard canvas (Pro)
+            case 13: // W
                 if event.modifierFlags.contains(.command) {
                     if ProManager.shared.isPro {
                         DispatchQueue.main.async {
@@ -141,21 +152,11 @@ class OverlayWindowManager: ObservableObject {
                             self.showPaywall(tool: nil, isWhiteboardCanvas: true, initialPlan: .annual)
                         }
                     }
-                    return nil
                 }
-
             case 53: // Escape
-                if ds.isTextInputActive {
-                    NotificationCenter.default.post(name: .cancelTextInput, object: nil)
-                } else {
-                    DispatchQueue.main.async { im.toggleMode() }
-                }
-                return nil
-
-            default:
-                break
+                DispatchQueue.main.async { im.toggleMode() }
+            default: break
             }
-            return event
         }
     }
 
@@ -341,6 +342,8 @@ class OverlayWindowManager: ObservableObject {
     }
 
     private func removeGlobalKeyMonitor() {
+        // Only remove the interact-mode monitor; the draw-mode global monitor stays
+        // registered permanently and self-guards via isOverlayActive.
         if let m = globalKeyMonitor { NSEvent.removeMonitor(m); globalKeyMonitor = nil }
     }
 
@@ -566,7 +569,7 @@ class OverlayWindowManager: ObservableObject {
     func showPaywall(tool: DrawingTool?, isWhiteboardCanvas: Bool = false, initialPlan: ProPlan = .annual) {
         paywallPanel?.orderOut(nil)
 
-        let size = CGSize(width: 400, height: 600)
+        let size = CGSize(width: 400, height: 580)
         let panel = NSPanel(
             contentRect: NSRect(origin: .zero, size: size),
             styleMask: [.titled, .closable, .fullSizeContentView],

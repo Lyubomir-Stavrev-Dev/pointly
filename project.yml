@@ -1,0 +1,53 @@
+name: Pointly
+options:
+  bundleIdPrefix: com.pointly
+  deploymentTarget:
+    macOS: "14.0"
+  xcodeVersion: "15"
+  groupSortPosition: top
+  generateEmptyDirectories: true
+
+settings:
+  base:
+    SWIFT_VERSION: "5.9"
+    MACOSX_DEPLOYMENT_TARGET: "14.0"
+    ENABLE_HARDENED_RUNTIME: YES
+
+targets:
+  Pointly:
+    type: application
+    platform: macOS
+    deploymentTarget: "14.0"
+    info:
+      path: Pointly/Info.plist
+    entitlements:
+      path: Pointly/Pointly.entitlements
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.pointly.macos
+        PRODUCT_NAME: Pointly
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        CODE_SIGN_STYLE: Manual
+        CODE_SIGN_IDENTITY: "Developer ID Application"
+        DEVELOPMENT_TEAM: K62L488Y4H
+        ENABLE_HARDENED_RUNTIME: YES
+        INFOPLIST_FILE: Pointly/Info.plist
+        CODE_SIGN_ENTITLEMENTS: Pointly/Pointly.entitlements
+        SWIFT_OBJC_BRIDGING_HEADER: Pointly/Pointly-Bridging-Header.h
+        METAL_ENABLE_DEBUG_INFO: INCLUDE_SOURCE
+      configs:
+        Debug:
+          CODE_SIGN_IDENTITY: "-"
+          CODE_SIGN_STYLE: Automatic
+          DEVELOPMENT_TEAM: K62L488Y4H
+        Release:
+          CODE_SIGN_IDENTITY: "Developer ID Application: Lyubomir Stavrev (K62L488Y4H)"
+          CODE_SIGN_STYLE: Manual
+          DEVELOPMENT_TEAM: K62L488Y4H
+    sources:
+      - path: Pointly
+        excludes:
+          - "**/*.md"
+          - Tests
+    dependencies:
+      - sdk: StoreKit.framework

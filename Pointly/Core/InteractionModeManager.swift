@@ -157,7 +157,7 @@ class InteractionModeManager: ObservableObject {
     /// - Parameter mode: Mode to indicate
     private func showModeIndicator(for mode: InteractionMode) {
         // Create temporary HUD indicator
-        let indicator = ModeIndicatorView(mode: mode)
+        _ = ModeIndicatorView(mode: mode)
         
         // This will be implemented as an overlay in future phases
         // For now, we'll use console logging
