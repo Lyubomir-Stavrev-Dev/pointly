@@ -1,7 +1,7 @@
 # 🔍 How to See Pointly Hotkey Logs in Console.app
 
 ## The Problem
-The OSLog messages use a **subsystem** (`com.pointly.app`), so they won't show up with a simple "Pointly" filter.
+The OSLog messages use a **subsystem** (`com.pointly.macos`), so they won't show up with a simple "Pointly" filter.
 
 ## ✅ Solution: Filter by Subsystem
 
@@ -10,7 +10,7 @@ The OSLog messages use a **subsystem** (`com.pointly.app`), so they won't show u
 1. **Clear the current filter** (remove "Q ANY Pointly")
 2. **In the search box, type:**
    ```
-   subsystem:com.pointly.app
+   subsystem:com.pointly.macos
    ```
 3. **Press Enter**
 
@@ -20,7 +20,7 @@ You should now see the hotkey logs!
 
 Open Terminal and run:
 ```bash
-log stream --predicate 'subsystem == "com.pointly.app"' --level debug
+log stream --predicate 'subsystem == "com.pointly.macos"' --level debug
 ```
 
 This will show **only** the hotkey debug messages in real-time.

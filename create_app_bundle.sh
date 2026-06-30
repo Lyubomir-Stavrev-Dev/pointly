@@ -27,7 +27,7 @@ cat > "$CONTENTS_DIR/Info.plist" << EOF
     <key>CFBundleIconFile</key>
     <string>AppIcon</string>
     <key>CFBundleIdentifier</key>
-    <string>com.pointly.app</string>
+    <string>com.pointly.macos</string>
     <key>CFBundleName</key>
     <string>$APP_NAME</string>
     <key>CFBundleVersion</key>

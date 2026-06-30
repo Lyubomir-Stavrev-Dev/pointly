@@ -57,7 +57,7 @@ class TestAppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
     private var globalEventMonitors: [Any] = []
     
     // OSLog for system log visibility
-    private let logger = OSLog(subsystem: "com.pointly.app", category: "hotkeys")
+    private let logger = OSLog(subsystem: "com.pointly.macos", category: "hotkeys")
     
     // Shape drawing manager
     @Published var shapeManager = ShapeDrawingManager()
