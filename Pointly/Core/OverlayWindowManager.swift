@@ -15,6 +15,7 @@ class OverlayWindowManager: ObservableObject {
     private var globalKeyMonitor: Any?
     private var globalDrawKeyMonitor: Any?
     private var toolCancellable: AnyCancellable?
+    private let toolHotkeyManager = GlobalHotkeyManager()
 
     let sharedDrawingState    = DrawingState()
     let sharedInteractionMode = InteractionModeManager()
@@ -96,21 +97,69 @@ class OverlayWindowManager: ObservableObject {
     // MARK: - Global key monitor
 
     private func installKeyMonitor() {
-        // Local monitor: handles events when Pointly's window IS key (e.g. text input cancel)
+        // Local monitor: fires when Pointly's window is key. Handles all draw-mode shortcuts
+        // and consumes them so they don't reach other apps.
         keyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
             guard let self, self.isOverlayActive else { return event }
             let ds = self.sharedDrawingState
-            // Only handle escape for text input cancellation here; everything else is in the global monitor
-            if event.keyCode == 53, ds.isTextInputActive {
-                NotificationCenter.default.post(name: .cancelTextInput, object: nil)
+            let im = self.sharedInteractionMode
+
+            if let tool = Self.matchToolBinding(for: event) {
+                if ProManager.shared.isLocked(tool) {
+                    self.showPaywall(tool: tool, initialPlan: .annual)
+                } else {
+                    ds.selectTool(tool)
+                    if im.currentMode == .interact { im.switchTo(mode: .draw) }
+                    if let binding = ToolBindingsStore.shared.bindings[tool] {
+                        NotificationCenter.default.post(name: .keystrokeHint, object: nil,
+                            userInfo: ["tool": tool, "key": binding])
+                    }
+                }
                 return nil
+            }
+
+            switch event.keyCode {
+            case 51, 117: // ⌫ / ⌦
+                if event.modifierFlags.contains(.command) {
+                    DispatchQueue.main.async { ds.clearAll() }
+                    return nil
+                }
+                if ds.selectedTool == .select && !ds.selectedElementIDs.isEmpty {
+                    DispatchQueue.main.async { ds.deleteSelected() }
+                    return nil
+                }
+                if !self.liftedCaptures.isEmpty {
+                    DispatchQueue.main.async { self.dismissLastLiftedCapture() }
+                    return nil
+                }
+            case 13: // W
+                if event.modifierFlags.contains(.command) {
+                    if ProManager.shared.isPro {
+                        DispatchQueue.main.async {
+                            withAnimation(.easeInOut(duration: 0.4)) { ds.whiteboardMode.toggle() }
+                        }
+                    } else {
+                        DispatchQueue.main.async {
+                            self.showPaywall(tool: nil, isWhiteboardCanvas: true, initialPlan: .annual)
+                        }
+                    }
+                    return nil
+                }
+            case 53: // Escape — cancel text input; Cmd+Escape toggles interact mode
+                if ds.isTextInputActive {
+                    NotificationCenter.default.post(name: .cancelTextInput, object: nil)
+                    return nil
+                } else if event.modifierFlags.contains(.command) {
+                    DispatchQueue.main.async { im.toggleMode() }
+                    return nil
+                }
+            default: break
             }
             return event
         }
 
-        // Global draw monitor: fires regardless of which app is active — fixes shortcuts
-        // not firing when the overlay hasn't been clicked yet.
-        // Global monitors cannot consume events (can't return nil), so we just dispatch actions.
+        // Global draw monitor: fires when OTHER apps are focused and Accessibility is granted.
+        // Cannot consume events but ensures shortcuts work without clicking the canvas first.
         globalDrawKeyMonitor = NSEvent.addGlobalMonitorForEvents(matching: .keyDown) { [weak self] event in
             guard let self, self.isOverlayActive,
                   self.sharedInteractionMode.currentMode == .draw else { return }
@@ -133,7 +182,7 @@ class OverlayWindowManager: ObservableObject {
             }
 
             switch event.keyCode {
-            case 51, 117: // ⌫ / ⌦
+            case 51, 117:
                 if event.modifierFlags.contains(.command) {
                     DispatchQueue.main.async { ds.clearAll() }
                 } else if ds.selectedTool == .select && !ds.selectedElementIDs.isEmpty {
@@ -141,7 +190,7 @@ class OverlayWindowManager: ObservableObject {
                 } else if !self.liftedCaptures.isEmpty {
                     DispatchQueue.main.async { self.dismissLastLiftedCapture() }
                 }
-            case 13: // W
+            case 13:
                 if event.modifierFlags.contains(.command) {
                     if ProManager.shared.isPro {
                         DispatchQueue.main.async {
@@ -153,8 +202,10 @@ class OverlayWindowManager: ObservableObject {
                         }
                     }
                 }
-            case 53: // Escape
-                DispatchQueue.main.async { im.toggleMode() }
+            case 53:
+                if event.modifierFlags.contains(.command) {
+                    DispatchQueue.main.async { im.toggleMode() }
+                }
             default: break
             }
         }
@@ -296,6 +347,65 @@ class OverlayWindowManager: ObservableObject {
         if isInteract { installGlobalKeyMonitor() } else { removeGlobalKeyMonitor() }
     }
 
+    // MARK: - Carbon tool hotkeys (works without Accessibility, like the main toggle)
+
+    func registerToolHotkeys() {
+        toolHotkeyManager.unregisterAll()
+        let ds = sharedDrawingState
+        let im = sharedInteractionMode
+
+        for (tool, binding) in ToolBindingsStore.shared.bindings {
+            var mods: NSEvent.ModifierFlags = []
+            var keyChar = ""
+            for ch in binding {
+                switch ch {
+                case "⌘": mods.insert(.command)
+                case "⇧": mods.insert(.shift)
+                case "⌥": mods.insert(.option)
+                case "⌃": mods.insert(.control)
+                default:   keyChar = String(ch)
+                }
+            }
+            guard !keyChar.isEmpty, let keyCode = GlobalHotkeyManager.keyCode(for: keyChar) else { continue }
+            let capturedTool = tool
+            toolHotkeyManager.registerHotkey(keyCode: keyCode, modifiers: mods) { [weak self] in
+                guard let self, self.isOverlayActive else { return }
+                if ProManager.shared.isLocked(capturedTool) {
+                    self.showPaywall(tool: capturedTool, initialPlan: .annual)
+                } else {
+                    ds.selectTool(capturedTool)
+                    if im.currentMode == .interact { im.switchTo(mode: .draw) }
+                    NotificationCenter.default.post(name: .keystrokeHint, object: nil,
+                        userInfo: ["tool": capturedTool, "key": binding])
+                }
+            }
+        }
+
+        // Cmd+Backspace → clear all (keyCode 51 = delete)
+        toolHotkeyManager.registerHotkey(keyCode: 51, modifiers: .command) { [weak self] in
+            guard let self, self.isOverlayActive else { return }
+            DispatchQueue.main.async { ds.clearAll() }
+        }
+
+        // Cmd+Escape → toggle interact/draw mode (keyCode 53)
+        toolHotkeyManager.registerHotkey(keyCode: 53, modifiers: .command) { [weak self] in
+            guard let self, self.isOverlayActive else { return }
+            DispatchQueue.main.async { self.sharedInteractionMode.toggleMode() }
+        }
+
+        // Cmd+W → whiteboard (keyCode 13)
+        toolHotkeyManager.registerHotkey(keyCode: 13, modifiers: .command) { [weak self] in
+            guard let self, self.isOverlayActive else { return }
+            if ProManager.shared.isPro {
+                DispatchQueue.main.async {
+                    withAnimation(.easeInOut(duration: 0.4)) { ds.whiteboardMode.toggle() }
+                }
+            } else {
+                DispatchQueue.main.async { self.showPaywall(tool: nil, isWhiteboardCanvas: true) }
+            }
+        }
+    }
+
     // MARK: - Global key monitor (interact mode only)
     // Local monitor fires only when Pointly is key. In interact mode the user
     // clicks other apps, so we add a global observer that runs regardless of
@@ -334,8 +444,10 @@ class OverlayWindowManager: ObservableObject {
                 if event.modifierFlags.contains(.command) {
                     DispatchQueue.main.async { self.toggleWhiteboardMode() }
                 }
-            case 53: // Escape
-                DispatchQueue.main.async { self.sharedInteractionMode.switchTo(mode: .draw) }
+            case 53: // Cmd+Escape
+                if event.modifierFlags.contains(.command) {
+                    DispatchQueue.main.async { self.sharedInteractionMode.switchTo(mode: .draw) }
+                }
             default: break
             }
         }
@@ -378,6 +490,7 @@ class OverlayWindowManager: ObservableObject {
         let mainID = displayID(for: NSScreen.main ?? NSScreen.screens[0])
         canvasWindows[mainID]?.makeKey()
         NSApp.activate(ignoringOtherApps: true)
+        registerToolHotkeys()
     }
 
     private func hideAll() {
@@ -388,6 +501,7 @@ class OverlayWindowManager: ObservableObject {
         colorPanelObserver = nil
         NSColorPanel.shared.level = .floating
         removeGlobalKeyMonitor()
+        toolHotkeyManager.unregisterAll()
     }
 
     // MARK: - Lifted capture management

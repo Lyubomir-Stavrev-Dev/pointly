@@ -70,24 +70,8 @@ struct OnboardingView: View {
             .ignoresSafeArea()
 
             VStack(spacing: 0) {
-                // Top bar
-                HStack {
-                    Spacer()
-                    Button("Skip") {
-                        UserDefaults.standard.set(true, forKey: "hasSeenOnboarding")
-                        onDismiss()
-                    }
-                    .buttonStyle(.plain)
-                    .font(.system(size: 12, weight: .medium))
-                    .foregroundColor(.white.opacity(hoverSkip ? 0.55 : 0.28))
-                    .animation(.easeInOut(duration: 0.14), value: hoverSkip)
-                    .onHover { hoverSkip = $0 }
-                    .opacity(step < obSteps.count - 1 ? 1 : 0)
-                    .animation(.easeInOut(duration: 0.2), value: step)
-                }
-                .padding(.top, 22)
-                .padding(.trailing, 28)
-                .frame(height: 46)
+                // Top bar spacer (Skip removed)
+                Spacer().frame(height: 46)
 
                 // Illustration
                 ZStack {
@@ -563,126 +547,143 @@ private struct KeyCapView: View {
     }
 }
 
+private struct WideKeyCapView: View {
+    let label: String
+    let pressed: Bool
+
+    var body: some View {
+        Text(label)
+            .font(.system(size: 20, weight: .bold))
+            .foregroundColor(.white)
+            .frame(width: 82, height: 58)
+            .background(
+                RoundedRectangle(cornerRadius: 13)
+                    .fill(pressed ? AnyShapeStyle(obGradient) : AnyShapeStyle(Color.white.opacity(0.1)))
+                    .overlay(RoundedRectangle(cornerRadius: 13)
+                        .strokeBorder(Color.white.opacity(pressed ? 0 : 0.2), lineWidth: 0.8))
+                    .shadow(color: pressed ? (Color(hex: "#F4644D") ?? .orange).opacity(0.55) : .clear,
+                            radius: 14, x: 0, y: 5)
+            )
+            .scaleEffect(pressed ? 0.90 : 1.0)
+    }
+}
+
 // MARK: - Step 2: Modes
 
 private struct ModesIllustration: View {
     @State private var isInteract = false
+    @State private var keysPressed = false
+
+    private let toolIcons = ["pencil.tip", "highlighter", "eraser"]
 
     var body: some View {
-        VStack(spacing: 20) {
+        VStack(spacing: 16) {
             ZStack {
-                // Full toolbar (draw)
-                VStack(spacing: 5) {
-                    HStack(spacing: 5) {
-                        RoundedRectangle(cornerRadius: 7)
+                // Draw mode: single-column toolbar pill + size bar
+                HStack(spacing: 5) {
+                    VStack(spacing: 4) {
+                        // "Draw" header badge
+                        RoundedRectangle(cornerRadius: 6)
                             .fill(obGradient)
-                            .frame(width: 30, height: 30)
-                            .overlay(Image(systemName: "pencil.tip")
-                                .font(.system(size: 12, weight: .semibold))
-                                .foregroundColor(.white))
-
-                        ForEach(0..<3, id: \.self) { _ in
-                            RoundedRectangle(cornerRadius: 7)
-                                .fill(Color.white.opacity(0.08))
-                                .frame(width: 30, height: 30)
-                        }
-                    }
-                    ForEach(0..<3, id: \.self) { _ in
-                        HStack(spacing: 5) {
-                            ForEach(0..<4, id: \.self) { _ in
-                                RoundedRectangle(cornerRadius: 7)
-                                    .fill(Color.white.opacity(0.06))
-                                    .frame(width: 30, height: 30)
+                            .frame(width: 40, height: 17)
+                            .overlay(
+                                Text("Draw")
+                                    .font(.system(size: 7, weight: .bold))
+                                    .foregroundColor(.white)
+                            )
+                        // Tool buttons (single column)
+                        ForEach(toolIcons.indices, id: \.self) { i in
+                            ZStack {
+                                RoundedRectangle(cornerRadius: 5)
+                                    .fill(i == 0
+                                          ? AnyShapeStyle(obGradient.opacity(0.85))
+                                          : AnyShapeStyle(Color.white.opacity(0.06)))
+                                    .frame(width: 34, height: 18)
+                                Image(systemName: toolIcons[i])
+                                    .font(.system(size: 10, weight: i == 0 ? .semibold : .regular))
+                                    .foregroundColor(i == 0 ? .white : .white.opacity(0.3))
                             }
+                            .frame(width: 34, height: 18)
+                        }
+                        // Color dots
+                        HStack(spacing: 3) {
+                            Circle().fill(Color.white.opacity(0.85)).frame(width: 6, height: 6)
+                            Circle().fill(Color.orange.opacity(0.85)).frame(width: 6, height: 6)
+                            Circle().fill((Color(hex: "#E9458C") ?? .pink).opacity(0.85)).frame(width: 6, height: 6)
                         }
                     }
-                }
-                .padding(10)
-                .background(
-                    RoundedRectangle(cornerRadius: 16)
-                        .fill(Color.white.opacity(0.06))
-                        .overlay(RoundedRectangle(cornerRadius: 16)
+                    .padding(.horizontal, 7)
+                    .padding(.vertical, 7)
+                    .background(
+                        RoundedRectangle(cornerRadius: 14)
+                            .fill(Color.white.opacity(0.07))
+                            .overlay(RoundedRectangle(cornerRadius: 14)
+                                .strokeBorder(Color.white.opacity(0.12), lineWidth: 0.8))
+                    )
+
+                    // Thin size bar
+                    RoundedRectangle(cornerRadius: 6)
+                        .fill(Color.white.opacity(0.07))
+                        .overlay(RoundedRectangle(cornerRadius: 6)
                             .strokeBorder(Color.white.opacity(0.1), lineWidth: 0.8))
-                )
-                .scaleEffect(isInteract ? 0.68 : 1.0)
+                        .frame(width: 10, height: 62)
+                }
+                .scaleEffect(isInteract ? 0.72 : 1.0)
                 .opacity(isInteract ? 0 : 1)
+                .animation(.spring(response: 0.46, dampingFraction: 0.76), value: isInteract)
 
-                // Mini pill (interact)
-                HStack(spacing: 0) {
-                    VStack(spacing: 2.5) {
-                        ForEach(0..<3, id: \.self) { _ in
-                            Capsule()
-                                .fill(Color.white.opacity(0.22))
-                                .frame(width: 14, height: 2)
-                        }
-                    }
-                    .padding(.horizontal, 10)
-
-                    Rectangle()
-                        .fill(Color.white.opacity(0.08))
-                        .frame(width: 0.8)
-                        .padding(.vertical, 8)
-
-                    Image(systemName: "pencil.tip")
-                        .font(.system(size: 12, weight: .semibold))
-                        .foregroundStyle(obGradient)
-                        .frame(width: 36, height: 36)
-
-                    Rectangle()
-                        .fill(Color.white.opacity(0.08))
-                        .frame(width: 0.8)
-                        .padding(.vertical, 8)
-
+                // Interact mode pill
+                HStack(spacing: 8) {
+                    Image(systemName: "cursorarrow")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundColor(.white.opacity(0.7))
+                    Rectangle().fill(Color.white.opacity(0.1)).frame(width: 0.8, height: 20)
                     HStack(spacing: 5) {
-                        Circle()
-                            .fill(obGradient)
-                            .frame(width: 6, height: 6)
+                        Circle().fill(obGradient).frame(width: 5, height: 5)
                         Text("INTERACT")
                             .font(.system(size: 8, weight: .bold, design: .rounded))
                             .foregroundColor(.white.opacity(0.7))
                             .tracking(0.5)
                     }
-                    .padding(.horizontal, 10)
                 }
-                .frame(height: 38)
+                .padding(.horizontal, 16)
+                .frame(height: 34)
                 .background(
-                    RoundedRectangle(cornerRadius: 19)
+                    Capsule()
                         .fill(Color.white.opacity(0.07))
-                        .overlay(RoundedRectangle(cornerRadius: 19)
-                            .strokeBorder(Color.white.opacity(0.12), lineWidth: 0.8))
-                        .shadow(color: .black.opacity(0.4), radius: 14, x: 0, y: 5)
+                        .overlay(Capsule().strokeBorder(Color.white.opacity(0.12), lineWidth: 0.8))
+                        .shadow(color: .black.opacity(0.3), radius: 10, x: 0, y: 4)
                 )
                 .scaleEffect(isInteract ? 1.0 : 0.72)
                 .opacity(isInteract ? 1 : 0)
+                .animation(.spring(response: 0.46, dampingFraction: 0.76), value: isInteract)
             }
-            .animation(.spring(response: 0.46, dampingFraction: 0.76), value: isInteract)
+            .frame(height: 114)
 
-            // Mode labels
-            HStack(spacing: 28) {
-                modeLabel("Draw", active: !isInteract)
-                modeLabel("Interact", active: isInteract)
+            // ⌘ + Esc key caps
+            HStack(spacing: 8) {
+                KeyCapView(label: "⌘", pressed: keysPressed)
+                WideKeyCapView(label: "Esc", pressed: keysPressed)
             }
+            .scaleEffect(0.68)
+            .frame(height: 42)
         }
         .task {
             while true {
-                try? await Task.sleep(nanoseconds: 1_800_000_000)
+                try? await Task.sleep(nanoseconds: 1_400_000_000)
+                keysPressed = true
+                try? await Task.sleep(nanoseconds: 300_000_000)
                 isInteract = true
-                try? await Task.sleep(nanoseconds: 1_800_000_000)
+                try? await Task.sleep(nanoseconds: 200_000_000)
+                keysPressed = false
+                try? await Task.sleep(nanoseconds: 1_400_000_000)
+                keysPressed = true
+                try? await Task.sleep(nanoseconds: 300_000_000)
                 isInteract = false
+                try? await Task.sleep(nanoseconds: 200_000_000)
+                keysPressed = false
             }
         }
-    }
-
-    private func modeLabel(_ text: String, active: Bool) -> some View {
-        HStack(spacing: 5) {
-            Circle()
-                .fill(active ? AnyShapeStyle(obGradient) : AnyShapeStyle(Color.white.opacity(0.2)))
-                .frame(width: 5, height: 5)
-            Text(text)
-                .font(.system(size: 11, weight: active ? .semibold : .regular))
-                .foregroundColor(active ? .white : .white.opacity(0.3))
-        }
-        .animation(.easeInOut(duration: 0.3), value: active)
     }
 }
 

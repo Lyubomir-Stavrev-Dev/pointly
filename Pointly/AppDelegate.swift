@@ -233,7 +233,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     @objc private func handleToolBindingsChanged() {
-        // Tool bindings are read live by the key monitor — nothing to re-register.
+        overlayWindowManager?.registerToolHotkeys()
     }
 
     // MARK: - Tool Selection
