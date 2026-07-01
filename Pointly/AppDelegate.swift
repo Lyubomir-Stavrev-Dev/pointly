@@ -218,7 +218,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     @objc private func openKeyboardShortcuts() {
         openSettings()
-        NotificationCenter.default.post(name: .navigateToShortcuts, object: nil)
+        // Small delay so SwiftUI has time to subscribe to the notification on first open
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.08) {
+            NotificationCenter.default.post(name: .navigateToShortcuts, object: nil)
+        }
     }
 
     @objc private func quitApp() {

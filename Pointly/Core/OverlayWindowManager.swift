@@ -381,6 +381,18 @@ class OverlayWindowManager: ObservableObject {
             }
         }
 
+        // Cmd+Z → undo (keyCode 6)
+        toolHotkeyManager.registerHotkey(keyCode: 6, modifiers: .command) { [weak self] in
+            guard let self, self.isOverlayActive else { return }
+            DispatchQueue.main.async { ds.undo() }
+        }
+
+        // Cmd+Shift+Z → redo (keyCode 6)
+        toolHotkeyManager.registerHotkey(keyCode: 6, modifiers: [.command, .shift]) { [weak self] in
+            guard let self, self.isOverlayActive else { return }
+            DispatchQueue.main.async { ds.redo() }
+        }
+
         // Cmd+Backspace → clear all (keyCode 51 = delete)
         toolHotkeyManager.registerHotkey(keyCode: 51, modifiers: .command) { [weak self] in
             guard let self, self.isOverlayActive else { return }

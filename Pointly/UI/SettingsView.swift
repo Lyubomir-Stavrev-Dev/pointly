@@ -699,11 +699,13 @@ private struct ShortcutsContent: View {
     }
 
     private let builtInShortcuts: [(label: String, keys: String)] = [
-        ("Clear all drawings",   "⌘⌫"),
-        ("Undo",                 "⌘Z"),
-        ("Redo",                 "⌘⇧Z"),
-        ("Delete selected",      "⌫"),
-        ("Toggle draw / interact", "Esc"),
+        ("Clear all drawings",     "⌘⌫"),
+        ("Undo",                   "⌘Z"),
+        ("Redo",                   "⌘⇧Z"),
+        ("Delete selected",        "⌫"),
+        ("Toggle draw / interact", "⌘Esc"),
+        ("Increase size",          "⌘="),
+        ("Decrease size",          "⌘−"),
     ]
 }
 
