@@ -520,6 +520,7 @@ class OverlayWindowManager: ObservableObject {
     private func hideAll() {
         canvasWindows.values.forEach { $0.orderOut(nil) }
         toolbarPanel?.orderOut(nil)
+        ToolTooltipController.shared.hide()
         paywallPanel?.orderOut(nil)
         dismissAllLiftedCaptures()
         colorPanelObserver = nil

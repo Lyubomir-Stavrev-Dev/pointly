@@ -95,7 +95,8 @@ struct FloatingToolbar: View {
                     iconButton(
                         icon: "arrow.uturn.backward",
                         tint: drawingState.canUndo ? .white : .white.opacity(0.2),
-                        help: "Undo"
+                        help: "Undo",
+                        keys: "⌘Z"
                     ) { drawingState.undo() }
                     .disabled(!drawingState.canUndo)
                 },
@@ -104,7 +105,8 @@ struct FloatingToolbar: View {
                     iconButton(
                         icon: "arrow.uturn.forward",
                         tint: redoActive ? .white : .white.opacity(0.2),
-                        help: "Redo"
+                        help: "Redo",
+                        keys: "⌘⇧Z"
                     ) { drawingState.redo() }
                     .disabled(!redoActive)
                 }
@@ -114,7 +116,8 @@ struct FloatingToolbar: View {
             toolGrid2(
                 left: { exportMenuButton },
                 right: {
-                    iconButton(icon: "trash", tint: Color(hex: "#F4644D") ?? .red, help: "Clear all  ⌘⌫") {
+                    iconButton(icon: "trash", tint: Color(hex: "#F4644D") ?? .red,
+                               help: "Clear all", keys: "⌘⌫") {
                         drawingState.clearAll()
                     }
                 }
@@ -185,7 +188,7 @@ struct FloatingToolbar: View {
                 }
                 .buttonStyle(.plain)
                 .onHover { hoverMinimize = $0 }
-                .help("Minimize (Esc)")
+                .toolTooltip("Minimize", keys: "⌘⎋")
             }
         }
         .frame(width: 72, height: 28)
@@ -235,7 +238,7 @@ struct FloatingToolbar: View {
         }
         .buttonStyle(.plain)
         .onHover { isHoveringModeButton = $0 }
-        .help("Switch to Interact mode (Esc)")
+        .toolTooltip("Switch to \(isDrawMode ? "Interact" : "Draw") mode", keys: "⌘⎋")
     }
 
     // MARK: - Color Palette
@@ -360,8 +363,9 @@ struct FloatingToolbar: View {
     // MARK: - Icon button
 
     private func iconButton(icon: String, tint: Color, help helpText: String,
+                             keys: String? = nil,
                              action: @escaping () -> Void) -> some View {
-        IconToolButton(icon: icon, tint: tint, helpText: helpText, action: action)
+        IconToolButton(icon: icon, tint: tint, helpText: helpText, keys: keys, action: action)
     }
 
     // MARK: - Two-column row helper
@@ -417,7 +421,200 @@ struct FloatingToolbar: View {
         }
         .menuStyle(.borderlessButton)
         .onHover { hoverExport = $0 }
-        .help("Export canvas")
+        .toolTooltip("Export canvas")
+    }
+}
+
+// MARK: - Tool tooltip (custom hover bubble)
+//
+// The toolbar panel is kept tight around the pill (see OverlayWindowManager),
+// so an in-view SwiftUI tooltip would be clipped. Instead a tiny non-activating
+// NSPanel floats next to the hovered button, above the toolbar's window level.
+
+final class ToolTooltipController {
+    static let shared = ToolTooltipController()
+    private var panel: NSPanel?
+    private var pending: DispatchWorkItem?
+
+    func schedule(title: String, keys: String?, isPro: Bool, anchor view: NSView) {
+        pending?.cancel()
+        // Chain instantly when moving between buttons while a tooltip is up.
+        let delay = (panel?.isVisible == true) ? 0.05 : 0.3
+        let item = DispatchWorkItem { [weak self, weak view] in
+            guard let self, let view, view.window != nil else { return }
+            self.show(title: title, keys: keys, isPro: isPro, anchor: view)
+        }
+        pending = item
+        DispatchQueue.main.asyncAfter(deadline: .now() + delay, execute: item)
+    }
+
+    func hide() {
+        pending?.cancel()
+        pending = nil
+        guard let panel, panel.isVisible else { return }
+        NSAnimationContext.runAnimationGroup({ ctx in
+            ctx.duration = 0.12
+            panel.animator().alphaValue = 0
+        }, completionHandler: { [weak panel] in panel?.orderOut(nil) })
+    }
+
+    private func show(title: String, keys: String?, isPro: Bool, anchor view: NSView) {
+        guard let win = view.window else { return }
+
+        let hosting = NSHostingView(rootView: TooltipBubble(title: title, keys: keys, isPro: isPro))
+        let size = hosting.fittingSize
+        hosting.setFrameSize(size)
+
+        let p: NSPanel
+        if let existing = panel {
+            p = existing
+        } else {
+            p = NSPanel(contentRect: .zero,
+                        styleMask: [.borderless, .nonactivatingPanel],
+                        backing: .buffered, defer: false)
+            p.backgroundColor    = .clear
+            p.isOpaque           = false
+            p.hasShadow          = true
+            p.ignoresMouseEvents = true
+            p.level              = .init(rawValue: NSWindow.Level.screenSaver.rawValue + 2)
+            p.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
+            p.hidesOnDeactivate  = false
+            panel = p
+        }
+        p.contentView = hosting
+
+        // Position to the right of the button; flip left near the screen edge.
+        let anchorRect = win.convertToScreen(view.convert(view.bounds, to: nil))
+        var origin = CGPoint(x: anchorRect.maxX + 10, y: anchorRect.midY - size.height / 2)
+        if let vis = win.screen?.visibleFrame {
+            if origin.x + size.width > vis.maxX {
+                origin.x = anchorRect.minX - size.width - 10
+            }
+            origin.y = min(max(origin.y, vis.minY + 4), vis.maxY - size.height - 4)
+        }
+        p.setFrame(NSRect(origin: origin, size: size), display: true)
+        p.alphaValue = 0
+        p.orderFrontRegardless()
+        p.invalidateShadow()
+        NSAnimationContext.runAnimationGroup { ctx in
+            ctx.duration = 0.14
+            p.animator().alphaValue = 1
+        }
+    }
+}
+
+private struct TooltipBubble: View {
+    let title: String
+    let keys: String?
+    let isPro: Bool
+
+    @State private var appeared = false
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Text(title)
+                .font(.system(size: 11, weight: .semibold, design: .rounded))
+                .foregroundColor(.white.opacity(0.92))
+                .lineLimit(1)
+                .fixedSize()
+
+            if isPro {
+                Text("PRO")
+                    .font(.system(size: 8, weight: .heavy, design: .rounded))
+                    .tracking(0.8)
+                    .foregroundColor(.white)
+                    .padding(.horizontal, 5.5)
+                    .padding(.vertical, 2.5)
+                    .background(Capsule().fill(brandGradient))
+            } else if let keys, !keys.isEmpty {
+                HStack(spacing: 3) {
+                    ForEach(Array(keys.enumerated()), id: \.offset) { _, ch in
+                        keycap(String(ch))
+                    }
+                }
+            }
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 7)
+        .background(
+            ZStack {
+                RoundedRectangle(cornerRadius: 9)
+                    .fill(Color(red: 0.09, green: 0.09, blue: 0.16).opacity(0.96))
+                RoundedRectangle(cornerRadius: 9)
+                    .fill(Color.white.opacity(0.04))
+            }
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 9)
+                .strokeBorder(
+                    LinearGradient(
+                        colors: [.white.opacity(0.22), .white.opacity(0.06)],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    ),
+                    lineWidth: 0.8
+                )
+        )
+        .scaleEffect(appeared ? 1 : 0.92, anchor: .leading)
+        .onAppear {
+            withAnimation(.spring(response: 0.22, dampingFraction: 0.7)) { appeared = true }
+        }
+    }
+
+    private func keycap(_ symbol: String) -> some View {
+        Text(symbol)
+            .font(.system(size: 10.5, weight: .semibold, design: .rounded))
+            .foregroundColor(.white.opacity(0.9))
+            .frame(minWidth: 18)
+            .frame(height: 18)
+            .padding(.horizontal, 2)
+            .background(
+                RoundedRectangle(cornerRadius: 5)
+                    .fill(Color.white.opacity(0.10))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 5)
+                            .strokeBorder(Color.white.opacity(0.16), lineWidth: 0.7)
+                    )
+            )
+    }
+}
+
+// Captures the hosting NSView so the tooltip can be positioned in screen coords.
+private final class TooltipAnchorBox { weak var view: NSView? }
+
+private struct TooltipAnchor: NSViewRepresentable {
+    let box: TooltipAnchorBox
+    func makeNSView(context: Context) -> NSView {
+        let v = NSView(frame: .zero)
+        box.view = v
+        return v
+    }
+    func updateNSView(_ nsView: NSView, context: Context) { box.view = nsView }
+}
+
+private struct ToolTooltipModifier: ViewModifier {
+    let title: String
+    let keys: String?
+    let isPro: Bool
+    @State private var box = TooltipAnchorBox()
+
+    func body(content: Content) -> some View {
+        content
+            .background(TooltipAnchor(box: box))
+            .onHover { hovering in
+                if hovering, let view = box.view {
+                    ToolTooltipController.shared.schedule(title: title, keys: keys, isPro: isPro, anchor: view)
+                } else {
+                    ToolTooltipController.shared.hide()
+                }
+            }
+            .simultaneousGesture(TapGesture().onEnded { ToolTooltipController.shared.hide() })
+    }
+}
+
+extension View {
+    func toolTooltip(_ title: String, keys: String? = nil, isPro: Bool = false) -> some View {
+        modifier(ToolTooltipModifier(title: title, keys: keys, isPro: isPro))
     }
 }
 
@@ -441,6 +638,7 @@ private struct RegularToolButton: View {
     let tool: DrawingTool
     @ObservedObject var drawingState: DrawingState
     @ObservedObject var pro: ProManager
+    @ObservedObject private var bindings = ToolBindingsStore.shared
 
     @State private var isHovered = false
 
@@ -492,7 +690,9 @@ private struct RegularToolButton: View {
         .buttonStyle(.plain)
         .onHover { isHovered = $0 }
         .animation(.easeInOut(duration: 0.12), value: isHovered)
-        .help(locked ? "\(tool.displayName) — Pointly Pro" : tool.displayName)
+        .toolTooltip(tool.displayName,
+                     keys: locked ? nil : bindings.bindings[tool],
+                     isPro: locked)
     }
 }
 
@@ -537,7 +737,7 @@ private struct ShapeToolButton: View {
         .buttonStyle(.plain)
         .onHover { isHovered = $0 }
         .animation(.easeInOut(duration: 0.12), value: isHovered)
-        .help(tool.displayName + (filled ? " (filled)" : " (outline)"))
+        .toolTooltip(tool.displayName + (filled ? " (filled)" : " (outline)"))
     }
 }
 
@@ -592,6 +792,7 @@ private struct IconToolButton: View {
     let icon: String
     let tint: Color
     let helpText: String
+    var keys: String? = nil
     let action: () -> Void
 
     @State private var isHovered = false
@@ -611,6 +812,6 @@ private struct IconToolButton: View {
         .buttonStyle(.plain)
         .onHover { isHovered = $0 }
         .animation(.easeInOut(duration: 0.12), value: isHovered)
-        .help(helpText)
+        .toolTooltip(helpText, keys: keys)
     }
 }

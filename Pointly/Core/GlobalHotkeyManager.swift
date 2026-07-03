@@ -12,15 +12,20 @@ class GlobalHotkeyManager {
     private var hotkeyRefs: [UInt32: EventHotKeyRef] = [:]
     private var hotkeyCallbacks: [UInt32: () -> Void] = [:]
     private var eventHandler: EventHandlerRef?
-    private var nextID: UInt32 = 1
+
+    /// Process-wide hotkey ID source. Every GlobalHotkeyManager instance shares
+    /// this so their EventHotKeyIDs never collide — two instances each starting
+    /// at 1 would register duplicate IDs (same signature + id), and Carbon rejects
+    /// the second with eventHotKeyExistsErr, silently dropping a hotkey.
+    private static var globalNextID: UInt32 = 1
 
     deinit { unregisterAll() }
 
     /// Register a global hotkey with an optional per-hotkey callback.
     /// If no callback is provided, `delegate?.hotkeyPressed()` is called instead.
     func registerHotkey(keyCode: UInt32, modifiers: NSEvent.ModifierFlags, callback: (() -> Void)? = nil) {
-        let id = nextID
-        nextID += 1
+        let id = Self.globalNextID
+        Self.globalNextID += 1
 
         hotkeyCallbacks[id] = callback ?? { [weak self] in self?.delegate?.hotkeyPressed() }
 
@@ -79,7 +84,15 @@ class GlobalHotkeyManager {
                     &hotKeyID
                 )
                 let manager = Unmanaged<GlobalHotkeyManager>.fromOpaque(userData).takeUnretainedValue()
-                DispatchQueue.main.async { manager.hotkeyCallbacks[hotKeyID.id]?() }
+                // Multiple GlobalHotkeyManager instances each install a handler on the
+                // same application event target. Carbon calls the most recently installed
+                // handler first, and returning noErr STOPS propagation — so a hotkey owned
+                // by another instance must be declined with eventNotHandledErr, otherwise
+                // this handler swallows it and the owning instance never sees the event.
+                guard let callback = manager.hotkeyCallbacks[hotKeyID.id] else {
+                    return OSStatus(eventNotHandledErr)
+                }
+                DispatchQueue.main.async { callback() }
                 return noErr
             },
             1, &eventSpec, selfPtr, &eventHandler
