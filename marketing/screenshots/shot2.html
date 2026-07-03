@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><link rel="stylesheet" href="style.css"></head>
+<body>
+<div class="frame">
+  <div class="bg-grad"></div>
+
+  <div class="copy">
+    <span class="eyebrow">A tool for every idea</span>
+    <h1 class="headline">Every tool,<br>one <span class="accent">keystroke</span><br>away.</h1>
+    <p class="subhead">Pen, highlighter, shapes, arrows, text and more — each a single shortcut. Hover any tool to see its key.</p>
+  </div>
+
+  <!-- Screen: a document being marked up -->
+  <div class="stage">
+    <div class="winbar">
+      <span class="dot r"></span><span class="dot y"></span><span class="dot g"></span>
+      <span class="wintitle">Design Spec — v2</span>
+    </div>
+    <div style="padding:46px 60px; height:calc(100% - 44px); background:#fff;">
+      <div style="font:800 30px -apple-system; color:#16181d; letter-spacing:-0.6px;">Onboarding flow</div>
+      <div style="height:14px;"></div>
+      <p style="font:400 18px/1.9 -apple-system; color:#4a4f5a; max-width:560px;">
+        The first-run experience should get the user to their
+        <span style="background:linear-gradient(180deg,transparent 55%,rgba(255,209,102,0.85) 55%);padding:0 2px;">first annotation in under ten seconds</span>.
+        Keep the toolbar visible, and let power users reach every
+        tool from the keyboard without touching the mouse.
+      </p>
+      <div style="height:26px;"></div>
+      <div style="font:700 15px -apple-system;color:#9aa0ab;letter-spacing:.06em;">GOALS</div>
+      <ul style="font:400 18px/1.95 -apple-system;color:#4a4f5a;margin:8px 0 0 22px;">
+        <li>Zero-config: works the moment it launches</li>
+        <li>Keyboard-first for repeat users</li>
+        <li>Never blocks the content underneath</li>
+      </ul>
+    </div>
+
+    <!-- underline + check ink -->
+    <svg class="ink" style="inset:0;width:100%;height:100%;" viewBox="0 0 792 600" fill="none">
+      <path d="M120 300 C230 292 360 296 470 288" stroke="#4FACFE" stroke-width="5" stroke-linecap="round"/>
+      <path d="M600 150 l16 18 30 -40" stroke="#34D399" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+  </div>
+
+  <!-- Toolbar + tooltip -->
+  <div class="toolbar" style="left:506px; top:150px;">
+    <div class="tb-handle"><i></i><i></i><i></i></div>
+    <div class="tb-mode">
+      <svg viewBox="0 0 24 24" width="15" fill="#fff"><path d="M3 17.25V21h3.75L17.8 9.94l-3.75-3.75L3 17.25zM20.7 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>
+      Draw
+    </div>
+    <div class="tb-label">DRAW</div>
+    <div class="tb-grid">
+      <div class="tb-btn"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 17.25V21h3.75L17.8 9.94l-3.75-3.75L3 17.25zM20.7 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg></div>
+      <div class="tb-btn on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 18h10M6 13l6-6 5 5-6 6H6v-5z"/></svg></div>
+      <div class="tb-btn"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M5 16l7-13 3 1.6L9 17l-4-1z"/><rect x="4" y="18" width="7" height="3" rx="1"/></svg></div>
+      <div class="tb-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 20h16M6 16l9-9 3 3-9 9H6v-3z"/></svg></div>
+      <div class="tb-btn"><svg viewBox="0 0 24 24"><text x="6" y="18" font-size="16" font-family="sans-serif" font-weight="700" fill="currentColor">T</text></svg></div>
+      <div class="tb-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 19L19 5M19 5h-6M19 5v6"/></svg></div>
+    </div>
+    <div class="tb-label">SHAPES</div>
+    <div class="tb-grid">
+      <div class="tb-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="6" width="16" height="12" rx="2"/></svg></div>
+      <div class="tb-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="8"/></svg></div>
+      <div class="tb-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 4l9 16H3z"/></svg></div>
+      <div class="tb-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3l9 9-9 9-9-9z"/></svg></div>
+    </div>
+    <div class="tb-div"></div>
+    <div class="tb-swatches">
+      <div class="sw" style="background:#F4644D;"></div>
+      <div class="sw" style="background:#FF8C42;"></div>
+      <div class="sw on" style="background:#FFD166;"></div>
+      <div class="sw" style="background:#34D399;"></div>
+      <div class="sw" style="background:#4FACFE;"></div>
+      <div class="sw" style="background:#A78BFA;"></div>
+      <div class="sw" style="background:#E9458C;"></div>
+      <div class="sw" style="background:#ffffff;"></div>
+    </div>
+  </div>
+
+  <!-- Tooltip pointing at the highlighter -->
+  <div class="tooltip" style="left:610px; top:298px;">
+    Highlighter
+    <span class="keycap">⌃</span><span class="keycap">2</span>
+  </div>
+</div>
+</body></html>

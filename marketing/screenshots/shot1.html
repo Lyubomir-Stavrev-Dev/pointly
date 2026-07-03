@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><link rel="stylesheet" href="style.css"></head>
+<body>
+<div class="frame">
+  <div class="bg-grad"></div>
+
+  <!-- Marketing copy -->
+  <div class="copy">
+    <span class="eyebrow">Draw on your live screen</span>
+    <h1 class="headline">Annotate<br>anything.<br><span class="accent">Instantly.</span></h1>
+    <p class="subhead">Draw, highlight, and mark up directly on top of any app — in real time. Perfect for demos, reviews, and teaching.</p>
+  </div>
+
+  <!-- The screen being annotated: an analytics dashboard -->
+  <div class="stage">
+    <div class="winbar">
+      <span class="dot r"></span><span class="dot y"></span><span class="dot g"></span>
+      <span class="wintitle">Q3 Growth — Dashboard</span>
+    </div>
+    <div style="padding:34px 74px 30px 48px; height:calc(100% - 44px); background:#fafafb;">
+      <div style="font:600 15px -apple-system; color:#9aa0ab; letter-spacing:.02em;">MONTHLY RECURRING REVENUE</div>
+      <div style="display:flex; align-items:flex-end; gap:16px; margin-top:6px;">
+        <div style="font:800 52px -apple-system; color:#16181d; letter-spacing:-1.5px;">$248,910</div>
+        <div style="font:700 18px -apple-system; color:#22a06b; margin-bottom:12px;">▲ 34%</div>
+      </div>
+      <!-- bar chart -->
+      <div style="display:flex; align-items:flex-end; gap:26px; height:250px; margin-top:34px; padding:0 8px;">
+        <div style="flex:1;height:38%;background:#e7e9ee;border-radius:8px 8px 0 0;"></div>
+        <div style="flex:1;height:46%;background:#e7e9ee;border-radius:8px 8px 0 0;"></div>
+        <div style="flex:1;height:41%;background:#e7e9ee;border-radius:8px 8px 0 0;"></div>
+        <div style="flex:1;height:58%;background:#e7e9ee;border-radius:8px 8px 0 0;"></div>
+        <div style="flex:1;height:64%;background:#e7e9ee;border-radius:8px 8px 0 0;"></div>
+        <div style="flex:1;height:100%;background:linear-gradient(180deg,#F4644D,#FF8C42);border-radius:8px 8px 0 0;"></div>
+      </div>
+      <div style="display:flex; gap:26px; margin-top:12px; padding:0 8px;">
+        <div style="flex:1;text-align:center;font:600 13px -apple-system;color:#b3b8c2;">May</div>
+        <div style="flex:1;text-align:center;font:600 13px -apple-system;color:#b3b8c2;">Jun</div>
+        <div style="flex:1;text-align:center;font:600 13px -apple-system;color:#b3b8c2;">Jul</div>
+        <div style="flex:1;text-align:center;font:600 13px -apple-system;color:#b3b8c2;">Aug</div>
+        <div style="flex:1;text-align:center;font:600 13px -apple-system;color:#b3b8c2;">Sep</div>
+        <div style="flex:1;text-align:center;font:700 13px -apple-system;color:#F4644D;">Oct</div>
+      </div>
+    </div>
+
+    <!-- Pointly ink on top of the dashboard -->
+    <svg class="ink" style="inset:0;width:100%;height:100%;" viewBox="0 0 792 600" fill="none">
+      <!-- hand-drawn circle around the Oct bar -->
+      <path d="M665 175 C740 178 758 270 738 345 C718 415 615 425 598 350 C584 288 606 200 668 182 C700 174 726 190 738 210"
+            stroke="#F4644D" stroke-width="6" stroke-linecap="round"/>
+      <!-- arrow pointing to the big number -->
+      <path d="M600 250 C470 218 380 182 280 152" stroke="#E9458C" stroke-width="6" stroke-linecap="round"/>
+      <path d="M280 152 l30 -1 m-30 1 l16 25" stroke="#E9458C" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+    <div class="handnote" style="right:44px; bottom:120px;">record month! 🚀</div>
+  </div>
+
+  <!-- Pointly toolbar — floating at the left edge of the screen -->
+  <div class="toolbar" style="left:506px; top:168px;">
+    <div class="tb-handle"><i></i><i></i><i></i></div>
+    <div class="tb-mode">
+      <svg viewBox="0 0 24 24" width="15" fill="#fff"><path d="M3 17.25V21h3.75L17.8 9.94l-3.75-3.75L3 17.25zM20.7 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>
+      Draw
+    </div>
+    <div class="tb-label">DRAW</div>
+    <div class="tb-grid">
+      <div class="tb-btn on"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 17.25V21h3.75L17.8 9.94l-3.75-3.75L3 17.25zM20.7 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg></div>
+      <div class="tb-btn"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 3v10.5l2.5-2 2 4.5 2-1-2-4.3H14L6 3z" transform="translate(2 2)"/></svg></div>
+      <div class="tb-btn"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M4 20h16M6 16l9-9 3 3-9 9H6v-3z" stroke="currentColor" stroke-width="2" fill="none"/></svg></div>
+      <div class="tb-btn"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M5 16l7-13 3 1.6L9 17l-4-1z"/><rect x="4" y="18" width="7" height="3" rx="1"/></svg></div>
+      <div class="tb-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 18h10M6 13l6-6 5 5-6 6H6v-5z"/></svg></div>
+      <div class="tb-btn"><svg viewBox="0 0 24 24" fill="currentColor" font-weight="bold"><text x="6" y="18" font-size="16" font-family="sans-serif" font-weight="700">T</text></svg></div>
+      <div class="tb-btn lock"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="3" fill="currentColor"/></svg></div>
+      <div class="tb-btn lock"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg></div>
+    </div>
+    <div class="tb-div"></div>
+    <div class="tb-label">LINES</div>
+    <div class="tb-grid">
+      <div class="tb-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 19L19 5M19 5h-6M19 5v6"/></svg></div>
+      <div class="tb-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 19L19 5"/></svg></div>
+    </div>
+    <div class="tb-div"></div>
+    <div class="tb-swatches">
+      <div class="sw on" style="background:#F4644D;"></div>
+      <div class="sw" style="background:#FF8C42;"></div>
+      <div class="sw" style="background:#FFD166;"></div>
+      <div class="sw" style="background:#34D399;"></div>
+      <div class="sw" style="background:#4FACFE;"></div>
+      <div class="sw" style="background:#A78BFA;"></div>
+      <div class="sw" style="background:#E9458C;"></div>
+      <div class="sw" style="background:#ffffff;"></div>
+    </div>
+  </div>
+</div>
+</body></html>

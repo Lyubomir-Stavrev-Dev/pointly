@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><link rel="stylesheet" href="style.css"></head>
+<body>
+<div class="frame">
+  <div class="bg-grad"></div>
+
+  <div class="copy">
+    <span class="eyebrow">Spotlight &amp; Laser · Pro</span>
+    <h1 class="headline">Command<br>the <span class="accent">room.</span></h1>
+    <p class="subhead">Dim everything but the point you're making. Spotlight and the glowing laser pointer keep every eye exactly where you want it.</p>
+  </div>
+
+  <!-- Screen: a slide with spotlight dimming everything but one card -->
+  <div class="stage dark">
+    <div class="winbar dark">
+      <span class="dot r"></span><span class="dot y"></span><span class="dot g"></span>
+      <span class="wintitle" style="color:#6b6b78;">Keynote — Roadmap</span>
+    </div>
+    <div style="position:relative; height:calc(100% - 44px); background:#14141c; overflow:hidden;">
+      <!-- three feature cards -->
+      <div style="display:flex; gap:24px; padding:70px 48px;">
+        <div style="flex:1;background:#1d1d28;border-radius:16px;padding:28px 24px;">
+          <div style="width:44px;height:44px;border-radius:12px;background:#2a2a38;"></div>
+          <div style="font:700 20px -apple-system;color:#e9e9f0;margin-top:18px;">Capture</div>
+          <div style="font:400 14px/1.6 -apple-system;color:#7a7a88;margin-top:8px;">Grab any region of the screen instantly.</div>
+        </div>
+        <div style="flex:1;background:#1d1d28;border-radius:16px;padding:28px 24px;">
+          <div style="width:44px;height:44px;border-radius:12px;background:linear-gradient(135deg,#F4644D,#E9458C);"></div>
+          <div style="font:700 20px -apple-system;color:#fff;margin-top:18px;">Annotate</div>
+          <div style="font:400 14px/1.6 -apple-system;color:#b9b9c6;margin-top:8px;">Draw live on top of anything, anywhere.</div>
+        </div>
+        <div style="flex:1;background:#1d1d28;border-radius:16px;padding:28px 24px;">
+          <div style="width:44px;height:44px;border-radius:12px;background:#2a2a38;"></div>
+          <div style="font:700 20px -apple-system;color:#e9e9f0;margin-top:18px;">Present</div>
+          <div style="font:400 14px/1.6 -apple-system;color:#7a7a88;margin-top:8px;">Spotlight and laser for live demos.</div>
+        </div>
+      </div>
+      <div style="padding:0 48px;font:400 15px/1.8 -apple-system;color:#5c5c68;max-width:620px;">
+        Pointly turns any screen into a canvas — for teachers, presenters, and engineers who think out loud.
+      </div>
+
+      <!-- Spotlight: dark scrim with a bright hole over the middle card -->
+      <div style="position:absolute; inset:0;
+        background: radial-gradient(circle 190px at 50% 44%, rgba(0,0,0,0) 0%, rgba(0,0,0,0.06) 55%, rgba(7,7,12,0.86) 72%);"></div>
+      <div style="position:absolute; left:50%; top:44%; transform:translate(-50%,-50%);
+        width:380px; height:380px; border-radius:50%;
+        box-shadow: 0 0 0 2px rgba(255,255,255,0.06), inset 0 0 90px rgba(255,140,66,0.12);"></div>
+
+      <!-- Laser pointer dot with trail -->
+      <svg style="position:absolute; inset:0; width:100%; height:100%;" fill="none">
+        <path d="M300 470 C360 430 430 400 470 300" stroke="url(#laser)" stroke-width="7" stroke-linecap="round" opacity="0.55"/>
+        <defs><linearGradient id="laser" x1="0" y1="1" x2="1" y2="0">
+          <stop offset="0" stop-color="#F4644D" stop-opacity="0"/>
+          <stop offset="1" stop-color="#F4644D"/>
+        </linearGradient></defs>
+        <circle cx="470" cy="300" r="12" fill="#FF4D4D"/>
+        <circle cx="470" cy="300" r="22" fill="#FF4D4D" opacity="0.28"/>
+      </svg>
+    </div>
+  </div>
+
+  <!-- Toolbar with spotlight tool active -->
+  <div class="toolbar" style="left:506px; top:168px;">
+    <div class="tb-handle"><i></i><i></i><i></i></div>
+    <div class="tb-mode">
+      <svg viewBox="0 0 24 24" width="15" fill="#fff"><path d="M3 17.25V21h3.75L17.8 9.94l-3.75-3.75L3 17.25zM20.7 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>
+      Draw
+    </div>
+    <div class="tb-label">DRAW</div>
+    <div class="tb-grid">
+      <div class="tb-btn"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 17.25V21h3.75L17.8 9.94l-3.75-3.75L3 17.25zM20.7 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg></div>
+      <div class="tb-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 18h10M6 13l6-6 5 5-6 6H6v-5z"/></svg></div>
+      <div class="tb-btn lock"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="3" fill="currentColor"/></svg></div>
+      <div class="tb-btn on lock"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M19 5l-2 2M7 17l-2 2"/></svg></div>
+      <div class="tb-btn lock"><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="5"/></svg></div>
+      <div class="tb-btn lock"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="5" width="16" height="12" rx="2"/><path d="M9 20h6"/></svg></div>
+    </div>
+    <div class="tb-div"></div>
+    <div class="tb-swatches">
+      <div class="sw" style="background:#F4644D;"></div>
+      <div class="sw on" style="background:#FF8C42;"></div>
+      <div class="sw" style="background:#FFD166;"></div>
+      <div class="sw" style="background:#34D399;"></div>
+      <div class="sw" style="background:#4FACFE;"></div>
+      <div class="sw" style="background:#A78BFA;"></div>
+      <div class="sw" style="background:#E9458C;"></div>
+      <div class="sw" style="background:#ffffff;"></div>
+    </div>
+  </div>
+</div>
+</body></html>

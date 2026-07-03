@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><link rel="stylesheet" href="style.css"></head>
+<body>
+<div class="frame">
+  <div class="bg-grad"></div>
+
+  <div class="copy">
+    <span class="eyebrow">Whiteboard · Pro</span>
+    <h1 class="headline">A blank<br>canvas, <span class="accent">on<br>demand.</span></h1>
+    <p class="subhead">Press ⌘W for a full-screen grid canvas — sketch ideas, map a flow, or think out loud without a single distraction.</p>
+  </div>
+
+  <!-- Screen: dark whiteboard grid canvas with a diagram -->
+  <div class="stage dark">
+    <div class="winbar dark">
+      <span class="dot r"></span><span class="dot y"></span><span class="dot g"></span>
+      <span class="wintitle" style="color:#6b6b78;">Whiteboard</span>
+    </div>
+    <div style="position:relative; height:calc(100% - 44px); overflow:hidden;
+      background:#0e0e16;
+      background-image:linear-gradient(rgba(255,255,255,0.045) 1px,transparent 1px),
+        linear-gradient(90deg,rgba(255,255,255,0.045) 1px,transparent 1px);
+      background-size:34px 34px;">
+
+      <!-- flow diagram -->
+      <svg style="position:absolute; inset:0; width:100%; height:100%;" fill="none">
+        <!-- node 1 -->
+        <rect x="80" y="150" width="150" height="80" rx="14" stroke="#4FACFE" stroke-width="4"/>
+        <!-- node 2 -->
+        <rect x="330" y="150" width="150" height="80" rx="14" stroke="#FF8C42" stroke-width="4"/>
+        <!-- node 3 (circle) -->
+        <circle cx="620" cy="190" r="55" stroke="#34D399" stroke-width="4"/>
+        <!-- arrows -->
+        <path d="M230 190 h86" stroke="#e9e9f0" stroke-width="4" stroke-linecap="round"/>
+        <path d="M316 190 l-14 -7 m14 7 l-14 8" stroke="#e9e9f0" stroke-width="4" stroke-linecap="round"/>
+        <path d="M480 190 h74" stroke="#e9e9f0" stroke-width="4" stroke-linecap="round"/>
+        <path d="M554 190 l-14 -7 m14 7 l-14 8" stroke="#e9e9f0" stroke-width="4" stroke-linecap="round"/>
+        <!-- feedback loop -->
+        <path d="M405 230 C405 340 205 340 155 250" stroke="#E9458C" stroke-width="4" stroke-linecap="round" stroke-dasharray="1 10"/>
+        <path d="M155 250 l-2 -16 m2 16 l14 -8" stroke="#E9458C" stroke-width="4" stroke-linecap="round"/>
+      </svg>
+      <div style="position:absolute; left:104px; top:180px; font:700 18px -apple-system; color:#cfe8ff;">Idea</div>
+      <div style="position:absolute; left:352px; top:180px; font:700 18px -apple-system; color:#ffd9bf;">Draft</div>
+      <div style="position:absolute; left:588px; top:178px; font:700 18px -apple-system; color:#c8f5e2;">Ship</div>
+      <div style="position:absolute; left:210px; top:330px; font:'Bradley Hand',cursive; font-weight:700; font-size:22px; color:#E9458C; transform:rotate(-3deg);">iterate ↺</div>
+
+      <!-- freehand doodle -->
+      <svg style="position:absolute; inset:0; width:100%; height:100%;" fill="none">
+        <path d="M120 430 C160 400 180 470 220 440 C255 414 275 470 320 438" stroke="#FFD166" stroke-width="5" stroke-linecap="round"/>
+      </svg>
+    </div>
+  </div>
+
+  <div class="toolbar" style="left:506px; top:168px;">
+    <div class="tb-handle"><i></i><i></i><i></i></div>
+    <div class="tb-mode">
+      <svg viewBox="0 0 24 24" width="15" fill="#fff"><path d="M3 17.25V21h3.75L17.8 9.94l-3.75-3.75L3 17.25zM20.7 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>
+      Draw
+    </div>
+    <div class="tb-label">DRAW</div>
+    <div class="tb-grid">
+      <div class="tb-btn on"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 17.25V21h3.75L17.8 9.94l-3.75-3.75L3 17.25zM20.7 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg></div>
+      <div class="tb-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 18h10M6 13l6-6 5 5-6 6H6v-5z"/></svg></div>
+      <div class="tb-btn"><svg viewBox="0 0 24 24"><text x="6" y="18" font-size="16" font-family="sans-serif" font-weight="700" fill="currentColor">T</text></svg></div>
+      <div class="tb-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 19L19 5M19 5h-6M19 5v6"/></svg></div>
+      <div class="tb-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="6" width="16" height="12" rx="2"/></svg></div>
+      <div class="tb-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="8"/></svg></div>
+    </div>
+    <div class="tb-div"></div>
+    <div class="tb-swatches">
+      <div class="sw" style="background:#F4644D;"></div>
+      <div class="sw" style="background:#FF8C42;"></div>
+      <div class="sw on" style="background:#FFD166;"></div>
+      <div class="sw" style="background:#34D399;"></div>
+      <div class="sw" style="background:#4FACFE;"></div>
+      <div class="sw" style="background:#A78BFA;"></div>
+      <div class="sw" style="background:#E9458C;"></div>
+      <div class="sw" style="background:#ffffff;"></div>
+    </div>
+  </div>
+</div>
+</body></html>

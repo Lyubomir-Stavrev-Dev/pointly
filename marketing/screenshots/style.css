@@ -1,0 +1,178 @@
+/* ── Pointly App Store screenshots — shared design system ──
+   Designed at 1440×900 CSS px, rendered at 2× → 2880×1800 PNG. */
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+:root {
+  --brand-1: #F4644D;
+  --brand-2: #FF8C42;
+  --brand-3: #E9458C;
+  --grad: linear-gradient(135deg, var(--brand-1), var(--brand-2), var(--brand-3));
+  --ink: #0b0b16;
+  --panel: #0f0f24;
+}
+
+html, body {
+  width: 1440px; height: 900px;
+  overflow: hidden;
+  background: #07070f;
+  font-family: -apple-system, "SF Pro Display", "Segoe UI", sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+.frame {
+  position: relative;
+  width: 1440px; height: 900px;
+  overflow: hidden;
+  display: flex;
+}
+
+/* Gradient marketing background */
+.bg-grad {
+  position: absolute; inset: 0;
+  background:
+    radial-gradient(1200px 700px at 85% -10%, rgba(233,69,140,0.28), transparent 60%),
+    radial-gradient(1000px 800px at 10% 110%, rgba(79,172,254,0.16), transparent 55%),
+    linear-gradient(160deg, #12101f 0%, #0a0912 55%, #07070f 100%);
+}
+.bg-grad::after { /* subtle noise/vignette */
+  content: ""; position: absolute; inset: 0;
+  background: radial-gradient(120% 120% at 50% 30%, transparent 55%, rgba(0,0,0,0.45));
+}
+
+/* ── Marketing copy ── */
+.copy {
+  position: relative; z-index: 7;
+  padding: 104px 0 0 88px;
+  width: 520px; flex-shrink: 0;
+  color: #fff;
+}
+.eyebrow {
+  display: inline-block;
+  font-size: 15px; font-weight: 700; letter-spacing: 0.16em;
+  text-transform: uppercase;
+  background: var(--grad); -webkit-background-clip: text; background-clip: text;
+  -webkit-text-fill-color: transparent;
+  margin-bottom: 22px;
+}
+.headline {
+  font-size: 68px; font-weight: 800; line-height: 1.03;
+  letter-spacing: -2.2px;
+}
+.headline .accent {
+  background: var(--grad); -webkit-background-clip: text; background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+.subhead {
+  margin-top: 26px;
+  font-size: 22px; line-height: 1.5; font-weight: 400;
+  color: rgba(255,255,255,0.62);
+  max-width: 398px;
+}
+
+/* ── The "screen" being annotated — a floating device canvas ── */
+.stage {
+  position: absolute; z-index: 3;
+  right: 44px; top: 150px;
+  width: 792px; height: 600px;
+  border-radius: 18px;
+  background: #fff;
+  box-shadow: 0 60px 120px -30px rgba(0,0,0,0.7), 0 0 0 1px rgba(255,255,255,0.08);
+  overflow: hidden;
+}
+.stage.dark { background: #0d0d14; }
+
+/* macOS-style window chrome for the stage */
+.winbar {
+  height: 44px; display: flex; align-items: center; gap: 9px;
+  padding: 0 18px;
+  background: #f2f2f4; border-bottom: 1px solid rgba(0,0,0,0.07);
+}
+.winbar.dark { background: #17171f; border-bottom-color: rgba(255,255,255,0.06); }
+.dot { width: 13px; height: 13px; border-radius: 50%; }
+.dot.r { background: #ff5f57; } .dot.y { background: #febc2e; } .dot.g { background: #28c840; }
+.wintitle {
+  margin-left: 14px; font-size: 14px; font-weight: 600; color: #8a8a93;
+}
+
+/* ── Pointly floating toolbar (faithful recreation) ── */
+.toolbar {
+  position: absolute; z-index: 6;
+  width: 92px;
+  padding: 12px 11px 14px;
+  border-radius: 24px;
+  background: linear-gradient(180deg, rgba(20,20,38,0.82), rgba(12,12,26,0.9));
+  backdrop-filter: blur(30px);
+  border: 1px solid rgba(255,255,255,0.14);
+  box-shadow: 0 40px 80px -20px rgba(0,0,0,0.65);
+}
+.tb-handle { display:flex; flex-direction:column; gap:4px; align-items:center; padding:5px 0 9px; }
+.tb-handle i { width: 26px; height: 3px; border-radius: 3px; background: rgba(255,255,255,0.22); }
+.tb-mode {
+  height: 40px; border-radius: 12px;
+  background: var(--grad);
+  display: flex; align-items: center; justify-content: center; gap: 7px;
+  color: #fff; font-size: 12px; font-weight: 700;
+  box-shadow: 0 8px 20px -4px rgba(244,100,77,0.6);
+}
+.tb-label { font-size: 9px; font-weight: 800; letter-spacing: 0.14em;
+  color: rgba(255,255,255,0.34); margin: 12px 0 7px 3px; }
+.tb-div { height: 1px; background: rgba(255,255,255,0.09); margin: 11px 0; }
+.tb-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.tb-btn {
+  height: 34px; border-radius: 9px;
+  display: flex; align-items: center; justify-content: center;
+  color: rgba(255,255,255,0.6);
+  background: transparent;
+}
+.tb-btn svg { width: 18px; height: 18px; }
+.tb-btn.on {
+  background: var(--grad); color: #fff;
+  box-shadow: 0 6px 14px -3px rgba(244,100,77,0.55);
+}
+.tb-btn.lock { position: relative; }
+.tb-btn.lock::after {
+  content: ""; position: absolute; top: -3px; right: -3px;
+  width: 13px; height: 13px; border-radius: 50%;
+  background: #0b0b16 url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='white'%3E%3Cpath d='M12 1a5 5 0 0 0-5 5v3H6a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-9a2 2 0 0 0-2-2h-1V6a5 5 0 0 0-5-5zm3 8H9V6a3 3 0 0 1 6 0z'/%3E%3C/svg%3E") center/8px no-repeat;
+  border: 1.5px solid rgba(255,255,255,0.15);
+}
+.tb-swatches { display: grid; grid-template-columns: repeat(4,1fr); gap: 6px; margin-top: 2px; }
+.sw { width: 14px; height: 14px; border-radius: 50%; justify-self: center;
+  border: 1px solid rgba(255,255,255,0.18); }
+.sw.on { outline: 2px solid #fff; outline-offset: 1px; }
+
+/* ── Tooltip bubble (matches in-app design) ── */
+.tooltip {
+  position: absolute; z-index: 8;
+  display: flex; align-items: center; gap: 9px;
+  padding: 8px 11px;
+  background: rgba(15,15,26,0.96);
+  border: 1px solid rgba(255,255,255,0.18);
+  border-radius: 10px;
+  box-shadow: 0 18px 40px -10px rgba(0,0,0,0.7);
+  color: rgba(255,255,255,0.92);
+  font-size: 13px; font-weight: 600;
+  white-space: nowrap;
+}
+.keycap {
+  min-width: 20px; height: 20px; padding: 0 5px;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 12px; font-weight: 700; color: rgba(255,255,255,0.9);
+  background: rgba(255,255,255,0.1);
+  border: 1px solid rgba(255,255,255,0.18);
+  border-radius: 6px;
+}
+.pro-pill {
+  font-size: 10px; font-weight: 900; letter-spacing: 0.06em; color: #fff;
+  padding: 3px 8px; border-radius: 999px; background: var(--grad);
+}
+
+/* Hand-drawn annotation ink */
+.ink { position: absolute; z-index: 5; pointer-events: none; }
+.handnote {
+  position: absolute; z-index: 6;
+  font-family: "Bradley Hand", "Segoe Print", cursive;
+  color: var(--brand-1); font-size: 26px; font-weight: 700;
+  transform: rotate(-4deg);
+}

@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><link rel="stylesheet" href="style.css"></head>
+<body>
+<div class="frame">
+  <div class="bg-grad"></div>
+
+  <div class="copy">
+    <span class="eyebrow">Cut &amp; Move · Pro</span>
+    <h1 class="headline">Lift it.<br>Move it<br><span class="accent">anywhere.</span></h1>
+    <p class="subhead">Grab any region of your screen and drag it into a floating panel — compare, reposition, and keep it in view while you work.</p>
+  </div>
+
+  <div class="stage">
+    <div class="winbar">
+      <span class="dot r"></span><span class="dot y"></span><span class="dot g"></span>
+      <span class="wintitle">Reference — Product Shots</span>
+    </div>
+    <div style="position:relative; height:calc(100% - 44px); background:#f4f5f7; overflow:hidden;">
+      <!-- a grid of content tiles -->
+      <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:20px; padding:36px;">
+        <div style="height:150px;background:#e4e6eb;border-radius:14px;"></div>
+        <div style="height:150px;background:#e4e6eb;border-radius:14px;"></div>
+        <div style="height:150px;background:#e4e6eb;border-radius:14px;"></div>
+        <!-- origin slot (now empty, dashed) -->
+        <div style="height:150px;border:2px dashed #b7bcc7;border-radius:14px;background:repeating-linear-gradient(45deg,transparent,transparent 10px,rgba(183,188,199,0.12) 10px,rgba(183,188,199,0.12) 20px);"></div>
+        <div style="height:150px;background:#e4e6eb;border-radius:14px;"></div>
+        <div style="height:150px;background:#e4e6eb;border-radius:14px;"></div>
+      </div>
+      <div style="padding:0 36px;font:700 22px -apple-system;color:#20222a;">Moodboard</div>
+
+      <!-- The lifted region: a card floating above its origin, with a big shadow -->
+      <div style="position:absolute; left:250px; top:120px; width:230px; height:168px;
+        border-radius:16px; overflow:hidden;
+        background:linear-gradient(135deg,#4FACFE,#A78BFA);
+        box-shadow:0 40px 70px -18px rgba(0,0,0,0.45); transform:rotate(-3deg);
+        outline:3px solid #fff; outline-offset:-3px;">
+        <div style="position:absolute;inset:0;background:radial-gradient(circle at 30% 25%,rgba(255,255,255,0.35),transparent 60%);"></div>
+        <div style="position:absolute;left:18px;bottom:16px;font:700 18px -apple-system;color:#fff;">Hero image</div>
+      </div>
+
+      <!-- motion arrow from origin to lifted -->
+      <svg style="position:absolute; inset:0; width:100%; height:100%;" fill="none">
+        <path d="M355 300 C320 250 300 220 330 190" stroke="#E9458C" stroke-width="5" stroke-dasharray="2 12" stroke-linecap="round"/>
+      </svg>
+    </div>
+  </div>
+
+  <div class="toolbar" style="left:506px; top:168px;">
+    <div class="tb-handle"><i></i><i></i><i></i></div>
+    <div class="tb-mode">
+      <svg viewBox="0 0 24 24" width="15" fill="#fff"><path d="M3 17.25V21h3.75L17.8 9.94l-3.75-3.75L3 17.25zM20.7 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>
+      Draw
+    </div>
+    <div class="tb-label">DRAW</div>
+    <div class="tb-grid">
+      <div class="tb-btn"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 17.25V21h3.75L17.8 9.94l-3.75-3.75L3 17.25zM20.7 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg></div>
+      <div class="tb-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 18h10M6 13l6-6 5 5-6 6H6v-5z"/></svg></div>
+      <div class="tb-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 20h16M6 16l9-9 3 3-9 9H6v-3z"/></svg></div>
+      <div class="tb-btn on lock"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><path d="M6 3v6M6 9a2 2 0 1 0 0 4 2 2 0 0 0 0-4zM18 3v6M18 9a2 2 0 1 0 0 4 2 2 0 0 0 0-4zM6 13v3a4 4 0 0 0 4 4h4"/></svg></div>
+      <div class="tb-btn"><svg viewBox="0 0 24 24"><text x="6" y="18" font-size="16" font-family="sans-serif" font-weight="700" fill="currentColor">T</text></svg></div>
+      <div class="tb-btn lock"><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="5"/></svg></div>
+    </div>
+    <div class="tb-div"></div>
+    <div class="tb-swatches">
+      <div class="sw" style="background:#F4644D;"></div>
+      <div class="sw" style="background:#FF8C42;"></div>
+      <div class="sw" style="background:#FFD166;"></div>
+      <div class="sw" style="background:#34D399;"></div>
+      <div class="sw on" style="background:#4FACFE;"></div>
+      <div class="sw" style="background:#A78BFA;"></div>
+      <div class="sw" style="background:#E9458C;"></div>
+      <div class="sw" style="background:#ffffff;"></div>
+    </div>
+  </div>
+</div>
+</body></html>
