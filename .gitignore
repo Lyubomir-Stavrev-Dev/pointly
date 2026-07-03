@@ -33,3 +33,8 @@ Pointly-release.zip
 
 # Claude Code local config
 .claude/
+
+# Node / Cloudflare Pages
+node_modules/
+.wrangler/
+.dev.vars
