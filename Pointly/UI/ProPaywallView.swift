@@ -230,7 +230,7 @@ struct ProPaywallView: View {
                             Text("·").foregroundColor(.white.opacity(0.12))
                             Button("Privacy Policy") {
                                 NSWorkspace.shared.open(
-                                    URL(string: "https://lyubomir-stavrev-dev.github.io/pointly/privacy.html")!)
+                                    URL(string: "https://pointly.app/privacy.html")!)
                             }
                         }
                         .font(.system(size: 9))
