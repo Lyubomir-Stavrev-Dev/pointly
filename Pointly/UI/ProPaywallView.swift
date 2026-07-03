@@ -220,6 +220,22 @@ struct ProPaywallView: View {
                                 .foregroundColor(.white.opacity(0.28))
                                 .buttonStyle(.plain)
                         }
+
+                        // Required by App Review (3.1.2) for auto-renewable subscriptions.
+                        HStack(spacing: 8) {
+                            Button("Terms of Use") {
+                                NSWorkspace.shared.open(
+                                    URL(string: "https://www.apple.com/legal/internet-services/itunes/dev/stdeula/")!)
+                            }
+                            Text("·").foregroundColor(.white.opacity(0.12))
+                            Button("Privacy Policy") {
+                                NSWorkspace.shared.open(
+                                    URL(string: "https://lyubomir-stavrev-dev.github.io/pointly/privacy.html")!)
+                            }
+                        }
+                        .font(.system(size: 9))
+                        .foregroundColor(.white.opacity(0.22))
+                        .buttonStyle(.plain)
                     }
                     .padding(.horizontal, 28)
                 }
