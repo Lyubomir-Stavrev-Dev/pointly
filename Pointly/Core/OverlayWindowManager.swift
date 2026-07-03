@@ -438,6 +438,16 @@ class OverlayWindowManager: ObservableObject {
 
     private func installGlobalKeyMonitor() {
         guard globalKeyMonitor == nil else { return }
+
+        // First time the user enters interact mode, ask for Accessibility —
+        // the global keyDown monitor below only receives events when granted.
+        // Prompted here (not at launch) so the user has context for the request.
+        if !AXIsProcessTrusted(),
+           !UserDefaults.standard.bool(forKey: "hasPromptedAccessibility") {
+            UserDefaults.standard.set(true, forKey: "hasPromptedAccessibility")
+            let opts = [kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: true] as CFDictionary
+            AXIsProcessTrustedWithOptions(opts)
+        }
         globalKeyMonitor = NSEvent.addGlobalMonitorForEvents(matching: .keyDown) { [weak self] event in
             guard let self, self.isOverlayActive,
                   self.sharedInteractionMode.currentMode == .interact else { return }
