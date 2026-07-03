@@ -27,3 +27,9 @@ xcuserdata/
 
 # SwiftPM resolved file (optional — uncomment to track)
 # Package.resolved
+
+# Release artifacts
+Pointly-release.zip
+
+# Claude Code local config
+.claude/
