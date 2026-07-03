@@ -1,0 +1,73 @@
+{
+  "identifier" : "A1B2C3D4-0000-4000-8000-000000000001",
+  "nonRenewingSubscriptions" : [
+
+  ],
+  "products" : [
+    {
+      "displayPrice" : "39.99",
+      "familyShareable" : false,
+      "internalID" : "A1B2C3D4-0000-4000-8000-000000000002",
+      "localizations" : [
+        {
+          "description" : "One-time purchase. All Pro tools forever.",
+          "displayName" : "Pointly Pro Lifetime",
+          "locale" : "en_US"
+        }
+      ],
+      "productID" : "com.pointly.macos.pro.lifetime",
+      "referenceName" : "Pro Lifetime",
+      "type" : "NonConsumable"
+    }
+  ],
+  "settings" : {
+    "_askToBuyEnabled" : false,
+    "_billingIssuesEnabled" : false,
+    "_failTransactionsEnabled" : false,
+    "_locale" : "en_US",
+    "_storefront" : "USA",
+    "_storeKitErrors" : [
+
+    ]
+  },
+  "subscriptionGroups" : [
+    {
+      "id" : "A1B2C3D4-0000-4000-8000-000000000003",
+      "localizations" : [
+
+      ],
+      "name" : "Pointly Pro",
+      "subscriptions" : [
+        {
+          "adHocOffers" : [
+
+          ],
+          "codeOffers" : [
+
+          ],
+          "displayPrice" : "12.99",
+          "familyShareable" : false,
+          "groupNumber" : 1,
+          "internalID" : "A1B2C3D4-0000-4000-8000-000000000004",
+          "introductoryOffer" : null,
+          "localizations" : [
+            {
+              "description" : "All Pro tools. Billed once a year.",
+              "displayName" : "Pointly Pro Annual",
+              "locale" : "en_US"
+            }
+          ],
+          "productID" : "com.pointly.macos.pro.annual",
+          "recurringSubscriptionPeriod" : "P1Y",
+          "referenceName" : "Pro Annual",
+          "subscriptionGroupID" : "A1B2C3D4-0000-4000-8000-000000000003",
+          "type" : "RecurringSubscription"
+        }
+      ]
+    }
+  ],
+  "version" : {
+    "major" : 3,
+    "minor" : 0
+  }
+}
