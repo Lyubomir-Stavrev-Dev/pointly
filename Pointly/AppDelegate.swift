@@ -93,6 +93,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
         if let button = statusItem?.button {
             button.image = NSImage(systemSymbolName: "pencil.circle", accessibilityDescription: "Pointly")
+            button.appearsDisabled = true   // app starts with overlay off
             button.action = #selector(statusItemClicked)
             button.target = self
         }
@@ -278,23 +279,24 @@ extension AppDelegate {
         DispatchQueue.main.async { self.updateMenuBarIcon() }
     }
 
+    // Always a pencil so the menu bar item stays recognizably Pointly:
+    // filled = draw mode, outline = interact (pass-through), dimmed outline = overlay off.
     private func updateMenuBarIcon() {
         guard let button = statusItem?.button else { return }
         if let mgr = overlayWindowManager, mgr.isActive {
+            button.appearsDisabled = false
             switch mgr.currentInteractionMode?.currentMode {
-            case .draw:
-                button.image = NSImage(systemSymbolName: "pencil.circle.fill",
-                                       accessibilityDescription: "Pointly - Draw Mode")
             case .interact:
-                button.image = NSImage(systemSymbolName: "hand.point.up.left.fill",
+                button.image = NSImage(systemSymbolName: "pencil.circle",
                                        accessibilityDescription: "Pointly - Interact Mode")
             default:
                 button.image = NSImage(systemSymbolName: "pencil.circle.fill",
-                                       accessibilityDescription: "Pointly - Active")
+                                       accessibilityDescription: "Pointly - Draw Mode")
             }
         } else {
             button.image = NSImage(systemSymbolName: "pencil.circle",
                                    accessibilityDescription: "Pointly - Inactive")
+            button.appearsDisabled = true
         }
     }
 }
