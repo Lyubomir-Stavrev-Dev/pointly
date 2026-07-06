@@ -18,8 +18,6 @@ targets:
     type: application
     platform: macOS
     deploymentTarget: "14.0"
-    info:
-      path: Pointly/Info.plist
     entitlements:
       path: Pointly/Pointly.entitlements
     settings:
@@ -28,7 +26,7 @@ targets:
         PRODUCT_NAME: Pointly
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         CODE_SIGN_STYLE: Automatic
-        CODE_SIGN_IDENTITY: "Apple Distribution"
+        CODE_SIGN_IDENTITY: "Apple Development"
         DEVELOPMENT_TEAM: K62L488Y4H
         ENABLE_HARDENED_RUNTIME: YES
         INFOPLIST_FILE: Pointly/Info.plist
@@ -41,7 +39,7 @@ targets:
           CODE_SIGN_STYLE: Automatic
           DEVELOPMENT_TEAM: K62L488Y4H
         Release:
-          CODE_SIGN_IDENTITY: "Apple Distribution"
+          CODE_SIGN_IDENTITY: "Apple Development"
           CODE_SIGN_STYLE: Automatic
           DEVELOPMENT_TEAM: K62L488Y4H
     sources:

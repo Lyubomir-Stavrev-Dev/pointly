@@ -22,6 +22,7 @@ xcodebuild -project Pointly.xcodeproj \
   -scheme "$SCHEME" \
   -configuration Release \
   -archivePath "$ARCHIVE" \
+  -allowProvisioningUpdates \
   archive
 
 echo "==> Exporting App Store package..."
@@ -29,7 +30,8 @@ rm -rf "$EXPORT"
 xcodebuild -exportArchive \
   -archivePath "$ARCHIVE" \
   -exportOptionsPlist ExportOptions.plist \
-  -exportPath "$EXPORT"
+  -exportPath "$EXPORT" \
+  -allowProvisioningUpdates
 
 echo ""
 echo "Done. Package: $EXPORT/Pointly.pkg"
