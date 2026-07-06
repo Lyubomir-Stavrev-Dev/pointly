@@ -1,4 +1,4 @@
-# Cloudflare Pages config for the Pointly marketing site (pointly.app).
+# Cloudflare Pages config for the Pointly marketing site (trypointly.com).
 # The static site lives in ./website. Deploy with:  npm run deploy
 name = "pointly"
 compatibility_date = "2026-07-03"

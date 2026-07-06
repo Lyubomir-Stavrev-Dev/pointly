@@ -2,7 +2,7 @@
   "name": "pointly-website",
   "version": "1.0.0",
   "private": true,
-  "description": "Marketing + support site for Pointly (pointly.app), deployed to Cloudflare Pages.",
+  "description": "Marketing + support site for Pointly (trypointly.com), deployed to Cloudflare Pages.",
   "scripts": {
     "dev": "wrangler pages dev website",
     "deploy": "wrangler pages deploy",
