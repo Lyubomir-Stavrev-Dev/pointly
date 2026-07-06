@@ -537,6 +537,9 @@ class OverlayWindowManager: ObservableObject {
         NSColorPanel.shared.level = .floating
         removeGlobalKeyMonitor()
         toolHotkeyManager.unregisterAll()
+
+        // A completed session is a natural positive moment to ask for a rating.
+        ReviewManager.recordCompletedSession()
     }
 
     // MARK: - Lifted capture management
