@@ -3,7 +3,9 @@
 <plist version="1.0">
 <dict>
     <key>method</key>
-    <string>developer-id</string>
+    <string>app-store</string>
+    <key>teamID</key>
+    <string>K62L488Y4H</string>
     <key>destination</key>
     <string>export</string>
     <key>stripSwiftSymbols</key>
@@ -11,6 +13,6 @@
     <key>signingStyle</key>
     <string>automatic</string>
     <key>generateAppStoreInformation</key>
-    <false/>
+    <true/>
 </dict>
 </plist>
