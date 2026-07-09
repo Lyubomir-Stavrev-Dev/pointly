@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"><style>
+  * { margin:0; padding:0; box-sizing:border-box; cursor:default; }
+  html,body { width:100vw; height:100vh; overflow:hidden; }
+  body {
+    background:#fafafa;
+    font-family: -apple-system, "SF Pro Display", "Helvetica Neue", sans-serif;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .slide { width:88vw; display:grid; grid-template-columns: 1.1fr 1fr; gap:70px; align-items:center; }
+  .kicker { font-size:15px; font-weight:700; letter-spacing:0.14em; color:#8a56e8; text-transform:uppercase; margin-bottom:18px; }
+  h1 { font-size:54px; font-weight:800; letter-spacing:-0.02em; color:#111; line-height:1.12; margin-bottom:28px; }
+  li { font-size:22px; color:#444; line-height:1.55; margin:12px 0 12px 4px; list-style:none; display:flex; gap:12px; }
+  li::before { content:""; width:8px; height:8px; border-radius:4px; background:#8a56e8; margin-top:11px; flex:none; }
+  .chart { background:#fff; border:1px solid #ececf0; border-radius:20px; padding:36px 40px 28px; box-shadow:0 12px 40px rgba(20,20,40,0.06); }
+  .chart h2 { font-size:19px; font-weight:700; color:#333; }
+  .big { font-size:56px; font-weight:800; color:#111; margin:6px 0 22px; }
+  .big span { font-size:24px; font-weight:700; color:#1eab6b; margin-left:10px; }
+  .bars { display:flex; align-items:flex-end; gap:26px; height:230px; }
+  .bar { flex:1; border-radius:10px 10px 4px 4px; background:#e4e0f2; position:relative; }
+  .bar.hot { background:linear-gradient(180deg,#9d6bff,#7a45e0); }
+  .bar label { position:absolute; bottom:-30px; width:100%; text-align:center; font-size:14px; font-weight:600; color:#999; }
+  .bars-wrap { padding-bottom:34px; }
+</style></head>
+<body>
+  <div class="slide">
+    <div>
+      <div class="kicker">Q3 Review · Growth</div>
+      <h1>Usage is up across every plan.</h1>
+      <ul>
+        <li>Weekly active teams grew 3 quarters in a row</li>
+        <li>Onboarding completion up from 61% to 84%</li>
+        <li>Churn at an all-time low across all regions</li>
+      </ul>
+    </div>
+    <div class="chart">
+      <h2>Weekly active teams</h2>
+      <div class="big">12,480 <span>▲ 34%</span></div>
+      <div class="bars-wrap">
+        <div class="bars">
+          <div class="bar" style="height:38%"><label>Apr</label></div>
+          <div class="bar" style="height:52%"><label>May</label></div>
+          <div class="bar" style="height:47%"><label>Jun</label></div>
+          <div class="bar" style="height:64%"><label>Jul</label></div>
+          <div class="bar" style="height:78%"><label>Aug</label></div>
+          <div class="bar hot" style="height:100%"><label>Sep</label></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</body></html>

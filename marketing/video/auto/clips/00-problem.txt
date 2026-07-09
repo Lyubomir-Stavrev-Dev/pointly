@@ -1,0 +1,5 @@
+# plain cursor circling the KPI, achieving nothing (overlay OFF)
+glide 1.0 1500 900 1290 640
+sleep 0.4
+glide 2.6 1290 523 1160 585 1035 523 1160 462 1300 523 1160 590 1030 523 1160 458 1295 523 1160 588 1040 520
+sleep 0.9

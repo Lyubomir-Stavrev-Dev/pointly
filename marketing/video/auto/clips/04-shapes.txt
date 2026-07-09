@@ -1,0 +1,11 @@
+# rectangle around chart card, ellipse around Sep bar
+move 900 900 0.01
+sleep 0.5
+key r ctrl
+sleep 0.4
+drag 1030 420 1810 890 1.4
+sleep 0.6
+key e ctrl
+sleep 0.4
+drag 1640 570 1800 830 1.1
+sleep 1.2

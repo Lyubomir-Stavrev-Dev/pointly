@@ -1,0 +1,7 @@
+# overlay off -> hotkey -> toolbar + brand cursor appear
+move 1000 700 0.6
+sleep 0.8
+key p cmd+shift
+sleep 1.8
+glide 1.2 1000 700 1080 640 1000 600
+sleep 1.0

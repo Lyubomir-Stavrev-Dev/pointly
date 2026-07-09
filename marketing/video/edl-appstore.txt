@@ -1,0 +1,9 @@
+# App Store preview (15-30s). clip|name|caption|maxdur ; card|name|dur
+clip|01-summon|One hotkey. Draw over anything.|3.2
+clip|02-draw|Point at what matters — live.|4.0
+clip|03-highlight|Highlight anything, in any app.|3.2
+clip|05-spotlight|Spotlight your focus.|3.6
+clip|06-laser|Present like it's a stage.|3.2
+clip|07-blur|Hide sensitive info instantly.|3.2
+clip|09-whiteboard|Instant whiteboard, one key away.|3.4
+card|outro|2.6

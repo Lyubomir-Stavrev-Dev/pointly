@@ -1,0 +1,11 @@
+# pen circle around the KPI, then arrow pointing at it
+move 900 720 0.01
+sleep 0.8
+key 1 ctrl
+sleep 0.5
+path 2.4 1385 523 1344 566 1240 588 1122 580 1042 545 1042 500 1122 466 1240 458 1348 482 1392 523 1360 558
+sleep 0.7
+key 6 ctrl
+sleep 0.5
+drag 820 730 1035 565 1.0
+sleep 1.4

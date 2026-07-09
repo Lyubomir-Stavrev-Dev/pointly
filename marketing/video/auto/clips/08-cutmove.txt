@@ -1,0 +1,9 @@
+# cut & move: select chart card, lift, drag left
+move 900 950 0.01
+sleep 0.6
+key m ctrl
+sleep 0.6
+drag 1020 415 1815 900 1.6
+sleep 1.2
+drag 1415 655 640 640 1.4
+sleep 1.6

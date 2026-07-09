@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"><style>
+  * { margin:0; padding:0; box-sizing:border-box; cursor:default; }
+  html,body { width:100vw; height:100vh; overflow:hidden; }
+  body { background:#fff; font-family: -apple-system, "SF Pro Text", Georgia, serif; }
+  /* pinned layout so automation coordinates are deterministic */
+  article { position:absolute; top:100px; left:50%; transform:translateX(-50%); width:820px; color:#222; }
+  p.key { position:absolute; top:430px; left:0; width:820px; font-size:21px; }
+  p.after { position:absolute; top:560px; left:0; width:820px; }
+  .cat { font-size:14px; font-weight:700; letter-spacing:0.12em; text-transform:uppercase; color:#b0894a; margin-bottom:14px; font-family:-apple-system,sans-serif; }
+  h1 { font-size:44px; font-weight:800; letter-spacing:-0.01em; line-height:1.15; margin-bottom:14px; font-family:-apple-system,sans-serif; }
+  .meta { font-size:15px; color:#999; margin-bottom:38px; font-family:-apple-system,sans-serif; }
+  p { font-size:20px; line-height:1.75; margin-bottom:26px; color:#333; }
+  .key { /* the sentence that gets highlighted */ }
+</style></head>
+<body>
+  <article>
+    <div class="cat">Product Research</div>
+    <h1>What makes a demo actually land</h1>
+    <div class="meta">Internal memo · 6 min read</div>
+    <p>We reviewed forty recorded product demos from the last two quarters and scored them
+    against the deals they produced. Slide quality mattered less than we expected, and talk
+    time mattered even less.</p>
+    <p class="key">The demos that converted best were the ones where the audience always knew
+    exactly where to look.</p>
+    <p class="after">Presenters who anchored attention — pointing, highlighting, dimming everything else —
+    kept prospects engaged for twice as long as presenters who narrated over a static screen.</p>
+  </article>
+</body></html>

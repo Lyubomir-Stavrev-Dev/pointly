@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"><style>
+  * { margin:0; padding:0; }
+  html,body { width:100vw; height:100vh; overflow:hidden; background:#fafafa; }
+  iframe { width:100vw; height:100vh; border:0; display:block; }
+</style></head>
+<body>
+  <iframe id="f" src="slide.html"></iframe>
+  <script>
+    // Poll state.txt and swap the iframe when it changes (requires --allow-file-access-from-files).
+    setInterval(function () {
+      var xhr = new XMLHttpRequest();
+      xhr.open('GET', 'state.txt?_=' + Date.now());
+      xhr.onload = function () {
+        var t = (xhr.responseText || '').trim();
+        var f = document.getElementById('f');
+        if (t && f.dataset.cur !== t) { f.dataset.cur = t; f.src = t; }
+      };
+      xhr.send();
+    }, 350);
+  </script>
+</body></html>

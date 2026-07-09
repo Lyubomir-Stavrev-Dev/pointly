@@ -1,0 +1,9 @@
+# blur brush over API key, then email (secrets stage)
+move 800 900 0.01
+sleep 0.6
+key b ctrl
+sleep 0.5
+path 2.2 1040 578 1360 578 1350 592 1045 592 1050 600 1355 602
+sleep 0.5
+path 1.4 1110 664 1365 664 1360 678 1115 678
+sleep 1.2

@@ -1,0 +1,23 @@
+# paywall compliance demo for App Review (3.1.2)
+move 950 950 0.01
+sleep 0.8
+key s ctrl
+sleep 2.2
+glide 0.9 950 950 863 695
+sleep 1.0
+glide 0.7 863 695 1033 695
+sleep 0.8
+click 1033 695
+sleep 1.2
+click 863 695
+sleep 1.2
+move 916 858 0.9
+sleep 0.5
+click 916 858
+sleep 4.5
+activate 58964
+sleep 1.4
+click 1000 858
+sleep 4.5
+activate 58964
+sleep 2.0

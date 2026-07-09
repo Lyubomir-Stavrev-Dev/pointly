@@ -1,0 +1,6 @@
+clip|00-problem|"...can you see my cursor?"|2.0
+card|hook|1.0
+clip|02-draw|Draw over anything on your Mac.|2.6
+clip|05-spotlight|Make them look exactly here.|2.6
+clip|06-laser|Present like it's a stage.|2.6
+card|outro|3.0

@@ -1,0 +1,9 @@
+# laser traces the bullets, darts to the KPI
+move 500 900 0.01
+sleep 0.5
+key l ctrl
+sleep 0.6
+glide 2.6 350 666 560 666 420 712 580 712 430 758 590 758
+sleep 0.3
+glide 1.0 590 758 1160 520
+sleep 1.4

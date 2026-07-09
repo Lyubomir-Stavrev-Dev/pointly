@@ -1,0 +1,13 @@
+# quick annotations, then clear-all wipe
+move 900 900 0.01
+sleep 0.4
+key 1 ctrl
+sleep 0.4
+path 1.0 700 560 900 545 1080 555
+sleep 0.3
+key r ctrl
+sleep 0.3
+drag 1620 560 1800 835 0.9
+sleep 0.7
+key delete cmd
+sleep 1.5

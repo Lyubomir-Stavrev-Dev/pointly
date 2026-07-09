@@ -1,0 +1,11 @@
+clip|00-problem|"...can everyone see my cursor?"|3.0
+card|hook|1.5
+clip|01-summon|Meet Pointly.|3.0
+clip|02-draw|Draw over anything on your Mac.|3.6
+clip|05-spotlight|Make them look exactly here.|3.6
+clip|06-laser|A real laser pointer. On screen.|3.2
+clip|07-blur|Blur secrets before you share.|3.2
+clip|03-highlight|Highlight what matters.|3.0
+clip|09-whiteboard|Instant whiteboard, one key away.|3.4
+clip|10-clear|Done? Gone.|2.2
+card|outro|3.5

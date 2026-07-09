@@ -26,6 +26,19 @@ Pointly lives in your menu bar and stays out of the way until you need it. A glo
 
 Upgrade to Pro once (lifetime) or subscribe annually.
 
+POINTLY PRO SUBSCRIPTION
+• Pointly Pro (annual): $12.99/year, auto-renews yearly until cancelled
+• Pointly Pro+ (lifetime): $39.99 one-time purchase
+Payment is charged to your Apple ID account. Subscriptions renew automatically unless cancelled at least 24 hours before the end of the current period. Manage or cancel anytime in App Store account settings.
+
+Privacy Policy: https://trypointly.com/privacy
+Terms of Use (EULA): https://www.apple.com/legal/internet-services/itunes/dev/stdeula/
+
+## Reply to App Review (rejection 3a09b983, Guideline 3.1.2c)
+Paste in ASC → App Review message thread after updating the description:
+
+> Hello, thank you for the review. We have updated the App Store metadata: the App Description now includes a functional link to the standard Apple Terms of Use (EULA) (https://www.apple.com/legal/internet-services/itunes/dev/stdeula/) alongside our Privacy Policy link, plus the subscription title, length, and price. The app itself already displays the subscription title, length, price, and functional Privacy Policy and Terms of Use links on the purchase screen. Please let us know if anything else is needed.
+
 ## Keywords (max 100, comma-separated, no spaces after commas)
 annotate,screen,draw,highlight,spotlight,laser pointer,presentation,teaching,markup,whiteboard
 

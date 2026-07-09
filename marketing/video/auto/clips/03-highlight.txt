@@ -1,0 +1,20 @@
+# highlighter over the key sentence (doc stage) — much bigger brush
+move 700 900 0.01
+sleep 0.6
+key 2 ctrl
+sleep 0.5
+key = cmd
+key = cmd
+key = cmd
+key = cmd
+key = cmd
+key = cmd
+key = cmd
+key = cmd
+key = cmd
+key = cmd
+sleep 0.4
+path 1.6 560 616 1360 616
+sleep 0.4
+path 1.2 560 653 1080 653
+sleep 1.2

@@ -1,0 +1,19 @@
+# whiteboard: two boxes, arrow, check mark
+move 900 900 0.01
+sleep 0.5
+key w cmd
+sleep 1.6
+key r ctrl
+sleep 0.4
+drag 560 480 850 640 1.0
+sleep 0.4
+drag 1090 480 1380 640 1.0
+sleep 0.4
+key 6 ctrl
+sleep 0.3
+drag 860 560 1080 560 0.8
+sleep 0.4
+key 1 ctrl
+sleep 0.3
+path 1.0 1180 700 1220 745 1290 665
+sleep 1.2

@@ -1,0 +1,9 @@
+# spotlight sweep from headline to hero bar, hold
+move 900 900 0.01
+sleep 0.5
+key s ctrl
+sleep 0.8
+glide 1.8 900 900 620 595 400 592
+sleep 0.6
+glide 1.6 400 592 1000 560 1717 700
+sleep 1.6
