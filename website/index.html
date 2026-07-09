@@ -1471,6 +1471,59 @@
     -->
   </section>
 
+  <!-- FAQ -->
+  <section class="pricing" id="faq" style="padding-top: 90px;">
+    <div class="pricing-header reveal">
+      <p class="section-label">FAQ</p>
+      <h2 class="section-title">Questions, answered</h2>
+    </div>
+    <div class="reveal" style="max-width:760px; margin:0 auto;">
+      <style>
+        .faq-item { border-bottom:1px solid rgba(255,255,255,0.08); }
+        .faq-item summary { cursor:pointer; list-style:none; display:flex; justify-content:space-between; align-items:center;
+          padding:22px 4px; font-size:17px; font-weight:600; color:var(--text); }
+        .faq-item summary::-webkit-details-marker { display:none; }
+        .faq-item summary::after { content:"+"; font-size:22px; color:var(--brand-2); transition:transform .2s; }
+        .faq-item[open] summary::after { transform:rotate(45deg); }
+        .faq-item p { padding:0 4px 22px; color:var(--muted); font-size:15px; line-height:1.7; }
+      </style>
+      <details class="faq-item"><summary>How do I draw on my Mac screen?</summary>
+        <p>Install Pointly, press the global hotkey (⌘⇧P), and your whole screen becomes a canvas — draw with the pen, highlighter, arrows, or shapes directly on top of any app, window, or presentation. Press the hotkey again to hide it.</p>
+      </details>
+      <details class="faq-item"><summary>Is Pointly free?</summary>
+        <p>Yes — the core tools (pen, highlighter, marker, text, arrows, shapes, export) are free forever, no account needed. Pro tools like Laser Pointer, Spotlight, Blur Brush, Cut &amp; Move, and the Whiteboard Canvas are a €12.99/year subscription or a €39.99 one-time lifetime purchase.</p>
+      </details>
+      <details class="faq-item"><summary>Does it work over any app — Keynote, browsers, video calls?</summary>
+        <p>Yes. Pointly is a transparent overlay, so you can annotate over Keynote, PowerPoint, browsers, code editors, PDFs — anything on screen. On video calls, just share your screen and your annotations are visible to everyone.</p>
+      </details>
+      <details class="faq-item"><summary>Can I use it for presentations and screen recordings?</summary>
+        <p>That's what it's built for. The Laser Pointer and Spotlight guide your audience's eyes, the Blur Brush hides sensitive info before you share, and everything you draw shows up in screen recordings and screen shares.</p>
+      </details>
+      <details class="faq-item"><summary>Which Macs does Pointly support?</summary>
+        <p>Any Mac running macOS 14 Sonoma or later. Download it free from the Mac App Store.</p>
+      </details>
+    </div>
+  </section>
+
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    "mainEntity": [
+      { "@type": "Question", "name": "How do I draw on my Mac screen?",
+        "acceptedAnswer": { "@type": "Answer", "text": "Install Pointly, press the global hotkey (Cmd+Shift+P), and your whole screen becomes a canvas — draw with the pen, highlighter, arrows, or shapes directly on top of any app, window, or presentation." } },
+      { "@type": "Question", "name": "Is Pointly free?",
+        "acceptedAnswer": { "@type": "Answer", "text": "Yes — the core tools (pen, highlighter, marker, text, arrows, shapes, export) are free forever. Pro tools like Laser Pointer, Spotlight, Blur Brush, Cut & Move, and the Whiteboard Canvas are €12.99/year or a €39.99 one-time lifetime purchase." } },
+      { "@type": "Question", "name": "Does Pointly work over any app, like Keynote, browsers, or video calls?",
+        "acceptedAnswer": { "@type": "Answer", "text": "Yes. Pointly is a transparent overlay, so you can annotate over Keynote, PowerPoint, browsers, code editors, or PDFs. On video calls, share your screen and your annotations are visible to everyone." } },
+      { "@type": "Question", "name": "Can I use Pointly for presentations and screen recordings?",
+        "acceptedAnswer": { "@type": "Answer", "text": "Yes — the Laser Pointer and Spotlight guide your audience's eyes, the Blur Brush hides sensitive info, and everything you draw shows up in screen recordings and screen shares." } },
+      { "@type": "Question", "name": "Which Macs does Pointly support?",
+        "acceptedAnswer": { "@type": "Answer", "text": "Any Mac running macOS 14 Sonoma or later. Pointly is a free download on the Mac App Store." } }
+    ]
+  }
+  </script>
+
   <!-- CTA Banner -->
   <section class="cta-banner">
     <div class="cta-inner reveal">
