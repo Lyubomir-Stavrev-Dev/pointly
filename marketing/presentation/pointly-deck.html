@@ -27,6 +27,17 @@
       linear-gradient(160deg,#141127 0%,#0b0a16 55%,#05050c 100%);
   }
   .slide.active{opacity:1;visibility:visible;transform:scale(1);}
+  /* clean light backdrop for recording the tutorial modal */
+  .slide.clean{
+    background:
+      radial-gradient(1100px 720px at 50% 28%, #ffffff 0%, #f4f5f9 62%, #e9ebf2 100%);
+  }
+  .slide.clean::after{opacity:.25;}
+  /* hide all deck chrome while a clean slide is showing */
+  body.clean-mode .progress,
+  body.clean-mode .counter,
+  body.clean-mode .hint,
+  body.clean-mode .brandmark{opacity:0 !important;visibility:hidden;}
   .slide::after{ /* subtle grain */
     content:"";position:absolute;inset:0;pointer-events:none;opacity:.5;
     background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");
@@ -82,8 +93,11 @@
 
 <div class="deck" id="deck">
 
+  <!-- 0 · CLEAN LIGHT BACKDROP (for recording the tutorial modal) -->
+  <section class="slide clean active" data-clean></section>
+
   <!-- 1 · TITLE -->
-  <section class="slide active">
+  <section class="slide">
     <div class="titlewrap">
       <div class="logo-row">
         <img class="logo-icon" src="../../website/icon-1024.png" alt="">
@@ -186,6 +200,7 @@
     slides.forEach((s,x)=>s.classList.toggle("active",x===i));
     progress.style.width=((i+1)/slides.length*100)+"%";
     counter.textContent=pad(i+1)+" / "+pad(slides.length);
+    document.body.classList.toggle("clean-mode", slides[i].hasAttribute("data-clean"));
   }
   function next(){show(i+1);} function prev(){show(i-1);}
   document.addEventListener("keydown",e=>{
