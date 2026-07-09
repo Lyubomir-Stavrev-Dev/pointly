@@ -9,6 +9,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private var mainHotkeyMods: NSEvent.ModifierFlags = [.command, .shift]
     private var settingsWindow: NSWindow?
     private var onboardingWindow: NSWindow?
+    private var upgradeMenuItems: [NSMenuItem] = []
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         CrashReporter.setup()
@@ -100,6 +101,15 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
         menu.addItem(NSMenuItem(title: "Toggle Overlay (⌘⇧P)", action: #selector(toggleOverlay), keyEquivalent: ""))
         menu.addItem(NSMenuItem(title: "Whiteboard Canvas (⌘W)", action: #selector(toggleWhiteboardMode), keyEquivalent: ""))
+
+        let upgradeSeparator = NSMenuItem.separator()
+        menu.addItem(upgradeSeparator)
+        let goProItem = NSMenuItem(title: "Go Pro — $12.99/yr…", action: #selector(buyPro), keyEquivalent: "")
+        let goProPlusItem = NSMenuItem(title: "Get Pro+ — Lifetime $39.99…", action: #selector(buyProPlus), keyEquivalent: "")
+        menu.addItem(goProItem)
+        menu.addItem(goProPlusItem)
+        upgradeMenuItems = [upgradeSeparator, goProItem, goProPlusItem]
+        menu.delegate = self
 
         menu.addItem(NSMenuItem.separator())
         menu.addItem(NSMenuItem(title: "Settings...", action: #selector(openSettings), keyEquivalent: ","))
@@ -227,6 +237,14 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         NSApplication.shared.terminate(nil)
     }
 
+    @objc private func buyPro() {
+        NotificationCenter.default.post(name: .showPaywallForPlan, object: ProPlan.annual)
+    }
+
+    @objc private func buyProPlus() {
+        NotificationCenter.default.post(name: .showPaywallForPlan, object: ProPlan.lifetime)
+    }
+
     // MARK: - Hotkey Registration
 
     private func reregisterAllHotkeys() {
@@ -296,6 +314,15 @@ extension AppDelegate {
                                    accessibilityDescription: "Pointly - Inactive")
             button.appearsDisabled = true
         }
+    }
+}
+
+// MARK: - Menu delegate (hide upgrade items once the user is Pro)
+
+extension AppDelegate: NSMenuDelegate {
+    func menuNeedsUpdate(_ menu: NSMenu) {
+        let isPro = ProManager.shared.isPro
+        upgradeMenuItems.forEach { $0.isHidden = isPro }
     }
 }
 
