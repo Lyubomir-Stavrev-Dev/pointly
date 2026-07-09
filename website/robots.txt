@@ -1,0 +1,5 @@
+User-agent: *
+Allow: /
+Disallow: /success
+Disallow: /recover
+Sitemap: https://trypointly.com/sitemap.xml
