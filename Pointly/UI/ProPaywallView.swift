@@ -64,6 +64,10 @@ struct ProPaywallView: View {
 
     @State private var selectedPlan: ProPlan = .annual
     @State private var hoverCTA = false
+    #if DIRECT_BUILD
+    @ObservedObject private var licenseManager = LicenseManager.shared
+    @State private var licenseKey = ""
+    #endif
 
     private let proFeatures = [
         ("camera.filters",   "Blur Brush — protect sensitive content"),
@@ -164,7 +168,11 @@ struct ProPaywallView: View {
                     // CTA
                     VStack(spacing: 8) {
                         Button {
+                            #if DIRECT_BUILD
+                            NSWorkspace.shared.open(URL(string: "https://trypointly.com/buy?plan=\(selectedPlan.rawValue)")!)
+                            #else
                             Task { await proManager.purchase(plan: selectedPlan) }
+                            #endif
                         } label: {
                             ZStack {
                                 if proManager.purchaseInProgress {
@@ -174,12 +182,21 @@ struct ProPaywallView: View {
                                         .tint(.white)
                                 } else {
                                     VStack(spacing: 2) {
+                                        #if DIRECT_BUILD
+                                        Text("Buy \(selectedPlan.displayName)")
+                                            .font(.system(size: 14, weight: .bold))
+                                            .foregroundColor(.white)
+                                        Text("\(selectedPlan.fallbackPrice) \(selectedPlan.period) · on trypointly.com — license key by email")
+                                            .font(.system(size: 10, weight: .medium))
+                                            .foregroundColor(.white.opacity(0.65))
+                                        #else
                                         Text("Get \(selectedPlan.displayName)")
                                             .font(.system(size: 14, weight: .bold))
                                             .foregroundColor(.white)
                                         Text("\(proManager.product(for: selectedPlan)?.displayPrice ?? selectedPlan.fallbackPrice) · \(selectedPlan == .annual ? "Billed annually" : "Lifetime access")")
                                             .font(.system(size: 10, weight: .medium))
                                             .foregroundColor(.white.opacity(0.65))
+                                        #endif
                                     }
                                 }
                             }
@@ -198,13 +215,49 @@ struct ProPaywallView: View {
                         .onHover { if !proManager.purchaseInProgress { hoverCTA = $0 } }
                         .disabled(proManager.purchaseInProgress)
 
-                        if let err = proManager.errorMessage {
-                            Text(err)
-                                .font(.system(size: 10))
-                                .foregroundColor(.red.opacity(0.75))
-                                .multilineTextAlignment(.center)
-                        }
+                        // Fixed-height slot so an error appearing never pushes the
+                        // required Terms/Privacy links out of the sheet.
+                        #if DIRECT_BUILD
+                        Text(licenseManager.errorMessage ?? proManager.errorMessage ?? " ")
+                            .font(.system(size: 10))
+                            .foregroundColor(.red.opacity(0.75))
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.75)
+                            .frame(height: 12)
+                        #else
+                        Text(proManager.errorMessage ?? " ")
+                            .font(.system(size: 10))
+                            .foregroundColor(.red.opacity(0.75))
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.75)
+                            .frame(height: 12)
+                        #endif
 
+                        #if DIRECT_BUILD
+                        HStack(spacing: 8) {
+                            TextField("License key", text: $licenseKey)
+                                .textFieldStyle(.roundedBorder)
+                                .font(.system(size: 11))
+                                .frame(width: 175)
+                                .onSubmit { Task { await licenseManager.activate(key: licenseKey) } }
+
+                            Button {
+                                Task { await licenseManager.activate(key: licenseKey) }
+                            } label: {
+                                if licenseManager.activationInProgress {
+                                    ProgressView().controlSize(.small)
+                                } else {
+                                    Text("Activate").font(.system(size: 11, weight: .semibold))
+                                }
+                            }
+                            .disabled(licenseManager.activationInProgress)
+
+                            Button("Maybe Later") { onDismiss() }
+                                .font(.system(size: 10))
+                                .foregroundColor(.white.opacity(0.28))
+                                .buttonStyle(.plain)
+                        }
+                        #else
                         HStack(spacing: 20) {
                             Button("Restore Purchase") {
                                 Task { await proManager.restorePurchases() }
@@ -220,6 +273,7 @@ struct ProPaywallView: View {
                                 .foregroundColor(.white.opacity(0.28))
                                 .buttonStyle(.plain)
                         }
+                        #endif
 
                         // Required by App Review (3.1.2) for auto-renewable subscriptions.
                         HStack(spacing: 8) {
@@ -233,8 +287,8 @@ struct ProPaywallView: View {
                                     URL(string: "https://trypointly.com/privacy")!)
                             }
                         }
-                        .font(.system(size: 9))
-                        .foregroundColor(.white.opacity(0.22))
+                        .font(.system(size: 10))
+                        .foregroundColor(.white.opacity(0.38))
                         .buttonStyle(.plain)
                     }
                     .padding(.horizontal, 28)
@@ -243,7 +297,7 @@ struct ProPaywallView: View {
                 Spacer(minLength: 12)
             }
         }
-        .frame(width: 400, height: 580)
+        .frame(width: 400, height: 644)
         .preferredColorScheme(.dark)
         .onAppear { selectedPlan = initialPlan }
         .onChange(of: proManager.isPro) { _, isPro in
