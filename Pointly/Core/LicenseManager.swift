@@ -2,10 +2,10 @@ import Foundation
 import Combine
 
 /// License-key unlock for the direct-distribution (website) build.
-/// Uses the Lemon Squeezy License API — activation/validation endpoints are
-/// public and need no API secret, so nothing sensitive ships in the binary.
-/// The App Store build never shows license UI (see #if DIRECT_BUILD in
-/// ProPaywallView); StoreKit remains the only unlock path there.
+/// Talks to the Pointly licensing Worker (Cloudflare) which issues keys after a
+/// Stripe purchase and validates them here. Endpoints need no secret, so nothing
+/// sensitive ships in the binary. The App Store build never shows license UI
+/// (see #if DIRECT_BUILD in ProPaywallView); StoreKit remains its only unlock path.
 final class LicenseManager: ObservableObject {
     static let shared = LicenseManager()
 
@@ -17,8 +17,9 @@ final class LicenseManager: ObservableObject {
     private let instanceStore = "directLicenseInstanceID"
     private let checkedStore  = "directLicenseLastValidated"
 
-    private let activateURL = URL(string: "https://api.lemonsqueezy.com/v1/licenses/activate")!
-    private let validateURL = URL(string: "https://api.lemonsqueezy.com/v1/licenses/validate")!
+    private static let apiBase = "https://pointly-licenses.lyubomirstavrev02.workers.dev/api"
+    private let activateURL = URL(string: apiBase + "/activate")!
+    private let validateURL = URL(string: apiBase + "/validate")!
 
     private init() {
         if UserDefaults.standard.string(forKey: keyStore) != nil {

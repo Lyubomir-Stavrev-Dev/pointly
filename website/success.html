@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Thanks for buying Pointly Pro</title>
+<style>
+  :root { --brand-1:#F4644D; --brand-2:#FF8C42; --brand-3:#E9458C; }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    background:#07070f;
+    background-image: radial-gradient(900px 500px at 50% -10%, rgba(244,100,77,0.12), transparent 60%),
+                      linear-gradient(160deg, #12101f 0%, #0a0912 55%, #07070f 100%);
+    color:#fff; font-family:-apple-system,"SF Pro Text","Helvetica Neue",sans-serif; min-height:100vh;
+    display:flex; align-items:center; justify-content:center; padding:24px;
+  }
+  .card { width:100%; max-width:560px; background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.09);
+          border-radius:22px; padding:44px 40px; text-align:center; }
+  .tick { width:64px; height:64px; border-radius:32px; margin:0 auto 22px;
+          background:linear-gradient(135deg,var(--brand-1),var(--brand-2)); display:flex; align-items:center; justify-content:center; font-size:30px; }
+  h1 { font-size:28px; font-weight:800; letter-spacing:-0.02em; margin-bottom:8px; }
+  .sub { color:rgba(255,255,255,0.5); font-size:15px; margin-bottom:30px; line-height:1.6; }
+  .label { font-size:12px; font-weight:700; letter-spacing:0.08em; text-transform:uppercase; color:rgba(255,255,255,0.4); margin-bottom:10px; }
+  .keybox { display:flex; gap:10px; align-items:center; justify-content:center; margin-bottom:8px; }
+  .key { font-family:"SF Mono",ui-monospace,monospace; font-size:17px; font-weight:600; letter-spacing:0.02em;
+         background:rgba(0,0,0,0.35); border:1px solid rgba(255,255,255,0.12); border-radius:12px; padding:14px 18px; user-select:all; }
+  .copy { border:1px solid rgba(255,255,255,0.2); background:transparent; color:#fff; border-radius:10px; padding:14px 16px; cursor:pointer; font-size:13px; font-weight:600; }
+  .copy:hover { border-color:rgba(255,255,255,0.5); }
+  .steps { text-align:left; margin:28px auto 0; max-width:420px; }
+  .steps li { color:rgba(255,255,255,0.7); font-size:14px; line-height:1.7; margin:8px 0; }
+  .dl { display:inline-flex; align-items:center; gap:10px; margin-top:26px; text-decoration:none; color:#fff; font-weight:700; font-size:15px;
+        background:linear-gradient(90deg,var(--brand-1),var(--brand-3)); border-radius:13px; padding:14px 26px; box-shadow:0 8px 30px rgba(244,100,77,0.3); }
+  .muted { color:rgba(255,255,255,0.35); font-size:12.5px; margin-top:22px; line-height:1.6; }
+  .muted a { color:rgba(255,255,255,0.55); }
+  .spinner { width:26px; height:26px; border:3px solid rgba(255,255,255,0.15); border-top-color:var(--brand-2); border-radius:50%; margin:20px auto; animation:spin .8s linear infinite; }
+  @keyframes spin { to { transform:rotate(360deg); } }
+  .err { color:#ff8080; font-size:14px; }
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="tick">✓</div>
+  <h1>Thank you — you're Pro!</h1>
+  <p class="sub">Your payment went through. Here's your license key — it's also on its way to your email.</p>
+
+  <div id="loading"><div class="spinner"></div><p class="sub">Generating your license key…</p></div>
+
+  <div id="result" style="display:none;">
+    <div class="label">Your license key</div>
+    <div class="keybox">
+      <span class="key" id="keyText">—</span>
+      <button class="copy" id="copyBtn">Copy</button>
+    </div>
+
+    <a class="dl" href="downloads/Pointly.dmg" download>⬇ Download Pointly for Mac</a>
+
+    <ol class="steps">
+      <li>1. Open Pointly and pick any Pro tool (or press ⌘⇧P, then a Pro tool).</li>
+      <li>2. On the upgrade screen, paste your key into the <b>License key</b> field and click <b>Activate</b>.</li>
+      <li>3. That's it — every Pro tool unlocks instantly.</li>
+    </ol>
+  </div>
+
+  <div id="error" style="display:none;">
+    <p class="err" id="errText">We couldn't load your key automatically.</p>
+    <p class="muted">No worries — your purchase is safe. Email <a href="mailto:lyubomirstavrev02@gmail.com">lyubomirstavrev02@gmail.com</a> with this page's address and we'll send your key right away.</p>
+  </div>
+
+  <p class="muted">Questions or need help activating? <a href="mailto:lyubomirstavrev02@gmail.com">lyubomirstavrev02@gmail.com</a> · <a href="support.html">Support</a></p>
+</div>
+
+<script>
+  const API = "https://pointly-licenses.lyubomirstavrev02.workers.dev/api";
+  const sid = new URLSearchParams(location.search).get("session_id");
+  const $ = (id) => document.getElementById(id);
+
+  function showError(msg) {
+    $("loading").style.display = "none";
+    if (msg) $("errText").textContent = msg;
+    $("error").style.display = "block";
+  }
+
+  async function fetchKey(attempt = 0) {
+    if (!sid) return showError("Missing checkout reference. If you just paid, check your email for the key.");
+    try {
+      const r = await fetch(`${API}/key?session_id=${encodeURIComponent(sid)}`);
+      const d = await r.json();
+      if (d.key) {
+        $("keyText").textContent = d.key;
+        $("loading").style.display = "none";
+        $("result").style.display = "block";
+        return;
+      }
+      // Payment still settling — retry a few times.
+      if (d.error === "not_paid" && attempt < 5) return setTimeout(() => fetchKey(attempt + 1), 2000);
+      showError();
+    } catch (e) {
+      if (attempt < 5) return setTimeout(() => fetchKey(attempt + 1), 2000);
+      showError();
+    }
+  }
+
+  $("copyBtn").addEventListener("click", () => {
+    navigator.clipboard.writeText($("keyText").textContent);
+    $("copyBtn").textContent = "Copied";
+    setTimeout(() => ($("copyBtn").textContent = "Copy"), 1500);
+  });
+
+  fetchKey();
+</script>
+</body>
+</html>

@@ -1,0 +1,12 @@
+name = "pointly-licenses"
+main = "src/index.js"
+compatibility_date = "2026-07-03"
+
+# Buyer keys + activations. Created via: wrangler kv namespace create LICENSES
+[[kv_namespaces]]
+binding = "LICENSES"
+id = "9130a97661664574b85c1bace4c9d6ca"
+
+# Secrets (NOT stored here) — set once with:
+#   echo "sk_live_…"  | npx wrangler secret put STRIPE_SECRET_KEY
+#   echo "whsec_…"    | npx wrangler secret put STRIPE_WEBHOOK_SECRET
