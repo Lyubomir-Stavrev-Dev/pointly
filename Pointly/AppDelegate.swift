@@ -104,8 +104,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
         let upgradeSeparator = NSMenuItem.separator()
         menu.addItem(upgradeSeparator)
-        let goProItem = NSMenuItem(title: "Go Pro — €12.99/yr…", action: #selector(buyPro), keyEquivalent: "")
-        let goProPlusItem = NSMenuItem(title: "Get Pro+ — Lifetime €39.99…", action: #selector(buyProPlus), keyEquivalent: "")
+        let goProItem = NSMenuItem(title: "Upgrade to Pro…", action: #selector(buyPro), keyEquivalent: "")
+        let goProPlusItem = NSMenuItem(title: "Get Pro+ (Lifetime)…", action: #selector(buyProPlus), keyEquivalent: "")
         menu.addItem(goProItem)
         menu.addItem(goProPlusItem)
         upgradeMenuItems = [upgradeSeparator, goProItem, goProPlusItem]
