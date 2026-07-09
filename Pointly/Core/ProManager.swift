@@ -51,8 +51,26 @@ final class ProManager: ObservableObject {
     @Published private(set) var loadedProducts: [String: Product] = [:]
 
     private var updatesTask: Task<Void, Never>?
+    private var cancellables = Set<AnyCancellable>()
 
     private init() {
+        #if DEBUG
+        // Dev-only unlock for demos/recordings: defaults write com.pointly.macos debugForcePro -bool true
+        if UserDefaults.standard.bool(forKey: "debugForcePro") { isPro = true }
+        #endif
+        #if DIRECT_BUILD
+        // Website build: a valid license key unlocks Pro (StoreKit is App Store-only).
+        LicenseManager.shared.$isLicensed
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] licensed in
+                guard let self else { return }
+                if licensed { self.isPro = true } else if !licensed && self.isPro {
+                    // license revoked (refund) and no StoreKit entitlement in this build
+                    self.isPro = false
+                }
+            }
+            .store(in: &cancellables)
+        #endif
         updatesTask = listenForTransactions()
         Task {
             await loadProducts()

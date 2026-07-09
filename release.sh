@@ -10,8 +10,8 @@ ENTITLEMENTS="Pointly/Pointly.entitlements"
 APP="Pointly.app"
 ZIP="Pointly-release.zip"
 
-echo "Building release..."
-swift build -c release 2>&1 | tail -5
+echo "Building release (direct-distribution: license-key unlock enabled)..."
+swift build -c release -Xswiftc -DDIRECT_BUILD 2>&1 | tail -5
 
 BINARY=".build/arm64-apple-macosx/release/Pointly"
 BUNDLE=".build/arm64-apple-macosx/release/Pointly_Pointly.bundle"
@@ -46,5 +46,16 @@ echo "Re-zipping with stapled app..."
 rm -f "$ZIP"
 ditto -c -k --keepParent "$APP" "$ZIP"
 
+echo "Creating DMG for website distribution..."
+DMG="website/downloads/Pointly.dmg"
+mkdir -p website/downloads
+rm -f "$DMG"
+DMGDIR=$(mktemp -d)
+cp -R "$APP" "$DMGDIR/"
+ln -s /Applications "$DMGDIR/Applications"
+hdiutil create -volname "Pointly" -srcfolder "$DMGDIR" -ov -format UDZO "$DMG" >/dev/null
+rm -rf "$DMGDIR"
+codesign --force --sign "$IDENTITY" "$DMG"
+
 echo ""
-echo "Done! Distribute: $ZIP"
+echo "Done! Distribute: $ZIP  and  $DMG (deploy website/ to publish)"
