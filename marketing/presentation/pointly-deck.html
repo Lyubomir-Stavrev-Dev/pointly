@@ -27,12 +27,27 @@
       linear-gradient(160deg,#141127 0%,#0b0a16 55%,#05050c 100%);
   }
   .slide.active{opacity:1;visibility:visible;transform:scale(1);}
-  /* clean light backdrop for recording the tutorial modal */
+  /* clean but branded light backdrop for recording the tutorial modal:
+     soft-white base + warm brand blooms in the corners + a faint canvas grid
+     that fades out toward the center (where the modal sits). */
   .slide.clean{
     background:
-      radial-gradient(1100px 720px at 50% 28%, #ffffff 0%, #f4f5f9 62%, #e9ebf2 100%);
+      radial-gradient(760px 600px at 4% 6%, rgba(244,100,77,0.42), transparent 58%),
+      radial-gradient(720px 600px at 97% 10%, rgba(233,69,140,0.40), transparent 58%),
+      radial-gradient(820px 640px at 86% 98%, rgba(255,140,66,0.44), transparent 60%),
+      radial-gradient(680px 560px at 10% 96%, rgba(233,69,140,0.34), transparent 60%),
+      radial-gradient(1000px 760px at 50% 46%, #ffffff 0%, #fdf6f3 46%, #f3eef2 100%);
   }
-  .slide.clean::after{opacity:.25;}
+  .slide.clean::after{opacity:.18;}     /* keep grain subtle on light */
+  .slide.clean::before{                 /* drawing-canvas grid, framing the edges, calm center */
+    content:"";position:absolute;inset:0;pointer-events:none;
+    background-image:
+      linear-gradient(rgba(20,20,50,0.05) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(20,20,50,0.05) 1px, transparent 1px);
+    background-size:48px 48px;
+    -webkit-mask-image:radial-gradient(circle at 50% 46%, transparent 34%, #000 78%);
+    mask-image:radial-gradient(circle at 50% 46%, transparent 34%, #000 78%);
+  }
   /* hide all deck chrome while a clean slide is showing */
   body.clean-mode .progress,
   body.clean-mode .counter,
