@@ -22,8 +22,8 @@ enum ProPlan: String, CaseIterable {
     }
     var fallbackPrice: String {
         switch self {
-        case .annual:   return "$12.99"
-        case .lifetime: return "$39.99"
+        case .annual:   return "€12.99"
+        case .lifetime: return "€39.99"
         }
     }
     var period: String {

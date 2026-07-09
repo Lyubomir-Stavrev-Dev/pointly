@@ -27,8 +27,8 @@ Pointly lives in your menu bar and stays out of the way until you need it. A glo
 Upgrade to Pro once (lifetime) or subscribe annually.
 
 POINTLY PRO SUBSCRIPTION
-• Pointly Pro (annual): $12.99/year, auto-renews yearly until cancelled
-• Pointly Pro+ (lifetime): $39.99 one-time purchase
+• Pointly Pro (annual): €12.99/year, auto-renews yearly until cancelled
+• Pointly Pro+ (lifetime): €39.99 one-time purchase
 Payment is charged to your Apple ID account. Subscriptions renew automatically unless cancelled at least 24 hours before the end of the current period. Manage or cancel anytime in App Store account settings.
 
 Privacy Policy: https://trypointly.com/privacy
