@@ -7,6 +7,10 @@ compatibility_date = "2026-07-03"
 binding = "LICENSES"
 id = "9130a97661664574b85c1bace4c9d6ca"
 
+[vars]
+FROM_EMAIL = "Pointly <keys@trypointly.com>"
+
 # Secrets (NOT stored here) — set once with:
 #   echo "sk_live_…"  | npx wrangler secret put STRIPE_SECRET_KEY
 #   echo "whsec_…"    | npx wrangler secret put STRIPE_WEBHOOK_SECRET
+#   echo "re_…"       | npx wrangler secret put RESEND_API_KEY

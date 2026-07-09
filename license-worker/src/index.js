@@ -5,14 +5,17 @@
 //                                 (verifies the Stripe session is paid, idempotent)
 //   POST /api/activate          → the app activates a key on a machine
 //   POST /api/validate          → the app re-checks a key (offline-tolerant client side)
-//   POST /api/stripe-webhook    → refunds / subscription cancels revoke the key
+//   POST /api/recover           → email a buyer their key(s) again
+//   POST /api/stripe-webhook    → mint+email on purchase; revoke on refund/cancel
 //   GET  /api/health            → liveness
 //
 // KV schema:
 //   key:<KEY>       → { plan, email, sessionId, status, seatLimit, activations[], createdAt }
 //   session:<SID>   → <KEY>            (idempotency + success-page lookup)
+//   email:<addr>    → [<KEY>, …]       (recovery lookup)
 //
-// Secrets (wrangler secret put):  STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET
+// Secrets (wrangler secret put):  STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET, RESEND_API_KEY
+// Vars (wrangler.toml):           FROM_EMAIL (e.g. "Pointly <keys@trypointly.com>")
 // Binding:  LICENSES (KV namespace)
 
 const SEAT_LIMIT = 5; // machines per key — generous for individuals
@@ -40,6 +43,7 @@ export default {
         case "/api/key":            return handleKeyLookup(url, env);
         case "/api/activate":       return handleActivate(request, env);
         case "/api/validate":       return handleValidate(request, env);
+        case "/api/recover":        return handleRecover(request, env);
         case "/api/stripe-webhook": return handleWebhook(request, env);
         default:                    return json({ error: "not_found" }, 404);
       }
@@ -76,13 +80,45 @@ function planFromSession(session) {
   return "pro";
 }
 
+// Idempotently mint a key for a paid Stripe session, index it, and email it.
+// Shared by /api/key (success page) and the checkout.session.completed webhook,
+// so delivery is reliable even if the buyer never sees the success page.
+async function mintKey(env, session) {
+  const sid = session.id;
+  const existing = await env.LICENSES.get("session:" + sid);
+  if (existing) {
+    const rec = JSON.parse(await env.LICENSES.get("key:" + existing));
+    return { key: existing, plan: rec.plan, email: rec.email, isNew: false };
+  }
+  const key = newKey();
+  const email = (session.customer_details && session.customer_details.email) || "";
+  const rec = {
+    plan: planFromSession(session),
+    email,
+    sessionId: sid,
+    status: "active",
+    seatLimit: SEAT_LIMIT,
+    activations: [],
+    createdAt: Date.now(),
+  };
+  await env.LICENSES.put("key:" + key, JSON.stringify(rec));
+  await env.LICENSES.put("session:" + sid, key);
+  if (email) {
+    const idxKey = "email:" + email.toLowerCase();
+    const list = JSON.parse((await env.LICENSES.get(idxKey)) || "[]");
+    if (!list.includes(key)) list.push(key);
+    await env.LICENSES.put(idxKey, JSON.stringify(list));
+    await sendKeyEmail(env, email, key, rec.plan);
+  }
+  return { key, plan: rec.plan, email, isNew: true };
+}
+
 // GET /api/key?session_id=…  — called by the success page after checkout.
 async function handleKeyLookup(url, env) {
   const sid = url.searchParams.get("session_id");
   if (!sid) return json({ error: "missing_session_id" }, 400);
   if (!env.STRIPE_SECRET_KEY) return json({ error: "stripe_not_configured" }, 503);
 
-  // Idempotent: return the key already minted for this session, if any.
   const existing = await env.LICENSES.get("session:" + sid);
   if (existing) {
     const rec = JSON.parse(await env.LICENSES.get("key:" + existing));
@@ -94,19 +130,50 @@ async function handleKeyLookup(url, env) {
   if (session.payment_status !== "paid")
     return json({ error: "not_paid", payment_status: session.payment_status }, 402);
 
-  const key = newKey();
-  const rec = {
-    plan: planFromSession(session),
-    email: (session.customer_details && session.customer_details.email) || "",
-    sessionId: sid,
-    status: "active",
-    seatLimit: SEAT_LIMIT,
-    activations: [],
-    createdAt: Date.now(),
-  };
-  await env.LICENSES.put("key:" + key, JSON.stringify(rec));
-  await env.LICENSES.put("session:" + sid, key);
-  return json({ key, plan: rec.plan, email: rec.email });
+  const { key, plan, email } = await mintKey(env, session);
+  return json({ key, plan, email });
+}
+
+// POST /api/recover  { email }  — re-email a buyer their key(s).
+// Always returns generic success so it can't be used to probe who bought.
+async function handleRecover(request, env) {
+  const { email } = await request.json();
+  const generic = json({ ok: true });
+  if (!email) return generic;
+  const list = JSON.parse((await env.LICENSES.get("email:" + email.toLowerCase())) || "[]");
+  for (const key of list) {
+    const rec = JSON.parse((await env.LICENSES.get("key:" + key)) || "null");
+    if (rec && rec.status === "active") await sendKeyEmail(env, email, key, rec.plan, true);
+  }
+  return generic;
+}
+
+// ---- email (Resend) ----
+async function sendKeyEmail(env, to, key, plan, isRecovery = false) {
+  if (!env.RESEND_API_KEY) return; // email not configured yet — silent no-op
+  const from = env.FROM_EMAIL || "Pointly <keys@trypointly.com>";
+  const planName = plan === "lifetime" ? "Pointly Pro+ (Lifetime)" : "Pointly Pro (Annual)";
+  const subject = isRecovery ? "Your Pointly license key" : "Your Pointly Pro license key 🎉";
+  const html = `
+  <div style="font-family:-apple-system,Segoe UI,Helvetica,Arial,sans-serif;max-width:520px;margin:0 auto;color:#111">
+    <h2 style="margin:0 0 4px">${isRecovery ? "Here's your license key" : "Thank you for buying " + planName + "!"}</h2>
+    <p style="color:#555;font-size:14px;margin:0 0 20px">Use this key to unlock every Pro tool in Pointly.</p>
+    <div style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:18px;font-weight:600;
+                background:#f4f4f6;border:1px solid #e5e5ea;border-radius:10px;padding:16px;text-align:center;letter-spacing:.5px">
+      ${key}
+    </div>
+    <ol style="color:#333;font-size:14px;line-height:1.7;margin:22px 0">
+      <li>Download Pointly for Mac: <a href="https://trypointly.com/buy">trypointly.com/buy</a></li>
+      <li>Open it, pick any Pro tool, and paste this key into the <b>License key</b> field.</li>
+      <li>Click <b>Activate</b> — Pro unlocks instantly, on up to 5 of your Macs.</li>
+    </ol>
+    <p style="color:#999;font-size:12px">Keep this email — it's your proof of purchase. Questions? Just reply, or email lyubomirstavrev02@gmail.com.</p>
+  </div>`;
+  await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: { Authorization: "Bearer " + env.RESEND_API_KEY, "Content-Type": "application/json" },
+    body: JSON.stringify({ from, to, subject, html }),
+  });
 }
 
 // POST /api/activate  { license_key, instance_name }
@@ -158,6 +225,16 @@ async function handleWebhook(request, env) {
   };
 
   switch (event.type) {
+    case "checkout.session.completed": {
+      // Reliable delivery: mint + email the key server-side even if the buyer
+      // closed the browser before the success page loaded.
+      const s = event.data.object;
+      if (s.payment_status === "paid") {
+        const full = await stripeGet(env, "checkout/sessions/" + s.id); // ensure customer_details
+        await mintKey(env, full.error ? s : full);
+      }
+      break;
+    }
     case "charge.refunded":
     case "charge.dispute.created": {
       // find the session for this payment_intent

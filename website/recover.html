@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Recover your Pointly license key</title>
+<style>
+  :root { --brand-1:#F4644D; --brand-2:#FF8C42; --brand-3:#E9458C; }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { background:#07070f;
+    background-image: radial-gradient(900px 500px at 50% -10%, rgba(244,100,77,0.12), transparent 60%),
+                      linear-gradient(160deg,#12101f 0%,#0a0912 55%,#07070f 100%);
+    color:#fff; font-family:-apple-system,"SF Pro Text","Helvetica Neue",sans-serif;
+    min-height:100vh; display:flex; align-items:center; justify-content:center; padding:24px; }
+  .card { width:100%; max-width:480px; background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.09);
+          border-radius:22px; padding:40px; text-align:center; }
+  h1 { font-size:24px; font-weight:800; letter-spacing:-0.02em; margin-bottom:8px; }
+  .sub { color:rgba(255,255,255,0.5); font-size:14.5px; margin-bottom:26px; line-height:1.6; }
+  input { width:100%; padding:14px 16px; border-radius:12px; border:1px solid rgba(255,255,255,0.15);
+          background:rgba(0,0,0,0.3); color:#fff; font-size:15px; margin-bottom:14px; }
+  input::placeholder { color:rgba(255,255,255,0.35); }
+  button { width:100%; padding:14px; border:0; border-radius:12px; color:#fff; font-weight:700; font-size:15px; cursor:pointer;
+           background:linear-gradient(90deg,var(--brand-1),var(--brand-3)); box-shadow:0 8px 30px rgba(244,100,77,0.3); }
+  .msg { margin-top:18px; font-size:14px; color:rgba(255,255,255,0.7); line-height:1.6; }
+  .muted { color:rgba(255,255,255,0.35); font-size:12.5px; margin-top:22px; }
+  .muted a { color:rgba(255,255,255,0.55); }
+</style>
+</head>
+<body>
+<div class="card">
+  <h1>Recover your license key</h1>
+  <p class="sub">Lost your key? Enter the email you paid with and we'll send it again.</p>
+  <input id="email" type="email" placeholder="you@example.com" autocomplete="email">
+  <button id="btn">Email me my key</button>
+  <p class="msg" id="msg" style="display:none;"></p>
+  <p class="muted">Still stuck? <a href="mailto:lyubomirstavrev02@gmail.com">lyubomirstavrev02@gmail.com</a></p>
+</div>
+<script>
+  const API = "https://pointly-licenses.lyubomirstavrev02.workers.dev/api";
+  const $ = (id) => document.getElementById(id);
+  $("btn").addEventListener("click", async () => {
+    const email = $("email").value.trim();
+    if (!email) return;
+    $("btn").disabled = true; $("btn").textContent = "Sending…";
+    try { await fetch(`${API}/recover`, { method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({ email }) }); } catch (e) {}
+    $("msg").style.display = "block";
+    $("msg").textContent = "If that email has a Pointly license, we've just sent the key to it. Check your inbox (and spam).";
+    $("btn").textContent = "Sent";
+  });
+</script>
+</body>
+</html>
