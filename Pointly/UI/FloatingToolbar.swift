@@ -248,28 +248,15 @@ struct FloatingToolbar: View {
             : interactionMode.currentMode.displayName
 
         return Button { interactionMode.toggleMode() } label: {
-            Group {
-                if horizontal {
-                    // Horizontal toolbar: narrow button, letters stacked so it
-                    // doesn't eat horizontal space. Small so it fits the bar.
-                    VStack(spacing: 2) {
-                        Image(systemName: icon).font(.system(size: 11, weight: .semibold))
-                        ForEach(Array(label.uppercased().enumerated()), id: \.offset) { _, ch in
-                            Text(String(ch)).font(.system(size: 10, weight: .bold))
-                        }
-                    }
-                    .frame(width: 34)
-                    .padding(.vertical, 7)
-                } else {
-                    // Vertical toolbar: original wide pill (icon beside label).
-                    HStack(spacing: 6) {
-                        Image(systemName: icon).font(.system(size: 13, weight: .semibold))
-                        Text(label).font(.system(size: 9, weight: .bold)).lineLimit(1)
-                    }
-                    .frame(maxWidth: .infinity)
-                    .frame(height: 34)
-                }
+            // Same small pill in both layouts: fills the column width in
+            // vertical, hugs its content (stays small) in horizontal.
+            HStack(spacing: 6) {
+                Image(systemName: icon).font(.system(size: 13, weight: .semibold))
+                Text(label).font(.system(size: 9, weight: .bold)).lineLimit(1)
             }
+            .frame(maxWidth: horizontal ? nil : .infinity)
+            .frame(height: 34)
+            .padding(.horizontal, horizontal ? 14 : 0)
             .foregroundColor(.white.opacity(previewMode ? 0.7 : 1.0))
             .background(
                 RoundedRectangle(cornerRadius: 10)
