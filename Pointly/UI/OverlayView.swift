@@ -514,9 +514,16 @@ struct TextInputOverlay: View {
             .padding(.horizontal, 6)
             .padding(.vertical, 3)
             .background(
-                RoundedRectangle(cornerRadius: 4)
-                    .fill(Color.white.opacity(0.15))
-                    .overlay(RoundedRectangle(cornerRadius: 4).stroke(color.opacity(0.6), lineWidth: 1))
+                // Dark glass so the typed text reads on ANY screen background,
+                // with a single restrained brand-orange accent (no gradient).
+                RoundedRectangle(cornerRadius: 6)
+                    .fill(Color(red: 0.03, green: 0.03, blue: 0.07).opacity(0.88))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 6)
+                            .strokeBorder(Color(red: 0.96, green: 0.39, blue: 0.30).opacity(0.75), lineWidth: 1)
+                    )
+                    .shadow(color: Color(red: 0.96, green: 0.39, blue: 0.30).opacity(0.30), radius: 7)
+                    .shadow(color: .black.opacity(0.45), radius: 5, y: 2)
             )
             .focused($isFocused)
             .onAppear { isFocused = true }

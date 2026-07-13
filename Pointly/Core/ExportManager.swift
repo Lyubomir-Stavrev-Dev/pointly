@@ -247,6 +247,7 @@ class ExportManager: ObservableObject {
         case .arrow:
             guard element.points.count >= 2 else { return }
             nsColor.withAlphaComponent(element.opacity).setStroke()
+            nsColor.withAlphaComponent(element.opacity).setFill()   // solid head
             drawArrow(from: element.points[0], to: element.points.last!, thickness: element.thickness)
 
         case .text:
@@ -311,23 +312,34 @@ class ExportManager: ObservableObject {
         text.draw(at: pt, withAttributes: attrs)
     }
 
+    // Matches DrawingCanvas.drawArrow geometry (solid triangular head, shaft
+    // stopping at the head base) so exports look like the live canvas.
     private func drawArrow(from start: CGPoint, to end: CGPoint, thickness: CGFloat) {
-        let path = NSBezierPath()
-        path.lineWidth = thickness
-        path.lineCapStyle = .round
-        path.move(to: start)
-        path.line(to: end)
-
         let angle = atan2(end.y - start.y, end.x - start.x)
-        let arrowLen = thickness * 3
-        let arrowAngle: CGFloat = .pi / 6
-        let p1 = CGPoint(x: end.x - arrowLen * cos(angle - arrowAngle),
-                         y: end.y - arrowLen * sin(angle - arrowAngle))
-        let p2 = CGPoint(x: end.x - arrowLen * cos(angle + arrowAngle),
-                         y: end.y - arrowLen * sin(angle + arrowAngle))
-        path.move(to: end); path.line(to: p1)
-        path.move(to: end); path.line(to: p2)
-        path.stroke()
+        let dist = hypot(end.x - start.x, end.y - start.y)
+        let headLength: CGFloat = min(max(16, thickness * 4.5), max(10, dist * 0.5))
+        let headAngle: CGFloat = .pi / 7
+
+        let p1 = CGPoint(x: end.x - headLength * cos(angle - headAngle),
+                         y: end.y - headLength * sin(angle - headAngle))
+        let p2 = CGPoint(x: end.x - headLength * cos(angle + headAngle),
+                         y: end.y - headLength * sin(angle + headAngle))
+        let base = CGPoint(x: end.x - headLength * 0.8 * cos(angle),
+                           y: end.y - headLength * 0.8 * sin(angle))
+
+        let shaft = NSBezierPath()
+        shaft.lineWidth = thickness
+        shaft.lineCapStyle = .round
+        shaft.move(to: start)
+        shaft.line(to: base)
+        shaft.stroke()
+
+        let head = NSBezierPath()
+        head.move(to: end)
+        head.line(to: p1)
+        head.line(to: p2)
+        head.close()
+        head.fill()
     }
 
     private func strokePath(for element: DrawingElement) -> NSBezierPath {

@@ -193,66 +193,68 @@ struct DrawingCanvas: View {
         context.stroke(path, with: .color(element.color), style: StrokeStyle(lineWidth: element.thickness, lineJoin: .round))
     }
 
+    // Soft two-layer halo in the element's own color under the core stroke —
+    // the Pointly glow, kept subtle (single color, no gradient).
+    private func strokeWithGlow(_ path: Path, color: Color, thickness: CGFloat,
+                                in context: GraphicsContext) {
+        context.stroke(path, with: .color(color.opacity(0.16)),
+                       style: StrokeStyle(lineWidth: thickness * 3.2, lineCap: .round, lineJoin: .round))
+        context.stroke(path, with: .color(color.opacity(0.32)),
+                       style: StrokeStyle(lineWidth: thickness * 1.9, lineCap: .round, lineJoin: .round))
+        context.stroke(path, with: .color(color),
+                       style: StrokeStyle(lineWidth: thickness, lineCap: .round, lineJoin: .round))
+    }
+
     private func drawLine(_ element: DrawingElement, in context: GraphicsContext) {
         guard element.points.count >= 2 else { return }
-        
+
         let startPoint = element.points[0]
         let endPoint = element.points.last!
-        
+
         var path = Path()
         path.move(to: startPoint)
         path.addLine(to: endPoint)
-        
-        context.stroke(
-            path,
-            with: .color(element.color),
-            style: StrokeStyle(
-                lineWidth: element.thickness,
-                lineCap: .round
-            )
-        )
+
+        strokeWithGlow(path, color: element.color, thickness: element.thickness, in: context)
     }
-    
+
     private func drawArrow(_ element: DrawingElement, in context: GraphicsContext) {
         guard element.points.count >= 2 else { return }
-        
+
         let startPoint = element.points[0]
         let endPoint = element.points.last!
-        
-        // Draw main line
-        var path = Path()
-        path.move(to: startPoint)
-        path.addLine(to: endPoint)
-        
-        // Calculate arrow head
         let angle = atan2(endPoint.y - startPoint.y, endPoint.x - startPoint.x)
-        let arrowLength: CGFloat = element.thickness * 3
-        let arrowAngle: CGFloat = .pi / 6 // 30 degrees
-        
-        let arrowPoint1 = CGPoint(
-            x: endPoint.x - arrowLength * cos(angle - arrowAngle),
-            y: endPoint.y - arrowLength * sin(angle - arrowAngle)
-        )
-        
-        let arrowPoint2 = CGPoint(
-            x: endPoint.x - arrowLength * cos(angle + arrowAngle),
-            y: endPoint.y - arrowLength * sin(angle + arrowAngle)
-        )
-        
-        // Add arrow head lines
-        path.move(to: endPoint)
-        path.addLine(to: arrowPoint1)
-        path.move(to: endPoint)
-        path.addLine(to: arrowPoint2)
-        
-        context.stroke(
-            path,
-            with: .color(element.color),
-            style: StrokeStyle(
-                lineWidth: element.thickness,
-                lineCap: .round
-            )
-        )
+        let dist = hypot(endPoint.x - startPoint.x, endPoint.y - startPoint.y)
+
+        // Solid triangular head — bigger and sleeker than the old open V.
+        // Clamped so a short arrow doesn't become all head.
+        let headLength: CGFloat = min(max(16, element.thickness * 4.5), max(10, dist * 0.5))
+        let headAngle: CGFloat = .pi / 7   // ~26° — sleek point
+
+        let tip = endPoint
+        let p1 = CGPoint(x: tip.x - headLength * cos(angle - headAngle),
+                         y: tip.y - headLength * sin(angle - headAngle))
+        let p2 = CGPoint(x: tip.x - headLength * cos(angle + headAngle),
+                         y: tip.y - headLength * sin(angle + headAngle))
+        // Shaft stops at the head's base so it doesn't poke through the tip
+        let base = CGPoint(x: tip.x - headLength * 0.8 * cos(angle),
+                           y: tip.y - headLength * 0.8 * sin(angle))
+
+        var shaft = Path()
+        shaft.move(to: startPoint)
+        shaft.addLine(to: base)
+
+        var head = Path()
+        head.move(to: tip)
+        head.addLine(to: p1)
+        head.addLine(to: p2)
+        head.closeSubpath()
+
+        strokeWithGlow(shaft, color: element.color, thickness: element.thickness, in: context)
+        // Halo around the head, then the solid fill
+        context.stroke(head, with: .color(element.color.opacity(0.25)),
+                       style: StrokeStyle(lineWidth: element.thickness * 1.6, lineJoin: .round))
+        context.fill(head, with: .color(element.color))
     }
     
     // MARK: - Marker: multiple overlapping strokes at varying offsets create a textured look
