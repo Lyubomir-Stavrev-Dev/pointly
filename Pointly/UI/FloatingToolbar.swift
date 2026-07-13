@@ -20,12 +20,14 @@ private let panelTint = Color(red: 0.06, green: 0.06, blue: 0.14)
 private struct AdaptiveStack<Content: View>: View {
     let horizontal: Bool
     var spacing: CGFloat = 0
+    var hAlign: VerticalAlignment = .center     // used when horizontal (HStack)
+    var vAlign: HorizontalAlignment = .center   // used when vertical (VStack)
     @ViewBuilder var content: Content
     var body: some View {
         if horizontal {
-            HStack(alignment: .center, spacing: spacing) { content }
+            HStack(alignment: hAlign, spacing: spacing) { content }
         } else {
-            VStack(alignment: .center, spacing: spacing) { content }
+            VStack(alignment: vAlign, spacing: spacing) { content }
         }
     }
 }
@@ -59,7 +61,7 @@ struct FloatingToolbar: View {
     @StateObject private var exportManager = ExportManager()
 
     var body: some View {
-        AdaptiveStack(horizontal: horizontal, spacing: 0) {
+        AdaptiveStack(horizontal: horizontal, spacing: 0, hAlign: .top) {
             dragHandle
             modeButton
                 .frame(width: horizontal ? 96 : nil)
@@ -184,8 +186,9 @@ struct FloatingToolbar: View {
 
     private var dragHandle: some View {
         ZStack {
-            // Drag grip — dots run along the main axis
-            AdaptiveStack(horizontal: !horizontal, spacing: 3.5) {
+            // Drag grip — three capsules; a vertical stack of horizontal bars
+            // when the toolbar is vertical, and vice-versa.
+            AdaptiveStack(horizontal: horizontal, spacing: 3.5) {
                 ForEach(0..<3, id: \.self) { _ in
                     Capsule()
                         .fill(Color.white.opacity(0.25))
@@ -195,9 +198,9 @@ struct FloatingToolbar: View {
             }
             .overlay(WindowDragHandle())
 
-            // Orientation toggle + minimize, tucked in the corner
+            // Orientation toggle (start) + minimize (end) — grip stays centered
+            // between them so nothing overlaps in the narrow handle.
             AdaptiveStack(horizontal: !horizontal, spacing: 4) {
-                Spacer()
                 Button { horizontal.toggle() } label: {
                     Image(systemName: horizontal ? "rectangle.portrait" : "rectangle")
                         .font(.system(size: 8, weight: .semibold))
@@ -210,6 +213,8 @@ struct FloatingToolbar: View {
                 .buttonStyle(.plain)
                 .onHover { hoverOrient = $0 }
                 .toolTooltip(horizontal ? "Vertical layout" : "Horizontal layout", keys: nil)
+
+                Spacer(minLength: 0)
 
                 Button { interactionMode.switchTo(mode: .interact) } label: {
                     Image(systemName: "minus")
@@ -224,6 +229,7 @@ struct FloatingToolbar: View {
                 .onHover { hoverMinimize = $0 }
                 .toolTooltip("Minimize", keys: "⌘⎋")
             }
+            .padding(horizontal ? .vertical : .horizontal, 3)
         }
         .frame(width: horizontal ? 28 : 72, height: horizontal ? 72 : 28)
         .contentShape(Rectangle())
@@ -298,8 +304,8 @@ struct FloatingToolbar: View {
 
     private var colorPaletteView: some View {
         VStack(spacing: 5) {
-            // 4 cols × 3 rows of swatches
-            let cols = 4
+            // 4×3 vertically; 6×2 horizontally so the section stays ~2 rows tall
+            let cols = horizontal ? 6 : 4
             let colors = Self.paletteColors
             let rows = stride(from: 0, to: colors.count, by: cols).map {
                 Array(colors[$0 ..< min($0 + cols, colors.count)])
