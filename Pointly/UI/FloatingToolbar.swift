@@ -249,17 +249,29 @@ struct FloatingToolbar: View {
             : interactionMode.currentMode.displayName
 
         return Button { interactionMode.toggleMode() } label: {
-            // Vertical toolbar: icon stacked over the label (compact column).
-            // Horizontal toolbar: icon beside the label (wide pill).
-            AdaptiveStack(horizontal: horizontal, spacing: horizontal ? 6 : 3) {
-                Image(systemName: icon)
-                    .font(.system(size: 13, weight: .semibold))
-                Text(label)
-                    .font(.system(size: 9, weight: .bold))
-                    .lineLimit(1)
+            Group {
+                if horizontal {
+                    // Wide pill: icon beside the label.
+                    HStack(spacing: 6) {
+                        Image(systemName: icon).font(.system(size: 13, weight: .semibold))
+                        Text(label).font(.system(size: 9, weight: .bold)).lineLimit(1)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 34)
+                } else {
+                    // Slim column: icon on top, the word spelled vertically.
+                    VStack(spacing: 5) {
+                        Image(systemName: icon).font(.system(size: 14, weight: .semibold))
+                        VStack(spacing: 3) {
+                            ForEach(Array(label.uppercased().enumerated()), id: \.offset) { _, ch in
+                                Text(String(ch)).font(.system(size: 15, weight: .bold))
+                            }
+                        }
+                    }
+                    .frame(width: 44)
+                    .padding(.vertical, 10)
+                }
             }
-            .frame(maxWidth: horizontal ? .infinity : nil)
-            .frame(width: horizontal ? nil : 44, height: horizontal ? 34 : 48)
             .foregroundColor(.white.opacity(previewMode ? 0.7 : 1.0))
             .background(
                 RoundedRectangle(cornerRadius: 10)
