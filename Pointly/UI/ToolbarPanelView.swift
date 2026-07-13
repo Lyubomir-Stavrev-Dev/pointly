@@ -10,6 +10,7 @@ struct ToolbarPanelView: View {
     var onClose: (() -> Void)?
 
     @State private var toolbarHeight: CGFloat = 360
+    @AppStorage("toolbarHorizontal") private var horizontal = false
 
     private var isInteract: Bool { interactionMode.currentMode == .interact }
 
@@ -38,9 +39,13 @@ struct ToolbarPanelView: View {
                             }
                         )
 
-                    SizeBar(drawingState: drawingState)
-                        .frame(height: toolbarHeight)
-                        .animation(.spring(response: 0.3, dampingFraction: 0.8), value: toolbarHeight)
+                    // Vertical size bar only accompanies the vertical toolbar;
+                    // the horizontal toolbar has its own inline size control.
+                    if !horizontal {
+                        SizeBar(drawingState: drawingState)
+                            .frame(height: toolbarHeight)
+                            .animation(.spring(response: 0.3, dampingFraction: 0.8), value: toolbarHeight)
+                    }
                 }
                 .transition(.asymmetric(
                     insertion: .scale(scale: 0.82, anchor: .topLeading)

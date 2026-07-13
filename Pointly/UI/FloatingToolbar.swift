@@ -69,11 +69,11 @@ struct FloatingToolbar: View {
 
             divider()
 
-            // DRAW
+            // DRAW — select/cursor lead the grid so the section is one
+            // uniform block (2 cols vertical / 2 rows horizontal).
             section("DRAW") {
-                toolGrid2(left: { regularToolButton(.select) },
-                          right: { regularToolButton(.cursor) })
                 toolGrid([
+                    (.select,      false), (.cursor,      false),
                     (.pen,         false), (.highlighter, false),
                     (.marker,      false), (.blurBrush,   false),
                     (.eraser,      false), (.text,        false),
@@ -110,6 +110,30 @@ struct FloatingToolbar: View {
                 .opacity(drawingState.selectedTool.supportsColor ? 1 : 0.25)
 
             divider()
+
+            // Inline size control (horizontal toolbar only — vertical uses the SizeBar)
+            if horizontal {
+                section("SIZE") {
+                    HStack(spacing: 6) {
+                        Image(systemName: "scribble")
+                            .font(.system(size: 10, weight: .semibold))
+                            .foregroundStyle(brandGradient)
+                        Slider(value: $drawingState.strokeThickness, in: 1...30)
+                            .controlSize(.mini)
+                            .tint(Color(hex: "#F4644D") ?? .orange)
+                            .frame(width: 90)
+                        Text("\(Int(drawingState.strokeThickness))")
+                            .font(.system(size: 10, weight: .bold, design: .monospaced))
+                            .foregroundColor(.white.opacity(0.6))
+                            .frame(width: 18, alignment: .trailing)
+                    }
+                    .frame(height: 32)
+                }
+                .disabled(!drawingState.selectedTool.supportsThickness)
+                .opacity(drawingState.selectedTool.supportsThickness ? 1 : 0.3)
+
+                divider()
+            }
 
             // Undo / Redo
             toolGrid2(
