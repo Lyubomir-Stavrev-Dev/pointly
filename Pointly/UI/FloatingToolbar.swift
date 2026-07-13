@@ -251,16 +251,19 @@ struct FloatingToolbar: View {
             Group {
                 if horizontal {
                     // Horizontal toolbar: small, narrow button with the word
-                    // stacked letter-by-letter — same 9pt weight as the pill's
-                    // label, so it's compact, not a big tall button.
-                    VStack(spacing: 1) {
+                    // stacked letter-by-letter (only the first letter capital).
+                    // Letter size shrinks with word length so every mode's
+                    // button is the SAME fixed height (Draw = Interact).
+                    let letters = Array(label)
+                    let n = max(1, letters.count)
+                    let letterFont = min(13, 48 / CGFloat(n))
+                    VStack(spacing: n > 5 ? 0 : 1) {
                         Image(systemName: icon).font(.system(size: 11, weight: .semibold))
-                        ForEach(Array(label.uppercased().enumerated()), id: \.offset) { _, ch in
-                            Text(String(ch)).font(.system(size: 9, weight: .bold))
+                        ForEach(Array(letters.enumerated()), id: \.offset) { _, ch in
+                            Text(String(ch)).font(.system(size: letterFont, weight: .bold))
                         }
                     }
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 6)
+                    .frame(width: 34, height: 76)
                 } else {
                     // Vertical toolbar: original wide pill (untouched).
                     HStack(spacing: 6) {
