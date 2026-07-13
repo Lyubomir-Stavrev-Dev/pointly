@@ -393,6 +393,14 @@ private struct DrawingContent: View {
                     .toggleStyle(.switch).tint(Color(hex: "#F4644D") ?? .orange)
                 Toggle("Straight Line Assist", isOn: $settings.straightLineAssist)
                     .toggleStyle(.switch).tint(Color(hex: "#F4644D") ?? .orange)
+                VStack(alignment: .leading, spacing: 2) {
+                    Toggle("Arrow Tip at First Click", isOn: $settings.arrowTipAtStart)
+                        .toggleStyle(.switch).tint(Color(hex: "#F4644D") ?? .orange)
+                    Text("On: the tip sits where you press, tail follows the drag. Off: the tip lands where you release.")
+                        .font(.system(size: 11))
+                        .foregroundColor(.white.opacity(0.4))
+                        .fixedSize(horizontal: false, vertical: true)
+                }
             }
 
             SettingsCard(title: "Grid Size") {

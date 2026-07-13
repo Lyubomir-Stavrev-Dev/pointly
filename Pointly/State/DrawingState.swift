@@ -447,6 +447,7 @@ class DrawingState: ObservableObject {
 
         var element = createDrawingElement()
         element.displayID = activeDisplayID
+        applyArrowDirection(&element)
         elements.append(element)
         currentStroke.removeAll()
         isDrawing = false
@@ -560,8 +561,18 @@ class DrawingState: ObservableObject {
         removeTempElement()
         var tempElement = createDrawingElement()
         tempElement.displayID = activeDisplayID
+        applyArrowDirection(&tempElement)
         tempElementID = tempElement.id
         elements.append(tempElement)
+    }
+
+    // Arrow tip lands where the user first pressed (default) — reverse the
+    // points so drawArrow's tip (last point) is the press point. Baked into
+    // the element so toggling the setting doesn't flip existing arrows.
+    private func applyArrowDirection(_ element: inout DrawingElement) {
+        guard element.tool == .arrow,
+              UserDefaults.standard.bool(forKey: "arrowTipAtStart") else { return }
+        element.points.reverse()
     }
     
     // MARK: - Eraser Operations

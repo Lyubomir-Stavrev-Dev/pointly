@@ -36,6 +36,12 @@ class SettingsStore: ObservableObject {
             UserDefaults.standard.set(straightLineAssist, forKey: "straightLineAssist")
         }
     }
+
+    @Published var arrowTipAtStart: Bool {
+        didSet {
+            UserDefaults.standard.set(arrowTipAtStart, forKey: "arrowTipAtStart")
+        }
+    }
     
     @Published var defaultPenColor: String {
         didSet {
@@ -119,6 +125,7 @@ class SettingsStore: ObservableObject {
         self.startupBehavior = UserDefaults.standard.string(forKey: "startupBehavior") ?? "menubar"
         self.snapToGrid = UserDefaults.standard.bool(forKey: "snapToGrid")
         self.straightLineAssist = UserDefaults.standard.bool(forKey: "straightLineAssist")
+        self.arrowTipAtStart = UserDefaults.standard.bool(forKey: "arrowTipAtStart")
         self.defaultPenColor = UserDefaults.standard.string(forKey: "defaultPenColor") ?? "#FF3B30"
         self.defaultThickness = UserDefaults.standard.double(forKey: "defaultThickness") != 0 ? 
             UserDefaults.standard.double(forKey: "defaultThickness") : 3.0
@@ -146,6 +153,7 @@ class SettingsStore: ObservableObject {
             "startupBehavior": "menubar",
             "snapToGrid": false,
             "straightLineAssist": true,
+            "arrowTipAtStart": true,
             "defaultPenColor": "#F4644D",
             "defaultThickness": 3.0,
             "showToolbarOnStartup": true,
@@ -168,6 +176,7 @@ class SettingsStore: ObservableObject {
         startupBehavior = "menubar"
         snapToGrid = false
         straightLineAssist = true
+        arrowTipAtStart = true
         defaultPenColor = "#F4644D"
         defaultThickness = 3.0
         showToolbarOnStartup = true
@@ -188,6 +197,7 @@ class SettingsStore: ObservableObject {
             "startupBehavior": startupBehavior,
             "snapToGrid": snapToGrid,
             "straightLineAssist": straightLineAssist,
+            "arrowTipAtStart": arrowTipAtStart,
             "defaultPenColor": defaultPenColor,
             "defaultThickness": defaultThickness,
             "showToolbarOnStartup": showToolbarOnStartup,
@@ -208,6 +218,7 @@ class SettingsStore: ObservableObject {
         if let value = settings["startupBehavior"] as? String { startupBehavior = value }
         if let value = settings["snapToGrid"] as? Bool { snapToGrid = value }
         if let value = settings["straightLineAssist"] as? Bool { straightLineAssist = value }
+        if let value = settings["arrowTipAtStart"] as? Bool { arrowTipAtStart = value }
         if let value = settings["defaultPenColor"] as? String { defaultPenColor = value }
         if let value = settings["defaultThickness"] as? Double { defaultThickness = value }
         if let value = settings["showToolbarOnStartup"] as? Bool { showToolbarOnStartup = value }
