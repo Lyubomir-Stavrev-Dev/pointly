@@ -510,13 +510,13 @@ class DrawingState: ObservableObject {
             currentStroke = [first, last]
         }
 
-        // High assist (Pro): recognize a freehand pen loop as a circle/ellipse,
-        // or straighten a nearly-straight stroke into a line.
+        // High assist (Pro): recognize a freehand pen shape (circle/ellipse,
+        // rectangle, triangle, diamond) or straighten a nearly-straight stroke.
         var recognized: DrawingElement?
         if selectedTool == .pen, straightLineAssistLevel == "high", currentStroke.count > 2,
            let first = currentStroke.first, let last = currentStroke.last {
-            if let ellipseBox = recognizeEllipse(from: currentStroke) {
-                var e = DrawingElement(tool: .ellipse, points: ellipseBox,
+            if let shape = recognizeShape(from: currentStroke) {
+                var e = DrawingElement(tool: shape.tool, points: shape.points,
                                        color: selectedColor, thickness: strokeThickness)
                 e.displayID = activeDisplayID
                 recognized = e
@@ -545,11 +545,13 @@ class DrawingState: ObservableObject {
         saveAnnotations()
     }
 
-    /// If a freehand stroke is a closed, roughly-elliptical loop, return the
-    /// bounding-box corners for an ellipse (perfect circle when near-square).
-    /// Returns nil for anything that isn't clearly a round loop.
-    private func recognizeEllipse(from stroke: [CGPoint]) -> [CGPoint]? {
-        guard stroke.count >= 12 else { return nil }
+    // MARK: - Freehand shape recognition (High assist)
+
+    /// Classify a closed freehand stroke into a shape tool + bounding-box
+    /// corners. Ellipse is tested first (round loops), then polygon corner
+    /// count decides triangle / rectangle / diamond. nil = leave as freehand.
+    private func recognizeShape(from stroke: [CGPoint]) -> (tool: DrawingTool, points: [CGPoint])? {
+        guard stroke.count >= 10 else { return nil }
         let xs = stroke.map(\.x), ys = stroke.map(\.y)
         let minX = xs.min()!, maxX = xs.max()!, minY = ys.min()!, maxY = ys.max()!
         let w = maxX - minX, h = maxY - minY
@@ -557,24 +559,98 @@ class DrawingState: ObservableObject {
 
         // Must be a closed loop: endpoints near each other relative to size.
         let endGap = hypot(stroke.first!.x - stroke.last!.x, stroke.first!.y - stroke.last!.y)
-        guard endGap < 0.35 * max(w, h) else { return nil }
+        guard endGap < 0.40 * max(w, h) else { return nil }
 
-        // Every point should sit near the fitted ellipse: (dx/rx)²+(dy/ry)² ≈ 1.
         let cx = (minX + maxX) / 2, cy = (minY + maxY) / 2
+
+        func box() -> [CGPoint] {
+            // Near-square → regularize (perfect circle / square / regular poly)
+            if min(w, h) / max(w, h) >= 0.82 {
+                let s = max(w, h) / 2
+                return [CGPoint(x: cx - s, y: cy - s), CGPoint(x: cx + s, y: cy + s)]
+            }
+            return [CGPoint(x: minX, y: minY), CGPoint(x: maxX, y: maxY)]
+        }
+
+        // 1) Ellipse: points hug the fitted ellipse. Threshold below a square's
+        //    ~0.16 mean radial deviation so rectangles fall through to (2).
         let rx = w / 2, ry = h / 2
         var errSum: CGFloat = 0
         for p in stroke {
             let nx = (p.x - cx) / rx, ny = (p.y - cy) / ry
             errSum += abs((nx * nx + ny * ny).squareRoot() - 1)
         }
-        guard errSum / CGFloat(stroke.count) < 0.20 else { return nil }
+        if errSum / CGFloat(stroke.count) < 0.11 { return (.ellipse, box()) }
 
-        // Near-square bounds → perfect circle.
-        if min(w, h) / max(w, h) >= 0.82 {
-            let side = max(w, h) / 2
-            return [CGPoint(x: cx - side, y: cy - side), CGPoint(x: cx + side, y: cy + side)]
+        // 2) Polygon: simplify to corners and count them.
+        let diag = hypot(w, h)
+        var corners = simplifyRDP(stroke, epsilon: diag * 0.045)
+        if corners.count > 1,
+           hypot(corners.first!.x - corners.last!.x, corners.first!.y - corners.last!.y) < diag * 0.08 {
+            corners.removeLast()   // drop the closing point
         }
-        return [CGPoint(x: minX, y: minY), CGPoint(x: maxX, y: maxY)]
+        corners = dropCollinear(corners, angleThreshold: 165)
+
+        switch corners.count {
+        case 3: return (.triangle, box())
+        case 4:
+            // Rectangle (corners at bbox corners) vs diamond (corners at edge mids)
+            let cornerPts = [CGPoint(x: minX, y: minY), CGPoint(x: maxX, y: minY),
+                             CGPoint(x: maxX, y: maxY), CGPoint(x: minX, y: maxY)]
+            let midPts    = [CGPoint(x: cx, y: minY), CGPoint(x: maxX, y: cy),
+                             CGPoint(x: cx, y: maxY), CGPoint(x: minX, y: cy)]
+            func score(_ targets: [CGPoint]) -> CGFloat {
+                corners.reduce(0) { acc, c in
+                    acc + (targets.map { hypot($0.x - c.x, $0.y - c.y) }.min() ?? 0)
+                }
+            }
+            return (score(cornerPts) <= score(midPts) ? .rectangle : .diamond, box())
+        default:
+            return nil   // ambiguous — keep the freehand stroke
+        }
+    }
+
+    /// Ramer–Douglas–Peucker polyline simplification.
+    private func simplifyRDP(_ points: [CGPoint], epsilon: CGFloat) -> [CGPoint] {
+        guard points.count > 2 else { return points }
+        var dMax: CGFloat = 0, index = 0
+        let a = points.first!, b = points.last!
+        for i in 1..<(points.count - 1) {
+            let d = perpendicularDistance(points[i], a, b)
+            if d > dMax { dMax = d; index = i }
+        }
+        if dMax > epsilon {
+            let left = simplifyRDP(Array(points[0...index]), epsilon: epsilon)
+            let right = simplifyRDP(Array(points[index...]), epsilon: epsilon)
+            return left.dropLast() + right
+        }
+        return [a, b]
+    }
+
+    private func perpendicularDistance(_ p: CGPoint, _ a: CGPoint, _ b: CGPoint) -> CGFloat {
+        let dx = b.x - a.x, dy = b.y - a.y
+        let len = hypot(dx, dy)
+        guard len > 0 else { return hypot(p.x - a.x, p.y - a.y) }
+        return abs(dx * (a.y - p.y) - (a.x - p.x) * dy) / len
+    }
+
+    /// Remove vertices whose interior angle is nearly straight (e.g. a start
+    /// point that landed mid-edge), so corner counts reflect real corners.
+    private func dropCollinear(_ pts: [CGPoint], angleThreshold: CGFloat) -> [CGPoint] {
+        guard pts.count > 3 else { return pts }
+        var result: [CGPoint] = []
+        let n = pts.count
+        for i in 0..<n {
+            let prev = pts[(i - 1 + n) % n], cur = pts[i], next = pts[(i + 1) % n]
+            let v1 = CGVector(dx: prev.x - cur.x, dy: prev.y - cur.y)
+            let v2 = CGVector(dx: next.x - cur.x, dy: next.y - cur.y)
+            let dot = v1.dx * v2.dx + v1.dy * v2.dy
+            let mag = hypot(v1.dx, v1.dy) * hypot(v2.dx, v2.dy)
+            guard mag > 0 else { continue }
+            let angle = acos(max(-1, min(1, dot / mag))) * 180 / .pi
+            if angle < angleThreshold { result.append(cur) }   // keep real corners
+        }
+        return result
     }
     
     /// Drop an auto-numbered step badge — number = existing badge count + 1,
