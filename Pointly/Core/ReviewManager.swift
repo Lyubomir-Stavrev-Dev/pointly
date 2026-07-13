@@ -27,6 +27,9 @@ enum ReviewManager {
         guard count >= sessionThreshold else { return }
 
         defaults.set(appVersion, forKey: lastPromptedVersionKey)
+        // Restart the count so the next app version waits a full threshold of
+        // sessions again instead of prompting on its very first session.
+        defaults.set(0, forKey: sessionCountKey)
         requestReview()
     }
 

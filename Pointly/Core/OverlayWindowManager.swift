@@ -319,8 +319,7 @@ class OverlayWindowManager: ObservableObject {
         guard isOverlayActive else { return }
         toolbarPanel?.orderFrontRegardless()
         // Restore canvas key status so drawing works immediately without a re-click
-        let mainID = displayID(for: NSScreen.main ?? NSScreen.screens[0])
-        canvasWindows[mainID]?.makeKey()
+        if let mainID = mainDisplayID { canvasWindows[mainID]?.makeKey() }
     }
 
     @objc private func screensChanged() {
@@ -330,7 +329,16 @@ class OverlayWindowManager: ObservableObject {
             canvasWindows.removeValue(forKey: id)
         }
         buildCanvasWindows(for: NSScreen.screens)
-        if isOverlayActive { showAll() }
+        guard isOverlayActive else { return }
+        // Refresh frames + ordering WITHOUT showAll() — display reconfiguration
+        // (sleep/wake, projector renegotiation) fires this mid-presentation and
+        // must not NSApp.activate/steal focus from the app the user is using.
+        for (id, win) in canvasWindows {
+            if let s = screen(for: id) { win.setFrame(s.frame, display: true) }
+            win.orderFrontRegardless()
+        }
+        toolbarPanel?.orderFrontRegardless()
+        applyModeToWindows()
     }
 
     // MARK: - Mode → window sync
@@ -347,8 +355,7 @@ class OverlayWindowManager: ObservableObject {
             win.ignoresMouseEvents = passThrough
             win.level = passThrough ? .floating : .screenSaver
         }
-        let mainID = displayID(for: NSScreen.main ?? NSScreen.screens[0])
-        canvasWindows[mainID]?.makeKey()
+        if let mainID = mainDisplayID { canvasWindows[mainID]?.makeKey() }
 
         if isInteract { installGlobalKeyMonitor() } else { removeGlobalKeyMonitor() }
 
@@ -545,8 +552,7 @@ class OverlayWindowManager: ObservableObject {
         }
 
         applyModeToWindows()   // also registers the hotkey set for the current mode
-        let mainID = displayID(for: NSScreen.main ?? NSScreen.screens[0])
-        canvasWindows[mainID]?.makeKey()
+        if let mainID = mainDisplayID { canvasWindows[mainID]?.makeKey() }
         NSApp.activate(ignoringOtherApps: true)
     }
 
@@ -592,8 +598,8 @@ class OverlayWindowManager: ObservableObject {
         }
 
         guard let viewRect = notification.object as? CGRect else { return }
-        let mainID = displayID(for: NSScreen.main ?? NSScreen.screens[0])
-        guard let canvasWin = canvasWindows[mainID] else { return }
+        guard let mainID = mainDisplayID,
+              let canvasWin = canvasWindows[mainID] else { return }
 
         // SwiftUI (top-left) → NSView (bottom-left) → AppKit screen rect
         let contentH = canvasWin.contentView?.frame.height ?? canvasWin.frame.height
@@ -641,9 +647,14 @@ class OverlayWindowManager: ObservableObject {
             width: cgRect.width,
             height: cgRect.height
         )
-        cfg.width  = Int(cgRect.width)
-        cfg.height = Int(cgRect.height)
+        // width/height are PIXELS — capturing at point size samples Retina
+        // screens at 1x and the lifted snippet looks blurry next to the real
+        // content. The NSImage below keeps point size, so 2x pixels = crisp.
+        let captureScale = screen(for: display.displayID)?.backingScaleFactor ?? 2
+        cfg.width  = Int(cgRect.width  * captureScale)
+        cfg.height = Int(cgRect.height * captureScale)
         cfg.scalesToFit = false
+        cfg.showsCursor = false   // don't bake the pointer into the capture
 
         guard let cgImage = try? await SCScreenshotManager.captureImage(
             contentFilter: filter, configuration: cfg
@@ -770,8 +781,7 @@ class OverlayWindowManager: ObservableObject {
                            proManager: .shared, onDismiss: { [weak self, weak panel] in
                 panel?.orderOut(nil)
                 self?.paywallPanel = nil
-                if self?.isOverlayActive == true {
-                    let mainID = self?.displayID(for: NSScreen.main ?? NSScreen.screens[0]) ?? 0
+                if self?.isOverlayActive == true, let mainID = self?.mainDisplayID {
                     self?.canvasWindows[mainID]?.makeKey()
                 }
             }, initialPlan: initialPlan)
@@ -790,6 +800,13 @@ class OverlayWindowManager: ObservableObject {
     }
     private func screen(for id: CGDirectDisplayID) -> NSScreen? {
         NSScreen.screens.first { displayID(for: $0) == id }
+    }
+
+    // nil when no display is attached (clamshell/headless) — never index
+    // NSScreen.screens directly, it can be empty exactly when displays change.
+    private var mainDisplayID: CGDirectDisplayID? {
+        guard let screen = NSScreen.main ?? NSScreen.screens.first else { return nil }
+        return displayID(for: screen)
     }
 
     var currentInteractionMode: InteractionModeManager? { sharedInteractionMode }

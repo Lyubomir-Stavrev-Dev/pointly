@@ -570,7 +570,7 @@ class DrawingState: ObservableObject {
     func undo() {
         guard canUndo else { return }
         onWillUndo?()
-        redoStack.append(elements)
+        redoStack.append(snapshotElements())
         if let previousState = undoStack.popLast() {
             elements = previousState
         }
@@ -581,19 +581,26 @@ class DrawingState: ObservableObject {
         // when canRedo is false (the button is enabled whenever captures exist).
         onWillRedo?()
         guard canRedo else { return }
-        undoStack.append(elements)
+        undoStack.append(snapshotElements())
         if let nextState = redoStack.popLast() {
             elements = nextState
         }
     }
-    
+
     private func saveStateForUndo() {
-        undoStack.append(elements)
-        
+        undoStack.append(snapshotElements())
+
         // Limit undo stack size to prevent memory issues
         if undoStack.count > 50 {
             undoStack.removeFirst()
         }
+    }
+
+    // Laser strokes are 3.5s transients — keeping them in undo/redo snapshots
+    // lets a restore resurrect fully-faded (invisible) elements that nothing
+    // removes again, pinning the TimelineView at 60fps forever.
+    private func snapshotElements() -> [DrawingElement] {
+        elements.filter { $0.tool != .laserPointer }
     }
     
     // For snapshot rendering only — loads elements without touching undo/redo.
@@ -639,15 +646,27 @@ class DrawingState: ObservableObject {
         selectedElementIDs = Set(elements.filter { rect.intersects($0.boundingBox) }.map(\.id))
     }
 
+    // Call once at the start of a move/resize drag — one undo snapshot for the
+    // whole drag (per-event snapshots flooded the 50-slot undo stack) and a
+    // fresh redo baseline. Mirror of beginEraseStroke().
+    func beginTransform() {
+        saveStateForUndo()
+        redoStack.removeAll()
+    }
+
+    // Call once at drag end — persisting per mouse-move event was a full JSON
+    // encode + atomic file write on every pixel of the drag.
+    func commitTransform() {
+        saveAnnotations()
+    }
+
     func moveSelected(by delta: CGSize) {
         guard !selectedElementIDs.isEmpty else { return }
-        saveStateForUndo()
         for i in elements.indices where selectedElementIDs.contains(elements[i].id) {
             elements[i].points = elements[i].points.map {
                 CGPoint(x: $0.x + delta.width, y: $0.y + delta.height)
             }
         }
-        saveAnnotations()
     }
 
     func resizeFromSnapshot(_ snapshot: [(UUID, [CGPoint])], from oldBox: CGRect, to newBox: CGRect) {
@@ -661,7 +680,6 @@ class DrawingState: ObservableObject {
                 )
             }
         }
-        saveAnnotations()
     }
 
     func deleteSelected() {
@@ -677,6 +695,7 @@ class DrawingState: ObservableObject {
         saveStateForUndo()
         elements.removeAll { rect.intersects($0.boundingBox) }
         selectedElementIDs = []
+        redoStack.removeAll()
         saveAnnotations()
     }
 

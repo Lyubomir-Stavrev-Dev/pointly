@@ -299,7 +299,10 @@ struct ProPaywallView: View {
         }
         .frame(width: 400, height: 644)
         .preferredColorScheme(.dark)
-        .onAppear { selectedPlan = initialPlan }
+        .onAppear {
+            selectedPlan = initialPlan
+            proManager.ensureProductsLoaded()
+        }
         .onChange(of: proManager.isPro) { _, isPro in
             if isPro { onDismiss() }
         }

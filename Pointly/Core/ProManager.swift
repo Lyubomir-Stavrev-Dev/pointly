@@ -106,12 +106,24 @@ final class ProManager: ObservableObject {
         }
     }
 
+    // Called from the paywall's onAppear — products load once at launch, so an
+    // offline launch would otherwise brick purchasing for the whole session.
+    func ensureProductsLoaded() {
+        guard loadedProducts.isEmpty else { return }
+        Task { await loadProducts() }
+    }
+
     // MARK: - Purchase
 
     func purchase(plan: ProPlan = .annual) async {
         await MainActor.run { purchaseInProgress = true; errorMessage = nil }
         defer { Task { @MainActor in self.purchaseInProgress = false } }
 
+        // Products may have failed to load at launch (offline) — retry once
+        // before giving up so recovered connectivity doesn't require a relaunch.
+        if loadedProducts[plan.productID] == nil {
+            await loadProducts()
+        }
         guard let product = loadedProducts[plan.productID] else {
             await MainActor.run {
                 errorMessage = "Product unavailable. Check your connection or try again later."

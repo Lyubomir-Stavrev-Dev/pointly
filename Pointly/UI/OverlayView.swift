@@ -152,6 +152,20 @@ struct OverlayView: View {
         .onReceive(NotificationCenter.default.publisher(for: .interactionModeChanged)) { handleModeChange($0) }
         .onChange(of: drawingState.selectedTool) { _, tool in
             if tool != .select && tool != .cutMove { drawingState.clearSelection() }
+            // Reset any in-flight gesture — tool hotkeys fire mid-drag, and a
+            // half-finished stroke/move otherwise corrupts the next gesture
+            // (ghost strokes, un-undoable erases, stuck rubber band).
+            if isDrawing {
+                drawingState.cancelCurrentStroke()
+                isDrawing = false
+            }
+            isEraserStrokeActive = false
+            if case .moving = selAction { drawingState.commitTransform() }
+            selAction = nil
+            drawingState.selectionRubberBand = nil
+            resizeInitialBox = nil
+            resizeSnapshot = nil
+            isDraggingHandle = false
             updateCursor()
         }
         .onReceive(NotificationCenter.default.publisher(for: .cancelTextInput)) { _ in
@@ -242,11 +256,13 @@ struct OverlayView: View {
             let startPt = value.startLocation
             let isCutMove = drawingState.selectedTool == .cutMove
             if let box = drawingState.selectedBoundingBox, box.contains(startPt) {
+                drawingState.beginTransform()
                 selAction = .moving(last: startPt)
             } else if !isCutMove, let hit = drawingState.hitTest(at: startPt) {
                 if !drawingState.selectedElementIDs.contains(hit.id) {
                     drawingState.selectElement(id: hit.id)
                 }
+                drawingState.beginTransform()
                 selAction = .moving(last: startPt)
             } else {
                 drawingState.clearSelection()
@@ -272,6 +288,9 @@ struct OverlayView: View {
 
     private func handleSelectionEnded(_ value: DragGesture.Value) {
         if isDraggingHandle { return }
+        if case .moving = selAction {
+            drawingState.commitTransform()
+        }
         if case .rubberBanding = selAction {
             if drawingState.selectedTool == .cutMove {
                 if let r = drawingState.selectionRubberBand, r.width > 10, r.height > 10 {
@@ -343,6 +362,7 @@ struct OverlayView: View {
                                 resizeSnapshot = drawingState.elements
                                     .filter { drawingState.selectedElementIDs.contains($0.id) }
                                     .map { ($0.id, $0.points) }
+                                drawingState.beginTransform()   // one undo snapshot per resize drag
                             }
                             guard let initBox = resizeInitialBox,
                                   let snap = resizeSnapshot else { return }
@@ -351,6 +371,7 @@ struct OverlayView: View {
                             drawingState.resizeFromSnapshot(snap, from: initBox, to: newBox)
                         }
                         .onEnded { _ in
+                            if resizeInitialBox != nil { drawingState.commitTransform() }
                             resizeInitialBox = nil
                             resizeSnapshot = nil
                             isDraggingHandle = false

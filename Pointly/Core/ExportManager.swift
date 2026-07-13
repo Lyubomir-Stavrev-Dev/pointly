@@ -106,10 +106,13 @@ class ExportManager: ObservableObject {
         size: CGSize,
         url: URL
     ) throws {
+        // Render at the display's backing scale — `size` is in points; a
+        // point-sized bitmap exports blurry 1x images on Retina screens.
+        let scale = NSScreen.main?.backingScaleFactor ?? 2
         guard let rep = NSBitmapImageRep(
             bitmapDataPlanes: nil,
-            pixelsWide: Int(size.width),
-            pixelsHigh: Int(size.height),
+            pixelsWide: Int(size.width * scale),
+            pixelsHigh: Int(size.height * scale),
             bitsPerSample: 8,
             samplesPerPixel: 4,
             hasAlpha: true,
@@ -122,11 +125,11 @@ class ExportManager: ObservableObject {
         NSGraphicsContext.saveGraphicsState()
         NSGraphicsContext.current = NSGraphicsContext(bitmapImageRep: rep)
 
-        // Flip coordinate system: AppKit bitmap has origin at bottom-left,
-        // but overlay uses top-left origin (SwiftUI/NSWindow default).
+        // Flip coordinate system (AppKit bottom-left → overlay top-left) and
+        // map point space onto the scaled pixel grid in one transform.
         if let cgCtx = NSGraphicsContext.current?.cgContext {
-            cgCtx.translateBy(x: 0, y: size.height)
-            cgCtx.scaleBy(x: 1, y: -1)
+            cgCtx.translateBy(x: 0, y: size.height * scale)
+            cgCtx.scaleBy(x: scale, y: -scale)
         }
 
         if format == .jpeg {
@@ -136,6 +139,10 @@ class ExportManager: ObservableObject {
 
         drawElements(elements, in: NSRect(origin: .zero, size: size))
         NSGraphicsContext.restoreGraphicsState()
+
+        // Point size after drawing → the file reports Retina DPI instead of
+        // claiming to be a giant 72-DPI image.
+        rep.size = size
 
         let quality = UserDefaults.standard.double(forKey: "exportQuality")
         let props: [NSBitmapImageRep.PropertyKey: Any] = format == .jpeg
