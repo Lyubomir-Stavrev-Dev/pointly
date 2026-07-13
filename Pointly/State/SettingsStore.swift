@@ -31,9 +31,10 @@ class SettingsStore: ObservableObject {
         }
     }
     
-    @Published var straightLineAssist: Bool {
+    /// "off" / "low" / "high" — high is Pro-gated (angle snap + pen straighten)
+    @Published var straightLineAssistLevel: String {
         didSet {
-            UserDefaults.standard.set(straightLineAssist, forKey: "straightLineAssist")
+            UserDefaults.standard.set(straightLineAssistLevel, forKey: "straightLineAssistLevel")
         }
     }
 
@@ -124,7 +125,13 @@ class SettingsStore: ObservableObject {
         self.toolbarTheme = UserDefaults.standard.string(forKey: "toolbarTheme") ?? "system"
         self.startupBehavior = UserDefaults.standard.string(forKey: "startupBehavior") ?? "menubar"
         self.snapToGrid = UserDefaults.standard.bool(forKey: "snapToGrid")
-        self.straightLineAssist = UserDefaults.standard.bool(forKey: "straightLineAssist")
+        if let level = UserDefaults.standard.string(forKey: "straightLineAssistLevel") {
+            self.straightLineAssistLevel = level
+        } else {
+            // Migrate the old boolean key (false → off, true/unset → low)
+            let old = UserDefaults.standard.object(forKey: "straightLineAssist") as? Bool
+            self.straightLineAssistLevel = (old == false) ? "off" : "low"
+        }
         self.arrowTipAtStart = UserDefaults.standard.bool(forKey: "arrowTipAtStart")
         self.defaultPenColor = UserDefaults.standard.string(forKey: "defaultPenColor") ?? "#FF3B30"
         self.defaultThickness = UserDefaults.standard.double(forKey: "defaultThickness") != 0 ? 
@@ -152,7 +159,7 @@ class SettingsStore: ObservableObject {
             "toolbarTheme": "system",
             "startupBehavior": "menubar",
             "snapToGrid": false,
-            "straightLineAssist": true,
+            "straightLineAssistLevel": "low",
             "arrowTipAtStart": true,
             "defaultPenColor": "#F4644D",
             "defaultThickness": 3.0,
@@ -175,7 +182,7 @@ class SettingsStore: ObservableObject {
         toolbarTheme = "system"
         startupBehavior = "menubar"
         snapToGrid = false
-        straightLineAssist = true
+        straightLineAssistLevel = "low"
         arrowTipAtStart = true
         defaultPenColor = "#F4644D"
         defaultThickness = 3.0
@@ -196,7 +203,7 @@ class SettingsStore: ObservableObject {
             "toolbarTheme": toolbarTheme,
             "startupBehavior": startupBehavior,
             "snapToGrid": snapToGrid,
-            "straightLineAssist": straightLineAssist,
+            "straightLineAssistLevel": straightLineAssistLevel,
             "arrowTipAtStart": arrowTipAtStart,
             "defaultPenColor": defaultPenColor,
             "defaultThickness": defaultThickness,
@@ -217,7 +224,8 @@ class SettingsStore: ObservableObject {
         if let value = settings["toolbarTheme"] as? String { toolbarTheme = value }
         if let value = settings["startupBehavior"] as? String { startupBehavior = value }
         if let value = settings["snapToGrid"] as? Bool { snapToGrid = value }
-        if let value = settings["straightLineAssist"] as? Bool { straightLineAssist = value }
+        if let value = settings["straightLineAssistLevel"] as? String { straightLineAssistLevel = value }
+        if let value = settings["straightLineAssist"] as? Bool { straightLineAssistLevel = value ? "low" : "off" }  // old backups
         if let value = settings["arrowTipAtStart"] as? Bool { arrowTipAtStart = value }
         if let value = settings["defaultPenColor"] as? String { defaultPenColor = value }
         if let value = settings["defaultThickness"] as? Double { defaultThickness = value }

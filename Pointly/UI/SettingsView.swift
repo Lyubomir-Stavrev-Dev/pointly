@@ -385,14 +385,61 @@ private struct AppearanceContent: View {
 
 private struct DrawingContent: View {
     @ObservedObject var settings: SettingsStore
+    @ObservedObject private var pro = ProManager.shared
 
     var body: some View {
         VStack(spacing: 14) {
             SettingsCard(title: "Drawing Assistance") {
                 Toggle("Snap to Grid", isOn: $settings.snapToGrid)
                     .toggleStyle(.switch).tint(Color(hex: "#F4644D") ?? .orange)
-                Toggle("Straight Line Assist", isOn: $settings.straightLineAssist)
-                    .toggleStyle(.switch).tint(Color(hex: "#F4644D") ?? .orange)
+
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("Straight Line Assist")
+                        .font(.system(size: 13))
+                        .foregroundColor(.white.opacity(0.85))
+                    HStack(spacing: 0) {
+                        ForEach([("Off", "off"), ("Low", "low"), ("High", "high")], id: \.1) { label, tag in
+                            let isSelected = settings.straightLineAssistLevel == tag
+                            let locked = tag == "high" && !pro.isPro
+                            Button {
+                                if locked {
+                                    NotificationCenter.default.post(name: .showPaywallForPlan,
+                                                                    object: ProPlan.annual)
+                                } else {
+                                    settings.straightLineAssistLevel = tag
+                                }
+                            } label: {
+                                HStack(spacing: 4) {
+                                    if locked {
+                                        Image(systemName: "lock.fill").font(.system(size: 9))
+                                    }
+                                    Text(label)
+                                }
+                                .font(.system(size: 12, weight: isSelected ? .semibold : .regular))
+                                .foregroundColor(isSelected ? .white : .white.opacity(0.5))
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 7)
+                                .background(
+                                    Group {
+                                        if isSelected {
+                                            RoundedRectangle(cornerRadius: 8).fill(brandGradient)
+                                        } else {
+                                            RoundedRectangle(cornerRadius: 8).fill(Color.clear)
+                                        }
+                                    }
+                                )
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                    .padding(3)
+                    .background(RoundedRectangle(cornerRadius: 11).fill(Color.white.opacity(0.08)))
+                    Text("Low keeps lines and shapes clean. High (Pro) adds magnetic 0°/45°/90° angle snapping and straightens nearly-straight pen strokes.")
+                        .font(.system(size: 11))
+                        .foregroundColor(.white.opacity(0.4))
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+
                 VStack(alignment: .leading, spacing: 2) {
                     Toggle("Arrow Tip at First Click", isOn: $settings.arrowTipAtStart)
                         .toggleStyle(.switch).tint(Color(hex: "#F4644D") ?? .orange)

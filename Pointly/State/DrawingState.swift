@@ -373,6 +373,14 @@ class DrawingState: ObservableObject {
         updateCurrentElement()
     }
 
+    // Effective assist level: "off" / "low" / "high". High is Pro-only —
+    // enforced here too so editing defaults can't unlock it.
+    private var straightLineAssistLevel: String {
+        let level = UserDefaults.standard.string(forKey: "straightLineAssistLevel") ?? "low"
+        if level == "high" && !ProManager.shared.isPro { return "low" }
+        return level
+    }
+
     private func applyDrawingAssistance(_ point: CGPoint) -> CGPoint {
         var result = point
         // Snap to grid
@@ -385,12 +393,33 @@ class DrawingState: ObservableObject {
             )
         }
         // Straight-line assist: for shape tools, only keep start + current endpoint
-        if UserDefaults.standard.bool(forKey: "straightLineAssist"),
+        let assist = straightLineAssistLevel
+        if assist != "off",
            [DrawingTool.line, .arrow, .rectangle, .ellipse, .triangle, .diamond].contains(selectedTool),
            let first = currentStroke.first {
             currentStroke = [first]
+            // High: pro angle snapping for lines/arrows — strong pull to
+            // 0°/45°/90°, gentler pull to 15° steps.
+            if assist == "high", [DrawingTool.line, .arrow].contains(selectedTool) {
+                result = snapAngle(from: first, to: result)
+            }
         }
         return result
+    }
+
+    private func snapAngle(from origin: CGPoint, to point: CGPoint) -> CGPoint {
+        let dx = point.x - origin.x, dy = point.y - origin.y
+        let dist = hypot(dx, dy)
+        guard dist > 8 else { return point }
+        let deg = atan2(dy, dx) * 180 / .pi
+        let major = (deg / 45).rounded() * 45
+        let minor = (deg / 15).rounded() * 15
+        let snapped: CGFloat
+        if abs(deg - major) <= 6 { snapped = major }        // 0/45/90 feel magnetic
+        else if abs(deg - minor) <= 3.5 { snapped = minor } // light 15° detents
+        else { return point }
+        let rad = snapped * .pi / 180
+        return CGPoint(x: origin.x + dist * cos(rad), y: origin.y + dist * sin(rad))
     }
     
     private func initializeToolSpecificProperties() {
@@ -443,6 +472,22 @@ class DrawingState: ObservableObject {
         if shapeTools.contains(selectedTool), currentStroke.count > 2,
            let first = currentStroke.first, let last = currentStroke.last {
             currentStroke = [first, last]
+        }
+
+        // High assist (Pro): a nearly-straight pen stroke snaps to a perfect line.
+        if selectedTool == .pen, straightLineAssistLevel == "high",
+           currentStroke.count > 2,
+           let first = currentStroke.first, let last = currentStroke.last {
+            let chord = hypot(last.x - first.x, last.y - first.y)
+            if chord > 40 {
+                // Max perpendicular deviation of any point from the first→last chord
+                let maxDeviation = currentStroke.map { p -> CGFloat in
+                    abs((last.x - first.x) * (first.y - p.y) - (first.x - p.x) * (last.y - first.y)) / chord
+                }.max() ?? 0
+                if maxDeviation < max(6, chord * 0.025) {
+                    currentStroke = [first, last]
+                }
+            }
         }
 
         var element = createDrawingElement()
