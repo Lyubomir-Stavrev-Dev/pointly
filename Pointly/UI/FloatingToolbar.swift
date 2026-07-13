@@ -15,6 +15,21 @@ private let brandGradient = LinearGradient(
 
 private let panelTint = Color(red: 0.06, green: 0.06, blue: 0.14)
 
+/// Lays content in an HStack when `horizontal`, otherwise a VStack — lets the
+/// toolbar flip orientation without duplicating every section's layout.
+private struct AdaptiveStack<Content: View>: View {
+    let horizontal: Bool
+    var spacing: CGFloat = 0
+    @ViewBuilder var content: Content
+    var body: some View {
+        if horizontal {
+            HStack(alignment: .center, spacing: spacing) { content }
+        } else {
+            VStack(alignment: .center, spacing: spacing) { content }
+        }
+    }
+}
+
 private struct VisualEffectBackground: NSViewRepresentable {
     var cornerRadius: CGFloat = 22
     func makeNSView(context: Context) -> NSVisualEffectView {
@@ -39,47 +54,51 @@ struct FloatingToolbar: View {
     @State private var isHoveringModeButton = false
     @State private var hoverMinimize = false
     @State private var hoverExport   = false
+    @State private var hoverOrient   = false
+    @AppStorage("toolbarHorizontal") private var horizontal = false
     @StateObject private var exportManager = ExportManager()
 
     var body: some View {
-        VStack(spacing: 0) {
+        AdaptiveStack(horizontal: horizontal, spacing: 0) {
             dragHandle
             modeButton
-                .padding(.top, 6)
+                .frame(width: horizontal ? 96 : nil)
+                .padding(horizontal ? .leading : .top, 6)
 
             divider()
 
-            // Drawing tools — 2 columns
-            sectionLabel("DRAW")
-            toolGrid2(left: { regularToolButton(.select) },
-                      right: { regularToolButton(.cursor) })
-            toolGrid([
-                (.pen,         false), (.highlighter, false),
-                (.marker,      false), (.blurBrush,   false),
-                (.eraser,      false), (.text,        false),
-                (.laserPointer,false), (.spotlight,   false),
-                (.dotPen,      false), (.cutMove,     false),
-                (.textCallout, false), (.stepBadge,   false),
-            ])
+            // DRAW
+            section("DRAW") {
+                toolGrid2(left: { regularToolButton(.select) },
+                          right: { regularToolButton(.cursor) })
+                toolGrid([
+                    (.pen,         false), (.highlighter, false),
+                    (.marker,      false), (.blurBrush,   false),
+                    (.eraser,      false), (.text,        false),
+                    (.laserPointer,false), (.spotlight,   false),
+                    (.dotPen,      false), (.cutMove,     false),
+                    (.textCallout, false), (.stepBadge,   false),
+                ])
+            }
 
             divider()
 
-            // Lines — 2 columns
-            sectionLabel("LINES")
-            toolGrid([
-                (.arrow, false), (.line, false),
-            ])
+            // LINES
+            section("LINES") {
+                toolGrid([(.arrow, false), (.line, false)])
+            }
 
             divider()
 
-            // Shapes — outline then filled, paired
-            sectionLabel("SHAPES")
-            shapePairGrid([
-                (.rectangle, .rectangle),
-                (.ellipse,   .ellipse),
-                (.triangle,  .triangle),
-                (.diamond,   .diamond),
-            ])
+            // SHAPES
+            section("SHAPES") {
+                shapePairGrid([
+                    (.rectangle, .rectangle),
+                    (.ellipse,   .ellipse),
+                    (.triangle,  .triangle),
+                    (.diamond,   .diamond),
+                ])
+            }
 
             divider()
 
@@ -165,19 +184,33 @@ struct FloatingToolbar: View {
 
     private var dragHandle: some View {
         ZStack {
-            // Drag lines — centred in the row
-            VStack(spacing: 3.5) {
+            // Drag grip — dots run along the main axis
+            AdaptiveStack(horizontal: !horizontal, spacing: 3.5) {
                 ForEach(0..<3, id: \.self) { _ in
                     Capsule()
                         .fill(Color.white.opacity(0.25))
-                        .frame(width: 22, height: 2.5)
+                        .frame(width: horizontal ? 2.5 : 22,
+                               height: horizontal ? 22 : 2.5)
                 }
             }
             .overlay(WindowDragHandle())
 
-            // Minimize button — top-right corner
-            HStack {
+            // Orientation toggle + minimize, tucked in the corner
+            AdaptiveStack(horizontal: !horizontal, spacing: 4) {
                 Spacer()
+                Button { horizontal.toggle() } label: {
+                    Image(systemName: horizontal ? "rectangle.portrait" : "rectangle")
+                        .font(.system(size: 8, weight: .semibold))
+                        .foregroundColor(.white.opacity(hoverOrient ? 0.75 : 0.35))
+                        .frame(width: 18, height: 18)
+                        .background(Circle().fill(Color.white.opacity(hoverOrient ? 0.18 : 0.08)))
+                        .scaleEffect(hoverOrient ? 1.15 : 1.0)
+                        .animation(.easeInOut(duration: 0.14), value: hoverOrient)
+                }
+                .buttonStyle(.plain)
+                .onHover { hoverOrient = $0 }
+                .toolTooltip(horizontal ? "Vertical layout" : "Horizontal layout", keys: nil)
+
                 Button { interactionMode.switchTo(mode: .interact) } label: {
                     Image(systemName: "minus")
                         .font(.system(size: 9, weight: .semibold))
@@ -192,7 +225,7 @@ struct FloatingToolbar: View {
                 .toolTooltip("Minimize", keys: "⌘⎋")
             }
         }
-        .frame(width: 72, height: 28)
+        .frame(width: horizontal ? 28 : 72, height: horizontal ? 72 : 28)
         .contentShape(Rectangle())
     }
 
@@ -313,33 +346,46 @@ struct FloatingToolbar: View {
         .padding(.bottom, 2)
     }
 
-    // MARK: - Tool Grid (regular tools, 2 columns)
+    // MARK: - Section (label above its content; block flows in cross-axis)
+
+    @ViewBuilder
+    private func section<Content: View>(_ title: String, @ViewBuilder content: () -> Content) -> some View {
+        VStack(spacing: 4) {
+            sectionLabel(title)
+            content()
+        }
+    }
+
+    // MARK: - Tool Grid — 2 columns (vertical) / 2 rows (horizontal)
 
     @ViewBuilder
     private func toolGrid(_ tools: [(DrawingTool, Bool)]) -> some View {
-        let rows = stride(from: 0, to: tools.count, by: 2).map {
+        // Split into pairs, then lay the pairs along the main axis.
+        let pairs = stride(from: 0, to: tools.count, by: 2).map {
             Array(tools[$0 ..< min($0 + 2, tools.count)])
         }
-        VStack(spacing: 4) {
-            ForEach(rows.indices, id: \.self) { ri in
-                HStack(spacing: 4) {
-                    ForEach(rows[ri].indices, id: \.self) { ci in
-                        let (tool, _) = rows[ri][ci]
-                        regularToolButton(tool)
+        AdaptiveStack(horizontal: horizontal, spacing: 4) {
+            ForEach(pairs.indices, id: \.self) { pi in
+                // Each pair fills the cross-axis (a column when vertical, a row when horizontal)
+                AdaptiveStack(horizontal: !horizontal, spacing: 4) {
+                    ForEach(pairs[pi].indices, id: \.self) { ci in
+                        regularToolButton(pairs[pi][ci].0)
                     }
-                    if rows[ri].count == 1 { Spacer() }
+                    if pairs[pi].count == 1 { regularToolSpacer }
                 }
             }
         }
     }
 
-    // MARK: - Shape Pair Grid (outline left, filled right)
+    private var regularToolSpacer: some View { Color.clear.frame(width: 32, height: 32) }
+
+    // MARK: - Shape Pair Grid (outline + filled)
 
     @ViewBuilder
     private func shapePairGrid(_ pairs: [(DrawingTool, DrawingTool)]) -> some View {
-        VStack(spacing: 4) {
+        AdaptiveStack(horizontal: horizontal, spacing: 4) {
             ForEach(pairs.indices, id: \.self) { i in
-                HStack(spacing: 4) {
+                AdaptiveStack(horizontal: !horizontal, spacing: 4) {
                     shapeToolButton(pairs[i].0, filled: false)
                     shapeToolButton(pairs[i].1, filled: true)
                 }
@@ -376,20 +422,28 @@ struct FloatingToolbar: View {
         @ViewBuilder left: () -> L,
         @ViewBuilder right: () -> R
     ) -> some View {
-        HStack(spacing: 4) {
+        // A 2-item group stays compact by running across the cross-axis.
+        AdaptiveStack(horizontal: !horizontal, spacing: 4) {
             left()
             right()
         }
     }
 
-    // MARK: - Divider
+    // MARK: - Divider (perpendicular to the main axis)
 
     @ViewBuilder
     private func divider() -> some View {
-        Rectangle()
-            .fill(Color.white.opacity(0.08))
-            .frame(height: 0.8)
-            .padding(.vertical, 4)
+        if horizontal {
+            Rectangle()
+                .fill(Color.white.opacity(0.08))
+                .frame(width: 0.8)
+                .padding(.horizontal, 4)
+        } else {
+            Rectangle()
+                .fill(Color.white.opacity(0.08))
+                .frame(height: 0.8)
+                .padding(.vertical, 4)
+        }
     }
 
     // MARK: - Export Menu
