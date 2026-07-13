@@ -1,6 +1,21 @@
 import SwiftUI
 import AppKit
 
+/// Stacks the toolbar and its size bar: side-by-side for a vertical toolbar,
+/// top-and-bottom for a horizontal one.
+private struct OrientationStack<Content: View>: View {
+    let horizontal: Bool   // true = toolbar is horizontal → size bar goes below
+    var spacing: CGFloat = 0
+    @ViewBuilder var content: Content
+    var body: some View {
+        if horizontal {
+            VStack(alignment: .leading, spacing: spacing) { content }
+        } else {
+            HStack(alignment: .top, spacing: spacing) { content }
+        }
+    }
+}
+
 // MARK: - ToolbarPanelView
 
 struct ToolbarPanelView: View {
@@ -9,7 +24,7 @@ struct ToolbarPanelView: View {
     var onSizeChange: ((CGSize) -> Void)?
     var onClose: (() -> Void)?
 
-    @State private var toolbarHeight: CGFloat = 360
+    @State private var toolbarSize: CGSize = CGSize(width: 72, height: 360)
     @AppStorage("toolbarHorizontal") private var horizontal = false
 
     private var isInteract: Bool { interactionMode.currentMode == .interact }
@@ -29,23 +44,22 @@ struct ToolbarPanelView: View {
                         .combined(with: .opacity)
                 ))
             } else {
-                HStack(alignment: .top, spacing: 8) {
+                // Vertical toolbar: size bar to the right. Horizontal toolbar:
+                // size bar below, matching the toolbar's cross-axis extent.
+                OrientationStack(horizontal: horizontal, spacing: 8) {
                     FloatingToolbar(drawingState: drawingState, interactionMode: interactionMode)
                         .background(
                             GeometryReader { geo in
                                 Color.clear
-                                    .onAppear    { toolbarHeight = geo.size.height }
-                                    .onChange(of: geo.size) { _, newSize in toolbarHeight = newSize.height }
+                                    .onAppear    { toolbarSize = geo.size }
+                                    .onChange(of: geo.size) { _, newSize in toolbarSize = newSize }
                             }
                         )
 
-                    // Vertical size bar only accompanies the vertical toolbar;
-                    // the horizontal toolbar has its own inline size control.
-                    if !horizontal {
-                        SizeBar(drawingState: drawingState)
-                            .frame(height: toolbarHeight)
-                            .animation(.spring(response: 0.3, dampingFraction: 0.8), value: toolbarHeight)
-                    }
+                    SizeBar(drawingState: drawingState, horizontal: horizontal)
+                        .frame(width: horizontal ? toolbarSize.width : nil,
+                               height: horizontal ? nil : toolbarSize.height)
+                        .animation(.spring(response: 0.3, dampingFraction: 0.8), value: toolbarSize)
                 }
                 .transition(.asymmetric(
                     insertion: .scale(scale: 0.82, anchor: .topLeading)

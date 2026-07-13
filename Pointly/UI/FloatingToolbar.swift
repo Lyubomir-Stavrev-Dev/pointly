@@ -111,30 +111,6 @@ struct FloatingToolbar: View {
 
             divider()
 
-            // Inline size control (horizontal toolbar only — vertical uses the SizeBar)
-            if horizontal {
-                section("SIZE") {
-                    HStack(spacing: 6) {
-                        Image(systemName: "scribble")
-                            .font(.system(size: 10, weight: .semibold))
-                            .foregroundStyle(brandGradient)
-                        Slider(value: $drawingState.strokeThickness, in: 1...30)
-                            .controlSize(.mini)
-                            .tint(Color(hex: "#F4644D") ?? .orange)
-                            .frame(width: 90)
-                        Text("\(Int(drawingState.strokeThickness))")
-                            .font(.system(size: 10, weight: .bold, design: .monospaced))
-                            .foregroundColor(.white.opacity(0.6))
-                            .frame(width: 18, alignment: .trailing)
-                    }
-                    .frame(height: 32)
-                }
-                .disabled(!drawingState.selectedTool.supportsThickness)
-                .opacity(drawingState.selectedTool.supportsThickness ? 1 : 0.3)
-
-                divider()
-            }
-
             // Undo / Redo
             toolGrid2(
                 left: {
