@@ -21,6 +21,12 @@ struct OverlayView: View {
     @State private var textInputPosition: CGPoint? = nil
     @State private var pendingText = ""
     @State private var pendingCalloutTarget: CGPoint? = nil   // set while typing a callout label
+    @State private var calloutTarget: CGPoint? = nil          // anchored after 1st click, box follows cursor
+    @State private var ghostPos: CGPoint = .zero              // live cursor while placing the callout box
+    @State private var editingElementID: UUID? = nil          // element being re-edited (text/callout)
+    @State private var editColor: Color? = nil
+    @State private var editThickness: CGFloat? = nil
+    @State private var didMoveSelection = false               // real drag vs a click, for undo + edit
 
     // Selection / move state
     private enum SelAction { case moving(last: CGPoint), rubberBanding }
@@ -61,11 +67,20 @@ struct OverlayView: View {
                 .onContinuousHover { phase in
                     if case .active(let loc) = phase {
                         spotlightPosition = loc
+                        if calloutTarget != nil { ghostPos = loc }
                     }
                 }
 
             // Canvas
             DrawingCanvas(state: drawingState, displayID: displayID)
+
+            // Ghost callout preview while placing the box (between the two clicks)
+            if let target = calloutTarget {
+                CalloutGhostView(target: target, boxOrigin: ghostPos,
+                                 color: drawingState.selectedColor,
+                                 thickness: drawingState.strokeThickness)
+                    .allowsHitTesting(false)
+            }
 
             // Mode HUD
             if showModeIndicator {
@@ -89,15 +104,10 @@ struct OverlayView: View {
                     Color.clear.allowsHitTesting(false)
                     TextInputOverlay(
                         text: $pendingText,
-                        color: drawingState.selectedColor,
-                        fontSize: max(14, drawingState.strokeThickness * 4),
+                        color: editColor ?? drawingState.selectedColor,
+                        fontSize: max(14, (editThickness ?? drawingState.strokeThickness) * 4),
                         onCommit: { commitPendingText() },
-                        onCancel: {
-                            textInputPosition = nil
-                            pendingText = ""
-                            pendingCalloutTarget = nil
-                            drawingState.isTextInputActive = false
-                        }
+                        onCancel: { resetTextEntry() }
                     )
                     .offset(x: pos.x - 6, y: pos.y - 3)   // compensate the field's padding
                 }
@@ -172,10 +182,8 @@ struct OverlayView: View {
             updateCursor()
         }
         .onReceive(NotificationCenter.default.publisher(for: .cancelTextInput)) { _ in
-            textInputPosition = nil
-            pendingText = ""
-            pendingCalloutTarget = nil
-            drawingState.isTextInputActive = false
+            resetTextEntry()
+            calloutTarget = nil
         }
         .onReceive(NotificationCenter.default.publisher(for: .keystrokeHint)) { note in
             showKeystrokeHint(note)
@@ -208,19 +216,41 @@ struct OverlayView: View {
 
     // MARK: - Drawing gesture handlers
 
-    /// Commit whatever text input is open — as a callout if a target was set,
-    /// otherwise as a plain text label. No-op when nothing is being typed.
+    /// Commit whatever text input is open — updating an element being edited,
+    /// or adding a new callout / text label. No-op when nothing is being typed.
     private func commitPendingText() {
         guard let pos = textInputPosition else { return }
-        if let target = pendingCalloutTarget {
+        if let editID = editingElementID {
+            drawingState.setText(pendingText, forElementID: editID)
+        } else if let target = pendingCalloutTarget {
             drawingState.addTextCallout(target: target, boxOrigin: pos, text: pendingText)
         } else {
             drawingState.addTextElement(at: pos, text: pendingText)
         }
+        resetTextEntry()
+    }
+
+    private func resetTextEntry() {
         textInputPosition = nil
         pendingText = ""
         pendingCalloutTarget = nil
+        editingElementID = nil
+        editColor = nil
+        editThickness = nil
         drawingState.isTextInputActive = false
+    }
+
+    /// Re-open an existing text/callout element for editing (from the select tool).
+    private func beginEditing(_ e: DrawingElement) {
+        commitPendingText()
+        editingElementID = e.id
+        editColor = e.color
+        editThickness = e.thickness
+        pendingText = e.text ?? ""
+        pendingCalloutTarget = e.tool == .textCallout ? e.points.first : nil
+        textInputPosition = (e.tool == .textCallout && e.points.count >= 2) ? e.points[1] : e.points.first
+        drawingState.clearSelection()
+        drawingState.isTextInputActive = true
     }
 
     private func handleDrawingChanged(_ value: DragGesture.Value) {
@@ -264,16 +294,21 @@ struct OverlayView: View {
             return
         }
         if drawingState.selectedTool == .textCallout {
-            commitPendingText()   // finish any open callout first
-            // Drag from the target to where the label box should sit, then type.
-            let target = value.startLocation
-            let boxOrigin = hypot(value.translation.width, value.translation.height) > 20
-                ? value.location
-                : CGPoint(x: value.startLocation.x + 60, y: value.startLocation.y - 60)
-            pendingCalloutTarget = target
-            textInputPosition = boxOrigin
-            pendingText = ""
-            drawingState.isTextInputActive = true
+            let click = value.startLocation
+            if let target = calloutTarget {
+                // Second click: drop the box here and start typing (leader → target).
+                pendingCalloutTarget = target
+                textInputPosition = click
+                pendingText = ""
+                editingElementID = nil; editColor = nil; editThickness = nil
+                drawingState.isTextInputActive = true
+                calloutTarget = nil
+            } else {
+                // First click: anchor the target; a ghost box now follows the cursor.
+                commitPendingText()
+                calloutTarget = click
+                ghostPos = click
+            }
             return
         }
         if drawingState.selectedTool == .text {
@@ -299,15 +334,14 @@ struct OverlayView: View {
 
         if selAction == nil {
             let startPt = value.startLocation
+            didMoveSelection = false
             let isCutMove = drawingState.selectedTool == .cutMove
             if let box = drawingState.selectedBoundingBox, box.contains(startPt) {
-                drawingState.beginTransform()
                 selAction = .moving(last: startPt)
             } else if !isCutMove, let hit = drawingState.hitTest(at: startPt) {
                 if !drawingState.selectedElementIDs.contains(hit.id) {
                     drawingState.selectElement(id: hit.id)
                 }
-                drawingState.beginTransform()
                 selAction = .moving(last: startPt)
             } else {
                 drawingState.clearSelection()
@@ -318,6 +352,10 @@ struct OverlayView: View {
 
         switch selAction {
         case .moving(let last):
+            // Only treat as a move once the pointer actually travels — a pure
+            // click stays a click (→ edit text/callout) and pushes no undo.
+            guard hypot(value.translation.width, value.translation.height) > 4 else { break }
+            if !didMoveSelection { drawingState.beginTransform(); didMoveSelection = true }
             let delta = CGSize(width: value.location.x - last.x,
                                height: value.location.y - last.y)
             drawingState.moveSelected(by: delta)
@@ -334,7 +372,14 @@ struct OverlayView: View {
     private func handleSelectionEnded(_ value: DragGesture.Value) {
         if isDraggingHandle { return }
         if case .moving = selAction {
-            drawingState.commitTransform()
+            if didMoveSelection {
+                drawingState.commitTransform()
+            } else if drawingState.selectedTool == .select,
+                      let hit = drawingState.hitTest(at: value.startLocation),
+                      hit.tool == .text || hit.tool == .textCallout {
+                // Pure click on a text/callout → edit it in place.
+                beginEditing(hit)
+            }
         }
         if case .rubberBanding = selAction {
             if drawingState.selectedTool == .cutMove {
@@ -351,6 +396,7 @@ struct OverlayView: View {
             }
         }
         selAction = nil
+        didMoveSelection = false
     }
 
     // MARK: - Selection visuals
@@ -556,6 +602,34 @@ struct TextInputOverlay: View {
             .onAppear { isFocused = true }
             .onSubmit { onCommit() }
             .onExitCommand { onCancel() }   // Escape cancels directly from the field
+    }
+}
+
+// MARK: - Callout ghost preview (between the two placement clicks)
+
+private struct CalloutGhostView: View {
+    let target: CGPoint
+    let boxOrigin: CGPoint
+    let color: Color
+    let thickness: CGFloat
+
+    var body: some View {
+        Canvas { ctx, _ in
+            let box = DrawingElement.calloutBox(origin: boxOrigin, text: "Label", thickness: thickness)
+            let anchor = CGPoint(x: min(max(target.x, box.minX), box.maxX),
+                                 y: min(max(target.y, box.minY), box.maxY))
+            var leader = Path(); leader.move(to: target); leader.addLine(to: anchor)
+            ctx.stroke(leader, with: .color(color.opacity(0.5)),
+                       style: StrokeStyle(lineWidth: max(1.5, thickness * 0.6), lineCap: .round, dash: [5, 4]))
+            let dot = 3 + thickness * 0.5
+            ctx.fill(Path(ellipseIn: CGRect(x: target.x - dot, y: target.y - dot, width: dot * 2, height: dot * 2)),
+                     with: .color(color.opacity(0.6)))
+            let boxPath = Path(roundedRect: box, cornerRadius: 8)
+            ctx.fill(boxPath, with: .color(Color(red: 0.03, green: 0.03, blue: 0.07).opacity(0.5)))
+            ctx.stroke(boxPath, with: .color(color.opacity(0.6)),
+                       style: StrokeStyle(lineWidth: 1.5, dash: [5, 4]))
+        }
+        .allowsHitTesting(false)
     }
 }
 

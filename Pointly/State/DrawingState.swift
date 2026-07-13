@@ -714,6 +714,24 @@ class DrawingState: ObservableObject {
         saveAnnotations()
     }
 
+    /// Replace the text of an existing text/callout element (edit in place).
+    /// Emptying the text deletes it. One undo step.
+    func setText(_ text: String, forElementID id: UUID) {
+        guard let idx = elements.firstIndex(where: { $0.id == id }) else { return }
+        saveStateForUndo()
+        let old = elements[idx]
+        if text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            elements.remove(at: idx)
+        } else {
+            var new = DrawingElement(tool: old.tool, points: old.points, color: old.color,
+                                     thickness: old.thickness, text: text, isFilled: old.isFilled)
+            new.displayID = old.displayID
+            elements[idx] = new
+        }
+        redoStack.removeAll()
+        saveAnnotations()
+    }
+
     /// Add a text annotation at a specific point
     func addTextElement(at point: CGPoint, text: String) {
         guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
