@@ -511,7 +511,7 @@ private struct HotkeyIllustration: View {
             .animation(.spring(response: 0.42, dampingFraction: 0.72), value: toolbarVisible)
         }
         .task {
-            while true {
+            while !Task.isCancelled {
                 try? await Task.sleep(nanoseconds: 500_000_000)
                 pressed = true
                 try? await Task.sleep(nanoseconds: 350_000_000)
@@ -669,7 +669,7 @@ private struct ModesIllustration: View {
             .frame(height: 42)
         }
         .task {
-            while true {
+            while !Task.isCancelled {
                 try? await Task.sleep(nanoseconds: 1_400_000_000)
                 keysPressed = true
                 try? await Task.sleep(nanoseconds: 300_000_000)
@@ -747,7 +747,7 @@ private struct ToolsIllustration: View {
             .animation(.easeInOut(duration: 0.2), value: selectedIndex)
         }
         .task {
-            while true {
+            while !Task.isCancelled {
                 progress = 0
                 withAnimation(.easeInOut(duration: 0.85)) { progress = 1 }
                 try? await Task.sleep(nanoseconds: 1_300_000_000)

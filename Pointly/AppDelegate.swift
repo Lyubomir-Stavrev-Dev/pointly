@@ -15,25 +15,25 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         CrashReporter.setup()
 
         NSApp.setActivationPolicy(.accessory)
+
+        // Prevent macOS from restoring SwiftUI scene windows on future launches.
+        UserDefaults.standard.set(false, forKey: "NSQuitAlwaysKeepsWindows")
+
+        // Close any visible SwiftUI scene windows (e.g. blank Settings) that macOS
+        // restored from the previous session. Runs synchronously BEFORE the status
+        // item or any of our own windows exist — the old delayed sweep could hide
+        // the just-shown startup overlay (and, on some macOS versions, the status
+        // item's own window).
+        for w in NSApp.windows where w.isVisible {
+            w.orderOut(nil)
+        }
+
         setupMenuBarItem()
 
         // NOTE: The Accessibility permission prompt is deliberately NOT shown at
         // launch — App Review dislikes permission requests before the user sees
         // why. It fires on first entry into interact mode instead, where the
         // global key monitor actually needs it (OverlayWindowManager).
-
-        // Prevent macOS from restoring SwiftUI scene windows on future launches.
-        UserDefaults.standard.set(false, forKey: "NSQuitAlwaysKeepsWindows")
-
-        // Close any visible SwiftUI scene windows (e.g. blank Settings) that macOS
-        // restored from the previous session — only affects windows that are visible
-        // and not ones we explicitly manage.
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-            let ours = [self.onboardingWindow, self.settingsWindow].compactMap { $0 }
-            for w in NSApp.windows where w.isVisible && !ours.contains(w) {
-                w.orderOut(nil)
-            }
-        }
 
         let isFirstLaunch = !UserDefaults.standard.bool(forKey: "hasSeenOnboarding")
         if isFirstLaunch {
@@ -54,6 +54,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
         globalHotkeyManager = GlobalHotkeyManager()
         globalHotkeyManager?.delegate = self
+        // Honor a custom toggle hotkey saved in Settings (otherwise ⌘⇧P default)
+        if let saved = UserDefaults.standard.string(forKey: "globalHotkey") {
+            applyMainHotkeyString(saved)
+        }
         reregisterAllHotkeys()
 
         NotificationCenter.default.addObserver(
@@ -88,10 +92,19 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     // MARK: - Menu Bar Setup
 
     private func setupMenuBarItem() {
-        statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
+        let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
+        statusItem = item
 
-        if let button = statusItem?.button {
-            button.image = NSImage(systemSymbolName: "pencil.circle", accessibilityDescription: "Pointly")
+        // Force-show even if a previous launch persisted a hidden state (happens on
+        // notched Macs when the menu bar overflows, or if the user ever dragged the
+        // item off). This app is menu-bar-only, so the item must never stay hidden.
+        item.isVisible = true
+        item.behavior = []   // system/user cannot remove it
+
+        if let button = item.button {
+            button.image = menuBarImage(named: "pencil.circle")
+            button.imagePosition = .imageOnly
+            button.toolTip = "Pointly"
             button.appearsDisabled = true   // app starts with overlay off
             button.action = #selector(statusItemClicked)
             button.target = self
@@ -121,6 +134,24 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         statusItem?.menu = menu
     }
 
+    // Always returns a non-nil template image so the variable-length status item
+    // can never collapse to zero width (invisible) if an SF Symbol is unavailable.
+    private func menuBarImage(named name: String) -> NSImage {
+        if let img = NSImage(systemSymbolName: name, accessibilityDescription: "Pointly") {
+            img.isTemplate = true
+            return img
+        }
+        let img = NSImage(size: NSSize(width: 18, height: 18), flipped: false) { rect in
+            NSColor.labelColor.setStroke()
+            let path = NSBezierPath(ovalIn: rect.insetBy(dx: 2, dy: 2))
+            path.lineWidth = 1.5
+            path.stroke()
+            return true
+        }
+        img.isTemplate = true
+        return img
+    }
+
     @objc private func statusItemClicked() {}
 
     @objc private func toggleOverlay() {
@@ -143,6 +174,11 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     @objc private func handleHotkeyChanged(_ notification: Notification) {
         guard let hotkeyString = notification.object as? String else { return }
+        applyMainHotkeyString(hotkeyString)
+        reregisterAllHotkeys()
+    }
+
+    private func applyMainHotkeyString(_ hotkeyString: String) {
         var modifiers: NSEvent.ModifierFlags = []
         var keyChar = ""
         for char in hotkeyString {
@@ -158,7 +194,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
               let keyCode = GlobalHotkeyManager.keyCode(for: keyChar) else { return }
         mainHotkeyCode = keyCode
         mainHotkeyMods = modifiers
-        reregisterAllHotkeys()
     }
 
     private func showOnboarding(thenShowToolbar: Bool = true) {
@@ -299,19 +334,17 @@ extension AppDelegate {
     // filled = draw mode, outline = interact (pass-through), dimmed outline = overlay off.
     private func updateMenuBarIcon() {
         guard let button = statusItem?.button else { return }
+        statusItem?.isVisible = true   // keep enforcing visibility on every state change
         if let mgr = overlayWindowManager, mgr.isActive {
             button.appearsDisabled = false
             switch mgr.currentInteractionMode?.currentMode {
             case .interact:
-                button.image = NSImage(systemSymbolName: "pencil.circle",
-                                       accessibilityDescription: "Pointly - Interact Mode")
+                button.image = menuBarImage(named: "pencil.circle")
             default:
-                button.image = NSImage(systemSymbolName: "pencil.circle.fill",
-                                       accessibilityDescription: "Pointly - Draw Mode")
+                button.image = menuBarImage(named: "pencil.circle.fill")
             }
         } else {
-            button.image = NSImage(systemSymbolName: "pencil.circle",
-                                   accessibilityDescription: "Pointly - Inactive")
+            button.image = menuBarImage(named: "pencil.circle")
             button.appearsDisabled = true
         }
     }

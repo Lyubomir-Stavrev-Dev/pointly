@@ -146,6 +146,12 @@ final class ProManager: ObservableObject {
         await MainActor.run { purchaseInProgress = true; errorMessage = nil }
         defer { Task { @MainActor in self.purchaseInProgress = false } }
 
+        // Force a full App Store re-sync (required for restore on a fresh Mac /
+        // new Apple ID — the local transaction cache alone can be empty).
+        // If the user cancels the sign-in, fall through to the local check so a
+        // cached purchase still restores.
+        try? await AppStore.sync()
+
         await refreshEntitlements()
 
         await MainActor.run {
@@ -157,13 +163,24 @@ final class ProManager: ObservableObject {
 
     private func refreshEntitlements() async {
         let proIDs = Set(ProPlan.allCases.map(\.productID))
+        var entitled = false
         for await result in Transaction.currentEntitlements {
             guard case .verified(let tx) = result else { continue }
             guard proIDs.contains(tx.productID) else { continue }
             guard tx.revocationDate == nil else { continue }
-            await MainActor.run { isPro = true }
-            return
+            entitled = true
+            break
         }
+        // No valid entitlement must revoke Pro (refunds/expiry) — but never
+        // clobber the other unlock channels.
+        #if DEBUG
+        if UserDefaults.standard.bool(forKey: "debugForcePro") { entitled = true }
+        #endif
+        #if DIRECT_BUILD
+        if LicenseManager.shared.isLicensed { entitled = true }
+        #endif
+        let isEntitled = entitled
+        await MainActor.run { isPro = isEntitled }
     }
 
     // MARK: - Transaction Listener

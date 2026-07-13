@@ -43,7 +43,11 @@ class ExportManager: ObservableObject {
         savePanel.canCreateDirectories = true
         savePanel.isExtensionHidden = false
 
+        // Drop the draw-mode canvas (level .screenSaver) below the save panel,
+        // otherwise clicks aimed at the panel draw strokes on the canvas instead.
+        NotificationCenter.default.post(name: .lowerCanvasForPanel, object: nil)
         savePanel.begin { [weak self] response in
+            NotificationCenter.default.post(name: .restoreCanvasLevel, object: nil)
             guard response == .OK, let url = savePanel.url, let self else { return }
 
             DispatchQueue.global(qos: .userInitiated).async {
@@ -358,13 +362,20 @@ class ExportManager: ObservableObject {
 
     private func showErrorAlert(_ message: String) {
         DispatchQueue.main.async {
+            NotificationCenter.default.post(name: .lowerCanvasForPanel, object: nil)
             let alert = NSAlert()
             alert.messageText = "Export Error"
             alert.informativeText = message
             alert.alertStyle = .warning
             alert.runModal()
+            NotificationCenter.default.post(name: .restoreCanvasLevel, object: nil)
         }
     }
+}
+
+extension Notification.Name {
+    static let lowerCanvasForPanel = Notification.Name("LowerCanvasForPanel")
+    static let restoreCanvasLevel  = Notification.Name("RestoreCanvasLevel")
 }
 
 // MARK: - Errors

@@ -517,7 +517,7 @@ private struct BlurBrushPreview: View {
             .position(cursorPos)
         }
         .task {
-            while true {
+            while !Task.isCancelled {
                 finishedStrokes = []
                 livePoints      = []
 
@@ -672,7 +672,7 @@ private struct LaserPointerPreview: View {
             .animation(.easeOut(duration: 0.2), value: drawProgress)
         }
         .task {
-            while true {
+            while !Task.isCancelled {
                 drawProgress  = 0
                 globalOpacity = 1.0
                 cursorPos     = point(at: 0)
@@ -786,7 +786,7 @@ private struct DotPenPreview: View {
             .opacity(opacity)
         }
         .task {
-            while true {
+            while !Task.isCancelled {
                 hAxisProg = 0; vAxisProg = 0; circleProg = 0; opacity = 1
                 cursorPos = CGPoint(x: cx - 120, y: cy)
                 try? await Task.sleep(nanoseconds: 300_000_000)
@@ -928,7 +928,7 @@ private struct CutMovePreview: View {
             }
         }
         .task {
-            while true {
+            while !Task.isCancelled {
                 // Reset
                 selectionOpacity = 0; offsetX = 0; offsetY = 0
                 try? await Task.sleep(nanoseconds: 400_000_000)
@@ -1013,7 +1013,7 @@ private struct SpotlightPreview: View {
         }
         .task {
             var i = 0
-            while true {
+            while !Task.isCancelled {
                 withAnimation(.easeInOut(duration: 1.3)) {
                     spotPos = waypoints[i % waypoints.count]
                 }

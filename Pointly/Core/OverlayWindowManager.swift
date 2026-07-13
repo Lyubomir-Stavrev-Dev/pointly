@@ -50,6 +50,12 @@ class OverlayWindowManager: ObservableObject {
         NotificationCenter.default.addObserver(
             self, selector: #selector(handleCaptureAndLift(_:)),
             name: .captureAndLift, object: nil)
+        NotificationCenter.default.addObserver(
+            self, selector: #selector(lowerCanvasForPanel),
+            name: .lowerCanvasForPanel, object: nil)
+        NotificationCenter.default.addObserver(
+            self, selector: #selector(restoreCanvasLevel),
+            name: .restoreCanvasLevel, object: nil)
 
         sharedDrawingState.onWillUndo     = { [weak self] in self?.dismissAllLiftedCaptures() }
         sharedDrawingState.onWillRedo     = { [weak self] in self?.dismissAllLiftedCaptures() }
@@ -345,12 +351,20 @@ class OverlayWindowManager: ObservableObject {
         canvasWindows[mainID]?.makeKey()
 
         if isInteract { installGlobalKeyMonitor() } else { removeGlobalKeyMonitor() }
+
+        // Editing hotkeys (⌘Z/⌘W/…) are owned only in capture modes — re-evaluate
+        // which set to hold whenever mode or pass-through tool changes.
+        registerToolHotkeys()
     }
 
     // MARK: - Carbon tool hotkeys (works without Accessibility, like the main toggle)
 
     func registerToolHotkeys() {
         toolHotkeyManager.unregisterAll()
+        // Never own hotkeys while the overlay is hidden — Carbon consumes the
+        // keystroke system-wide even when the callback no-ops (e.g. editing a
+        // binding in Settings would kill ⌘Z/⌘W in every app).
+        guard isOverlayActive else { return }
         let ds = sharedDrawingState
         let im = sharedInteractionMode
 
@@ -381,6 +395,20 @@ class OverlayWindowManager: ObservableObject {
             }
         }
 
+        // Cmd+Escape → toggle interact/draw mode (keyCode 53) — kept in every
+        // mode so the user can always get back to drawing.
+        toolHotkeyManager.registerHotkey(keyCode: 53, modifiers: .command) { [weak self] in
+            guard let self, self.isOverlayActive else { return }
+            DispatchQueue.main.async { self.sharedInteractionMode.toggleMode() }
+        }
+
+        // The editing shortcuts below hijack ⌘Z/⌘⇧Z/⌘⌫/⌘W/⌘=/⌘− system-wide
+        // (Carbon consumes them before the frontmost app sees them). Own them
+        // only while the canvas actually captures the mouse — in interact mode
+        // and with the pass-through cursor tool they belong to the user's app.
+        let passThrough = im.currentMode == .interact || ds.selectedTool == .cursor
+        guard !passThrough else { return }
+
         // Cmd+Z → undo (keyCode 6)
         toolHotkeyManager.registerHotkey(keyCode: 6, modifiers: .command) { [weak self] in
             guard let self, self.isOverlayActive else { return }
@@ -397,12 +425,6 @@ class OverlayWindowManager: ObservableObject {
         toolHotkeyManager.registerHotkey(keyCode: 51, modifiers: .command) { [weak self] in
             guard let self, self.isOverlayActive else { return }
             DispatchQueue.main.async { ds.clearAll() }
-        }
-
-        // Cmd+Escape → toggle interact/draw mode (keyCode 53)
-        toolHotkeyManager.registerHotkey(keyCode: 53, modifiers: .command) { [weak self] in
-            guard let self, self.isOverlayActive else { return }
-            DispatchQueue.main.async { self.sharedInteractionMode.toggleMode() }
         }
 
         // Cmd+W → whiteboard (keyCode 13)
@@ -496,8 +518,10 @@ class OverlayWindowManager: ObservableObject {
     // MARK: - Show / Hide
 
     func toggleOverlay() {
-        if isOverlayActive { hideAll() } else { showAll() }
+        // Flip the flag first — registerToolHotkeys() (via showAll →
+        // applyModeToWindows) guards on it.
         isOverlayActive.toggle()
+        if isOverlayActive { showAll() } else { hideAll() }
     }
 
     private func showAll() {
@@ -520,11 +544,10 @@ class OverlayWindowManager: ObservableObject {
             }
         }
 
-        applyModeToWindows()
+        applyModeToWindows()   // also registers the hotkey set for the current mode
         let mainID = displayID(for: NSScreen.main ?? NSScreen.screens[0])
         canvasWindows[mainID]?.makeKey()
         NSApp.activate(ignoringOtherApps: true)
-        registerToolHotkeys()
     }
 
     private func hideAll() {
@@ -689,17 +712,19 @@ class OverlayWindowManager: ObservableObject {
         floating.isReleasedWhenClosed = false
         floating.collectionBehavior   = [.canJoinAllSpaces, .fullScreenAuxiliary]
 
-        let captured = floating
+        // Weak captures — the panel retains its contentView, which stores these
+        // closures; a strong capture would cycle and leak the panel + screenshot
+        // on every Cut & Move. The panel stays alive via `liftedCaptures`.
         floating.contentView = FirstMouseHostingView(rootView:
             LiftedCaptureView(
                 image: image,
-                onDismiss: { [weak self] in
-                    captured.orderOut(nil)
+                onDismiss: { [weak self, weak floating] in
+                    floating?.orderOut(nil)
                     self?.sharedDrawingState.removeLiftedCover(id: coverID)
-                    self?.liftedCaptures.removeAll { $0.panel === captured }
+                    self?.liftedCaptures.removeAll { $0.panel === floating }
                 },
-                onGetFrame: { captured.frame },
-                onSetFrame: { newFrame in captured.setFrame(newFrame, display: true) }
+                onGetFrame: { [weak floating] in floating?.frame ?? .zero },
+                onSetFrame: { [weak floating] newFrame in floating?.setFrame(newFrame, display: true) }
             )
         )
         liftedCaptures.append((panel: floating, coverID: coverID))
@@ -770,7 +795,7 @@ class OverlayWindowManager: ObservableObject {
     var currentInteractionMode: InteractionModeManager? { sharedInteractionMode }
     var isActive: Bool { isOverlayActive }
 
-    func lowerCanvasForPanel() {
+    @objc func lowerCanvasForPanel() {
         for win in canvasWindows.values { win.level = .normal }
     }
 
