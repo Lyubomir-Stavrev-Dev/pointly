@@ -64,7 +64,6 @@ struct FloatingToolbar: View {
         AdaptiveStack(horizontal: horizontal, spacing: 0, hAlign: .top) {
             dragHandle
             modeButton
-                .frame(width: horizontal ? 96 : nil)
                 .padding(horizontal ? .leading : .top, 6)
 
             divider()
@@ -249,29 +248,18 @@ struct FloatingToolbar: View {
             : interactionMode.currentMode.displayName
 
         return Button { interactionMode.toggleMode() } label: {
-            Group {
-                if horizontal {
-                    // Wide pill: icon beside the label.
-                    HStack(spacing: 6) {
-                        Image(systemName: icon).font(.system(size: 13, weight: .semibold))
-                        Text(label).font(.system(size: 9, weight: .bold)).lineLimit(1)
+            // Same compact stacked design in both orientations: icon on top,
+            // the word spelled vertically, one letter per line.
+            VStack(spacing: 5) {
+                Image(systemName: icon).font(.system(size: 14, weight: .semibold))
+                VStack(spacing: 3) {
+                    ForEach(Array(label.uppercased().enumerated()), id: \.offset) { _, ch in
+                        Text(String(ch)).font(.system(size: 15, weight: .bold))
                     }
-                    .frame(maxWidth: .infinity)
-                    .frame(height: 34)
-                } else {
-                    // Slim column: icon on top, the word spelled vertically.
-                    VStack(spacing: 5) {
-                        Image(systemName: icon).font(.system(size: 14, weight: .semibold))
-                        VStack(spacing: 3) {
-                            ForEach(Array(label.uppercased().enumerated()), id: \.offset) { _, ch in
-                                Text(String(ch)).font(.system(size: 15, weight: .bold))
-                            }
-                        }
-                    }
-                    .frame(width: 44)
-                    .padding(.vertical, 10)
                 }
             }
+            .frame(width: 44)
+            .padding(.vertical, 10)
             .foregroundColor(.white.opacity(previewMode ? 0.7 : 1.0))
             .background(
                 RoundedRectangle(cornerRadius: 10)
