@@ -18,11 +18,11 @@ let package = Package(
                 "Tests",
                 "Pointly-Bridging-Header.h",
                 "Pointly.entitlements",
-                "Info.plist"
+                "Info.plist",
+                "Products.storekit"
             ],
             resources: [
-                .process("Resources/Assets.xcassets"),
-                .process("Core/Rendering/Shaders/DrawingShaders.metal")
+                .process("Resources/Assets.xcassets")
             ]
         )
     ]

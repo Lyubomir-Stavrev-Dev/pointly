@@ -854,6 +854,7 @@ class OverlayWindowManager: ObservableObject {
     private var timerPanel: NSPanel?
     private let timerController = CountdownTimerController()
     private let presenterCues = PresenterCuesController()
+    private let presenterZoom = PresenterZoomController()
 
     func togglePresenterCues() {
         guard ProManager.shared.isPro else {
@@ -861,6 +862,14 @@ class OverlayWindowManager: ObservableObject {
             return
         }
         presenterCues.toggle()
+    }
+
+    func togglePresenterZoom() {
+        guard ProManager.shared.isPro else {
+            showPaywall(tool: nil, initialPlan: .annual)
+            return
+        }
+        presenterZoom.toggle()
     }
 
     func toggleTimerPanel() {
