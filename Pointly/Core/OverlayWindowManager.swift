@@ -848,6 +848,51 @@ class OverlayWindowManager: ObservableObject {
         if !isOverlayActive { toggleOverlay() }
         withAnimation(.easeInOut(duration: 0.4)) { sharedDrawingState.whiteboardMode.toggle() }
     }
+
+    // MARK: - Countdown timer (Pro)
+
+    private var timerPanel: NSPanel?
+    private let timerController = CountdownTimerController()
+
+    func toggleTimerPanel() {
+        guard ProManager.shared.isPro else {
+            showPaywall(tool: nil, initialPlan: .annual)
+            return
+        }
+        if let panel = timerPanel {
+            timerController.pause()
+            panel.orderOut(nil)
+            timerPanel = nil
+            return
+        }
+        let size = NSSize(width: 210, height: 170)
+        let screen = NSScreen.main ?? NSScreen.screens.first
+        let frame = screen.map {
+            NSRect(x: $0.visibleFrame.maxX - size.width - 24,
+                   y: $0.visibleFrame.maxY - size.height - 24,
+                   width: size.width, height: size.height)
+        } ?? NSRect(origin: .zero, size: size)
+
+        let panel = NSPanel(contentRect: frame,
+                            styleMask: [.borderless, .nonactivatingPanel],
+                            backing: .buffered, defer: false)
+        panel.level                = NSWindow.Level(rawValue: NSWindow.Level.screenSaver.rawValue + 2)
+        panel.backgroundColor      = .clear
+        panel.isOpaque             = false
+        panel.hasShadow            = false   // the SwiftUI card draws its own
+        panel.isReleasedWhenClosed = false
+        panel.isMovableByWindowBackground = true
+        panel.collectionBehavior   = [.canJoinAllSpaces, .fullScreenAuxiliary]
+        panel.contentView = FirstMouseHostingView(rootView:
+            TimerPanelView(controller: timerController, onClose: { [weak self, weak panel] in
+                self?.timerController.pause()
+                panel?.orderOut(nil)
+                self?.timerPanel = nil
+            })
+        )
+        timerPanel = panel
+        panel.orderFrontRegardless()
+    }
 }
 
 // MARK: - ToolbarPanel
