@@ -257,6 +257,34 @@ class ExportManager: ObservableObject {
         case .text:
             drawText(element, color: nsColor)
 
+        case .textCallout:
+            guard element.points.count >= 2 else { return }
+            let target = element.points[0]
+            let box = DrawingElement.calloutBox(origin: element.points[1],
+                                                text: element.text ?? "", thickness: element.thickness)
+            let anchor = CGPoint(x: min(max(target.x, box.minX), box.maxX),
+                                 y: min(max(target.y, box.minY), box.maxY))
+            nsColor.withAlphaComponent(element.opacity).setStroke()
+            let leader = NSBezierPath()
+            leader.lineWidth = max(1.5, element.thickness * 0.6)
+            leader.lineCapStyle = .round
+            leader.move(to: target); leader.line(to: anchor)
+            leader.stroke()
+            let dot = 3 + element.thickness * 0.5
+            nsColor.withAlphaComponent(element.opacity).setFill()
+            NSBezierPath(ovalIn: NSRect(x: target.x - dot, y: target.y - dot, width: dot * 2, height: dot * 2)).fill()
+            let boxPath = NSBezierPath(roundedRect: box, xRadius: 8, yRadius: 8)
+            NSColor(red: 0.03, green: 0.03, blue: 0.07, alpha: 0.9).setFill()
+            boxPath.fill()
+            nsColor.withAlphaComponent(element.opacity).setStroke()
+            boxPath.lineWidth = 1.5
+            boxPath.stroke()
+            let cf = NSFont.systemFont(ofSize: DrawingElement.calloutFontSize(for: element.thickness), weight: .semibold)
+            let cattrs: [NSAttributedString.Key: Any] = [.font: cf, .foregroundColor: NSColor.white]
+            let cstr = NSAttributedString(string: element.text ?? "", attributes: cattrs)
+            let csize = cstr.size()
+            cstr.draw(at: NSPoint(x: box.midX - csize.width / 2, y: box.midY - csize.height / 2))
+
         case .stepBadge:
             guard let center = element.points.first else { return }
             let r = DrawingElement.stepBadgeRadius(for: element.thickness)

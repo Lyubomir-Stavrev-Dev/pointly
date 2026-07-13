@@ -15,7 +15,7 @@ enum DrawingTool: String, CaseIterable {
     case dotPen = "dotPen"
     case cutMove = "cutMove"
     case stepBadge = "stepBadge"
-    case fadingPen = "fadingPen"
+    case textCallout = "textCallout"
 
     // Shape Tools
     case rectangle = "rectangle"
@@ -44,7 +44,7 @@ enum DrawingTool: String, CaseIterable {
         case .dotPen: return "Dot Pen"
         case .cutMove: return "Cut & Move"
         case .stepBadge: return "Step Badge"
-        case .fadingPen: return "Fading Ink"
+        case .textCallout: return "Callout"
         case .rectangle: return "Rectangle"
         case .ellipse: return "Ellipse"
         case .triangle: return "Triangle"
@@ -71,7 +71,7 @@ enum DrawingTool: String, CaseIterable {
         case .dotPen: return "circle.dotted"
         case .cutMove: return "scissors"
         case .stepBadge: return "1.circle"
-        case .fadingPen: return "scribble.variable"
+        case .textCallout: return "text.bubble"
         case .rectangle: return "rectangle"
         case .ellipse: return "circle"
         case .triangle: return "triangle"
@@ -98,7 +98,7 @@ enum DrawingTool: String, CaseIterable {
         case .dotPen: return "Dotted drawing like math diagrams"
         case .cutMove: return "Select an area and drag annotations to a new position"
         case .stepBadge: return "Click to drop auto-numbered badges for walkthroughs"
-        case .fadingPen: return "Ink that fades away on its own — never clear the screen"
+        case .textCallout: return "A labeled box with a leader line pointing at anything"
         case .rectangle: return "Draw rectangular shapes"
         case .ellipse: return "Draw circular and oval shapes"
         case .triangle: return "Draw triangle shapes"
@@ -117,7 +117,7 @@ enum DrawingTool: String, CaseIterable {
     /// Whether this tool supports thickness adjustment
     var supportsThickness: Bool {
         switch self {
-        case .pen, .marker, .highlighter, .line, .arrow, .dotPen, .fadingPen, .stepBadge:
+        case .pen, .marker, .highlighter, .line, .arrow, .dotPen, .stepBadge, .textCallout:
             return true
         case .blurBrush:
             return true
@@ -145,7 +145,7 @@ enum DrawingTool: String, CaseIterable {
     /// Whether this tool creates persistent marks
     var isPersistent: Bool {
         switch self {
-        case .laserPointer, .fadingPen:
+        case .laserPointer:
             return false  // Fades over time
         case .magnifier, .spotlight, .cursor:
             return false  // Real-time effect only
@@ -228,20 +228,14 @@ struct DrawingElement: Identifiable {
         return !tool.isPersistent
     }
     
-    /// Current opacity considering time-based fade.
-    /// Laser: fades continuously over 3s. Fading Ink: holds full for 4s so the
-    /// audience can read it, then fades out over 1.5s.
+    /// Current opacity considering time-based fade (laser pointer).
     var currentOpacity: Double {
         guard shouldFade else { return opacity }
 
         let age = Date().timeIntervalSince(timestamp)
-        let holdTime: TimeInterval = tool == .fadingPen ? 4.0 : 0
-        let fadeTime: TimeInterval = tool == .fadingPen ? 1.5 : 3.0
-
-        if age <= holdTime { return opacity }
-        let fadeProgress = (age - holdTime) / fadeTime
-        if fadeProgress >= 1 { return 0.0 }
-        return opacity * (1.0 - fadeProgress)
+        let fadeTime: TimeInterval = 3.0
+        if age >= fadeTime { return 0.0 }
+        return opacity * (1.0 - age / fadeTime)
     }
 
     var boundingBox: CGRect {
@@ -256,6 +250,11 @@ struct DrawingElement: Identifiable {
             let r = DrawingElement.stepBadgeRadius(for: thickness)
             return CGRect(x: pt.x - r, y: pt.y - r, width: r * 2, height: r * 2)
         }
+        if tool == .textCallout, points.count >= 2 {
+            let box = DrawingElement.calloutBox(origin: points[1], text: text ?? "", thickness: thickness)
+            // Include the target point so selection/erase cover the leader too
+            return box.union(CGRect(x: points[0].x, y: points[0].y, width: 1, height: 1))
+        }
         let xs = points.map(\.x), ys = points.map(\.y)
         return CGRect(x: xs.min()!, y: ys.min()!,
                       width: xs.max()! - xs.min()!,
@@ -266,9 +265,18 @@ struct DrawingElement: Identifiable {
         12 + thickness * 1.5
     }
 
+    static func calloutFontSize(for thickness: CGFloat) -> CGFloat { max(13, thickness * 3.2) }
+
+    static func calloutBox(origin: CGPoint, text: String, thickness: CGFloat) -> CGRect {
+        let fontSize = calloutFontSize(for: thickness)
+        let w = max(48, CGFloat(text.count) * fontSize * 0.6 + 22)
+        let h = fontSize * 1.5 + 12
+        return CGRect(x: origin.x, y: origin.y, width: w, height: h)
+    }
+
     func contains(_ point: CGPoint, threshold: CGFloat = 12) -> Bool {
         let box = boundingBox.insetBy(dx: -threshold, dy: -threshold)
-        if tool.isShape || tool == .text || tool == .stepBadge { return box.contains(point) }
+        if tool.isShape || tool == .text || tool == .stepBadge || tool == .textCallout { return box.contains(point) }
         guard points.count > 1 else {
             return points.first.map { hypot($0.x - point.x, $0.y - point.y) < threshold } ?? false
         }
@@ -689,6 +697,23 @@ class DrawingState: ObservableObject {
         saveAnnotations()
     }
 
+    /// Add a callout: a labeled box at `boxOrigin` with a leader line to `target`.
+    func addTextCallout(target: CGPoint, boxOrigin: CGPoint, text: String) {
+        guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
+        saveStateForUndo()
+        var element = DrawingElement(
+            tool: .textCallout,
+            points: [target, boxOrigin],
+            color: selectedColor,
+            thickness: strokeThickness,
+            text: text
+        )
+        element.displayID = activeDisplayID
+        elements.append(element)
+        redoStack.removeAll()
+        saveAnnotations()
+    }
+
     /// Add a text annotation at a specific point
     func addTextElement(at point: CGPoint, text: String) {
         guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
@@ -776,8 +801,6 @@ class DrawingState: ObservableObject {
         switch element.tool {
         case .laserPointer:
             scheduleRemoval(of: element, after: 3.5)
-        case .fadingPen:
-            scheduleRemoval(of: element, after: 6.0)   // 4s hold + 1.5s fade + margin
         default:
             break
         }

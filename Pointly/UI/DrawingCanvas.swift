@@ -46,10 +46,12 @@ struct DrawingCanvas: View {
         guard !element.points.isEmpty else { return }
         
         switch element.tool {
-        case .pen, .highlighter, .fadingPen:
+        case .pen, .highlighter:
             drawStroke(element, in: context)
         case .stepBadge:
             drawStepBadge(element, in: context)
+        case .textCallout:
+            drawCallout(element, in: context)
         case .eraser:
             // Eraser is handled by removing elements, no drawing needed
             break
@@ -197,6 +199,39 @@ struct DrawingCanvas: View {
             context.fill(path, with: .color(element.color.opacity(element.opacity * 0.3)))
         }
         strokeWithGlow(path, color: element.color, thickness: element.thickness, in: context)
+    }
+
+    // Callout: leader line from the target to a rounded label box with text.
+    private func drawCallout(_ element: DrawingElement, in context: GraphicsContext) {
+        guard element.points.count >= 2 else { return }
+        let target = element.points[0]
+        let box = DrawingElement.calloutBox(origin: element.points[1],
+                                            text: element.text ?? "", thickness: element.thickness)
+        let color = element.color
+
+        // Leader line from the target to the nearest point on the box edge
+        let anchor = CGPoint(x: min(max(target.x, box.minX), box.maxX),
+                             y: min(max(target.y, box.minY), box.maxY))
+        var leader = Path()
+        leader.move(to: target)
+        leader.addLine(to: anchor)
+        context.stroke(leader, with: .color(color.opacity(0.9)),
+                       style: StrokeStyle(lineWidth: max(1.5, element.thickness * 0.6), lineCap: .round))
+        // Dot on the target
+        let dot = 3 + element.thickness * 0.5
+        context.fill(Path(ellipseIn: CGRect(x: target.x - dot, y: target.y - dot,
+                                            width: dot * 2, height: dot * 2)),
+                     with: .color(color))
+
+        // Rounded box: dark glass fill so text reads on any background, brand border
+        let boxPath = Path(roundedRect: box, cornerRadius: 8)
+        context.fill(boxPath, with: .color(Color(red: 0.03, green: 0.03, blue: 0.07).opacity(0.9)))
+        context.stroke(boxPath, with: .color(color), style: StrokeStyle(lineWidth: 1.5))
+
+        let label = Text(element.text ?? "")
+            .font(.system(size: DrawingElement.calloutFontSize(for: element.thickness), weight: .semibold))
+            .foregroundColor(.white)
+        context.draw(label, at: CGPoint(x: box.midX, y: box.midY), anchor: .center)
     }
 
     // Auto-numbered step badge: colored disc + soft halo + white bold number

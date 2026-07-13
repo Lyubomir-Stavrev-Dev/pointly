@@ -20,6 +20,7 @@ struct OverlayView: View {
 
     @State private var textInputPosition: CGPoint? = nil
     @State private var pendingText = ""
+    @State private var pendingCalloutTarget: CGPoint? = nil   // set while typing a callout label
 
     // Selection / move state
     private enum SelAction { case moving(last: CGPoint), rubberBanding }
@@ -90,15 +91,11 @@ struct OverlayView: View {
                         text: $pendingText,
                         color: drawingState.selectedColor,
                         fontSize: max(14, drawingState.strokeThickness * 4),
-                        onCommit: {
-                            drawingState.addTextElement(at: pos, text: pendingText)
-                            textInputPosition = nil
-                            pendingText = ""
-                            drawingState.isTextInputActive = false
-                        },
+                        onCommit: { commitPendingText() },
                         onCancel: {
                             textInputPosition = nil
                             pendingText = ""
+                            pendingCalloutTarget = nil
                             drawingState.isTextInputActive = false
                         }
                     )
@@ -157,12 +154,7 @@ struct OverlayView: View {
             if tool != .select && tool != .cutMove { drawingState.clearSelection() }
             // Commit in-progress text instead of leaving the field floating
             // (empty text is dropped by addTextElement's guard).
-            if let pos = textInputPosition {
-                drawingState.addTextElement(at: pos, text: pendingText)
-                textInputPosition = nil
-                pendingText = ""
-                drawingState.isTextInputActive = false
-            }
+            commitPendingText()
             // Reset any in-flight gesture — tool hotkeys fire mid-drag, and a
             // half-finished stroke/move otherwise corrupts the next gesture
             // (ghost strokes, un-undoable erases, stuck rubber band).
@@ -182,6 +174,7 @@ struct OverlayView: View {
         .onReceive(NotificationCenter.default.publisher(for: .cancelTextInput)) { _ in
             textInputPosition = nil
             pendingText = ""
+            pendingCalloutTarget = nil
             drawingState.isTextInputActive = false
         }
         .onReceive(NotificationCenter.default.publisher(for: .keystrokeHint)) { note in
@@ -215,6 +208,21 @@ struct OverlayView: View {
 
     // MARK: - Drawing gesture handlers
 
+    /// Commit whatever text input is open — as a callout if a target was set,
+    /// otherwise as a plain text label. No-op when nothing is being typed.
+    private func commitPendingText() {
+        guard let pos = textInputPosition else { return }
+        if let target = pendingCalloutTarget {
+            drawingState.addTextCallout(target: target, boxOrigin: pos, text: pendingText)
+        } else {
+            drawingState.addTextElement(at: pos, text: pendingText)
+        }
+        textInputPosition = nil
+        pendingText = ""
+        pendingCalloutTarget = nil
+        drawingState.isTextInputActive = false
+    }
+
     private func handleDrawingChanged(_ value: DragGesture.Value) {
         guard interactionMode.currentMode == .draw else { return }
         drawingState.activeDisplayID = displayID
@@ -232,7 +240,8 @@ struct OverlayView: View {
             return
         }
         if drawingState.selectedTool == .text { return }
-        if drawingState.selectedTool == .stepBadge { return }   // click places on gesture end
+        if drawingState.selectedTool == .stepBadge { return }    // click places on gesture end
+        if drawingState.selectedTool == .textCallout { return }  // drag defines target→box on end
 
         if !isDrawing {
             isDrawing = true
@@ -254,13 +263,24 @@ struct OverlayView: View {
             }
             return
         }
+        if drawingState.selectedTool == .textCallout {
+            commitPendingText()   // finish any open callout first
+            // Drag from the target to where the label box should sit, then type.
+            let target = value.startLocation
+            let boxOrigin = hypot(value.translation.width, value.translation.height) > 20
+                ? value.location
+                : CGPoint(x: value.startLocation.x + 60, y: value.startLocation.y - 60)
+            pendingCalloutTarget = target
+            textInputPosition = boxOrigin
+            pendingText = ""
+            drawingState.isTextInputActive = true
+            return
+        }
         if drawingState.selectedTool == .text {
             if hypot(value.translation.width, value.translation.height) < 8 {
                 // Commit any in-progress text before opening a new input —
                 // click-away used to silently discard what was typed.
-                if let pos = textInputPosition {
-                    drawingState.addTextElement(at: pos, text: pendingText)
-                }
+                commitPendingText()
                 textInputPosition = value.startLocation
                 pendingText = ""
                 drawingState.isTextInputActive = true
