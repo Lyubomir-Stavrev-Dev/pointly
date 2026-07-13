@@ -774,7 +774,8 @@ class OverlayWindowManager: ObservableObject {
         showPaywall(tool: nil, initialPlan: plan)
     }
 
-    func showPaywall(tool: DrawingTool?, isWhiteboardCanvas: Bool = false, initialPlan: ProPlan = .annual) {
+    func showPaywall(tool: DrawingTool?, isWhiteboardCanvas: Bool = false,
+                     feature: ProFeature? = nil, initialPlan: ProPlan = .annual) {
         paywallPanel?.orderOut(nil)
 
         let size = CGSize(width: 400, height: 644)   // must match ProPaywallView's fixed frame — a shorter panel clipped the App Review-required Terms/Privacy links
@@ -797,7 +798,7 @@ class OverlayWindowManager: ObservableObject {
         panel.level = NSWindow.Level(rawValue: NSWindow.Level.screenSaver.rawValue + 3)
 
         panel.contentView = FirstMouseHostingView(rootView:
-            ProPaywallView(tool: tool, isWhiteboardCanvas: isWhiteboardCanvas,
+            ProPaywallView(tool: tool, isWhiteboardCanvas: isWhiteboardCanvas, feature: feature,
                            proManager: .shared, onDismiss: { [weak self, weak panel] in
                 panel?.orderOut(nil)
                 self?.paywallPanel = nil
@@ -858,7 +859,7 @@ class OverlayWindowManager: ObservableObject {
 
     func togglePresenterCues() {
         guard ProManager.shared.isPro else {
-            showPaywall(tool: nil, initialPlan: .annual)
+            showPaywall(tool: nil, feature: .cues)
             return
         }
         presenterCues.toggle()
@@ -866,7 +867,7 @@ class OverlayWindowManager: ObservableObject {
 
     func togglePresenterZoom() {
         guard ProManager.shared.isPro else {
-            showPaywall(tool: nil, initialPlan: .annual)
+            showPaywall(tool: nil, feature: .zoom)
             return
         }
         presenterZoom.toggle()
@@ -874,7 +875,7 @@ class OverlayWindowManager: ObservableObject {
 
     func toggleTimerPanel() {
         guard ProManager.shared.isPro else {
-            showPaywall(tool: nil, initialPlan: .annual)
+            showPaywall(tool: nil, feature: .timer)
             return
         }
         if let panel = timerPanel {

@@ -55,11 +55,35 @@ extension DrawingTool {
     }
 }
 
+// MARK: - Pro features that aren't drawing tools (menu-bar items)
+
+enum ProFeature {
+    case whiteboard, timer, cues, zoom
+
+    var title: String {
+        switch self {
+        case .whiteboard: return "Whiteboard Canvas is Pro"
+        case .timer:      return "Countdown Timer is Pro"
+        case .cues:       return "Presenter Cues is Pro"
+        case .zoom:       return "Presenter Zoom is Pro"
+        }
+    }
+    var tagline: String {
+        switch self {
+        case .whiteboard: return "Draw on an infinite dark grid canvas — perfect for teaching and brainstorming."
+        case .timer:      return "Run a branded on-screen countdown — ideal for breaks, workshops, and time-boxing."
+        case .cues:       return "Show click ripples and keystrokes on screen — made for tutorials and streams."
+        case .zoom:       return "Zoom into any part of the screen and pan around it — highlight the tiny details live."
+        }
+    }
+}
+
 // MARK: - Main view
 
 struct ProPaywallView: View {
     let tool: DrawingTool?
     var isWhiteboardCanvas: Bool = false
+    var feature: ProFeature? = nil
     @ObservedObject var proManager: ProManager
     var onDismiss: () -> Void
     var initialPlan: ProPlan = .annual
@@ -91,7 +115,14 @@ struct ProPaywallView: View {
             VStack(spacing: 0) {
                 // Feature animation
                 ZStack {
-                    if isWhiteboardCanvas {
+                    if let feature {
+                        switch feature {
+                        case .whiteboard: WhiteboardCanvasPreview()
+                        case .timer:      TimerPreview()
+                        case .cues:       PresenterCuesPreview()
+                        case .zoom:       PresenterZoomPreview()
+                        }
+                    } else if isWhiteboardCanvas {
                         WhiteboardCanvasPreview()
                     } else if let tool {
                         switch tool {
@@ -100,6 +131,8 @@ struct ProPaywallView: View {
                         case .spotlight:    SpotlightPreview()
                         case .dotPen:       DotPenPreview()
                         case .cutMove:      CutMovePreview()
+                        case .textCallout:  CalloutPreview()
+                        case .stepBadge:    StepBadgePreview()
                         default:            genericProPreview
                         }
                     } else {
@@ -125,15 +158,15 @@ struct ProPaywallView: View {
                                 .fill(paywallGradient)
                                 .frame(width: 36, height: 36)
                                 .shadow(color: (Color(hex: "#F4644D") ?? .orange).opacity(0.5), radius: 10, x: 0, y: 4)
-                            Image(systemName: (tool != nil || isWhiteboardCanvas) ? "lock.fill" : "crown.fill")
+                            Image(systemName: (tool != nil || isWhiteboardCanvas || feature != nil) ? "lock.fill" : "crown.fill")
                                 .font(.system(size: 14, weight: .semibold))
                                 .foregroundColor(.white)
                         }
-                        Text(isWhiteboardCanvas ? "Whiteboard Canvas is Pro" : tool != nil ? "\(tool!.proTitle) is Pro" : "Unlock Pointly Pro")
+                        Text(feature?.title ?? (isWhiteboardCanvas ? "Whiteboard Canvas is Pro" : tool != nil ? "\(tool!.proTitle) is Pro" : "Unlock Pointly Pro"))
                             .font(.system(size: 19, weight: .bold, design: .rounded))
                             .foregroundColor(.white)
-                        if let tool {
-                            Text(tool.proTagline)
+                        if let taglineText = feature?.tagline ?? tool?.proTagline {
+                            Text(taglineText)
                                 .font(.system(size: 11))
                                 .foregroundColor(.white.opacity(0.45))
                                 .multilineTextAlignment(.center)
@@ -1028,6 +1061,241 @@ private struct SpotlightPreview: View {
                 }
                 i += 1
                 try? await Task.sleep(nanoseconds: 1_500_000_000)
+            }
+        }
+    }
+}
+
+// MARK: - Callout preview
+
+private struct CalloutPreview: View {
+    @State private var typed = 0        // characters revealed
+    @State private var appear: CGFloat = 0
+    private let full = "Click here"
+    private let target = CGPoint(x: 120, y: 108)
+    private let box = CGRect(x: 150, y: 34, width: 150, height: 40)
+
+    var body: some View {
+        ZStack {
+            Color(red: 0.06, green: 0.06, blue: 0.12)
+
+            // Target dot
+            Circle().fill(Color(hex: "#F4644D") ?? .orange)
+                .frame(width: 10, height: 10)
+                .position(target)
+                .opacity(Double(appear))
+
+            // Leader line
+            Path { p in
+                p.move(to: target)
+                p.addLine(to: CGPoint(x: box.minX, y: box.maxY))
+            }
+            .trim(from: 0, to: appear)
+            .stroke(AnyShapeStyle(paywallGradient),
+                    style: StrokeStyle(lineWidth: 2, lineCap: .round))
+
+            // Label box
+            RoundedRectangle(cornerRadius: 8)
+                .fill(Color(red: 0.03, green: 0.03, blue: 0.07).opacity(0.95))
+                .overlay(RoundedRectangle(cornerRadius: 8)
+                    .strokeBorder(AnyShapeStyle(paywallGradient), lineWidth: 1.5))
+                .frame(width: box.width, height: box.height)
+                .position(x: box.midX, y: box.midY)
+                .scaleEffect(appear)
+                .overlay(
+                    Text(String(full.prefix(typed)))
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundColor(.white)
+                        .position(x: box.midX, y: box.midY)
+                        .opacity(Double(appear))
+                )
+        }
+        .task {
+            while !Task.isCancelled {
+                typed = 0
+                withAnimation(.spring(response: 0.4, dampingFraction: 0.7)) { appear = 1 }
+                try? await Task.sleep(nanoseconds: 400_000_000)
+                for i in 0...full.count {
+                    typed = i
+                    try? await Task.sleep(nanoseconds: 70_000_000)
+                }
+                try? await Task.sleep(nanoseconds: 1_400_000_000)
+                withAnimation(.easeIn(duration: 0.35)) { appear = 0 }
+                try? await Task.sleep(nanoseconds: 600_000_000)
+            }
+        }
+    }
+}
+
+// MARK: - Step badge preview
+
+private struct StepBadgePreview: View {
+    @State private var shown = 0
+    private let spots = [CGPoint(x: 95, y: 74), CGPoint(x: 185, y: 74), CGPoint(x: 275, y: 74)]
+
+    var body: some View {
+        ZStack {
+            Color(red: 0.06, green: 0.06, blue: 0.12)
+            ForEach(spots.indices, id: \.self) { i in
+                ZStack {
+                    Circle().fill((Color(hex: "#F4644D") ?? .orange).opacity(0.22))
+                        .frame(width: 54, height: 54)
+                    Circle().fill(AnyShapeStyle(paywallGradient))
+                        .frame(width: 38, height: 38)
+                        .overlay(Circle().strokeBorder(.white.opacity(0.9), lineWidth: 1.5))
+                    Text("\(i + 1)").font(.system(size: 18, weight: .bold, design: .rounded))
+                        .foregroundColor(.white)
+                }
+                .position(spots[i])
+                .scaleEffect(i < shown ? 1 : 0.1)
+                .opacity(i < shown ? 1 : 0)
+                .animation(.spring(response: 0.4, dampingFraction: 0.6), value: shown)
+            }
+        }
+        .task {
+            while !Task.isCancelled {
+                shown = 0
+                for i in 1...spots.count {
+                    try? await Task.sleep(nanoseconds: 550_000_000)
+                    shown = i
+                }
+                try? await Task.sleep(nanoseconds: 1_600_000_000)
+            }
+        }
+    }
+}
+
+// MARK: - Countdown timer preview
+
+private struct TimerPreview: View {
+    @State private var remaining = 5
+    @State private var progress: CGFloat = 1
+
+    var body: some View {
+        ZStack {
+            Color(red: 0.06, green: 0.06, blue: 0.12)
+            ZStack {
+                Circle().stroke(Color.white.opacity(0.1), lineWidth: 8)
+                    .frame(width: 92, height: 92)
+                Circle().trim(from: 0, to: progress)
+                    .stroke(AnyShapeStyle(paywallGradient),
+                            style: StrokeStyle(lineWidth: 8, lineCap: .round))
+                    .frame(width: 92, height: 92)
+                    .rotationEffect(.degrees(-90))
+                    .animation(.linear(duration: 1), value: progress)
+                Text(String(format: "0:%02d", remaining))
+                    .font(.system(size: 26, weight: .bold, design: .rounded))
+                    .monospacedDigit()
+                    .foregroundColor(.white)
+            }
+        }
+        .task {
+            while !Task.isCancelled {
+                remaining = 5; progress = 1
+                for s in stride(from: 4, through: 0, by: -1) {
+                    try? await Task.sleep(nanoseconds: 1_000_000_000)
+                    remaining = s
+                    withAnimation(.linear(duration: 1)) { progress = CGFloat(s) / 5 }
+                }
+                try? await Task.sleep(nanoseconds: 1_200_000_000)
+            }
+        }
+    }
+}
+
+// MARK: - Presenter cues preview
+
+private struct PresenterCuesPreview: View {
+    @State private var ripple: CGFloat = 0
+    @State private var showKey = false
+    private let clickAt = CGPoint(x: 130, y: 82)
+
+    var body: some View {
+        ZStack {
+            Color(red: 0.06, green: 0.06, blue: 0.12)
+
+            // Click ripple
+            Circle().stroke(Color(hex: "#F4644D") ?? .orange, lineWidth: 2.5)
+                .frame(width: 30, height: 30)
+                .scaleEffect(0.4 + ripple * 2)
+                .opacity(Double(1 - ripple))
+                .position(clickAt)
+            Circle().fill((Color(hex: "#F4644D") ?? .orange).opacity(0.5))
+                .frame(width: 14, height: 14)
+                .position(clickAt)
+                .opacity(Double(1 - ripple))
+
+            // Keystroke pill
+            Text("⌘ K")
+                .font(.system(size: 18, weight: .semibold, design: .rounded))
+                .foregroundColor(.white)
+                .padding(.horizontal, 14).padding(.vertical, 9)
+                .background(
+                    RoundedRectangle(cornerRadius: 10)
+                        .fill(Color(red: 0.03, green: 0.03, blue: 0.07).opacity(0.95))
+                        .overlay(RoundedRectangle(cornerRadius: 10)
+                            .strokeBorder(AnyShapeStyle(paywallGradient), lineWidth: 1))
+                )
+                .position(x: 250, y: 82)
+                .scaleEffect(showKey ? 1 : 0.6)
+                .opacity(showKey ? 1 : 0)
+                .animation(.spring(response: 0.3, dampingFraction: 0.6), value: showKey)
+        }
+        .task {
+            while !Task.isCancelled {
+                ripple = 0
+                withAnimation(.easeOut(duration: 0.7)) { ripple = 1 }
+                try? await Task.sleep(nanoseconds: 350_000_000)
+                showKey = true
+                try? await Task.sleep(nanoseconds: 1_300_000_000)
+                withAnimation { showKey = false }
+                try? await Task.sleep(nanoseconds: 700_000_000)
+            }
+        }
+    }
+}
+
+// MARK: - Presenter zoom preview
+
+private struct PresenterZoomPreview: View {
+    @State private var zoom: CGFloat = 1
+    private let focus = CGPoint(x: 210, y: 74)
+
+    var body: some View {
+        ZStack {
+            Color(red: 0.06, green: 0.06, blue: 0.12)
+
+            // Mock content that scales toward the focus point
+            ZStack {
+                ForEach(0..<3, id: \.self) { r in
+                    ForEach(0..<5, id: \.self) { c in
+                        RoundedRectangle(cornerRadius: 4)
+                            .fill(Color.white.opacity(0.10))
+                            .frame(width: 40, height: 22)
+                            .overlay(
+                                (r == 1 && c == 3)
+                                    ? RoundedRectangle(cornerRadius: 4).fill(AnyShapeStyle(paywallGradient))
+                                    : nil
+                            )
+                            .position(x: 70 + CGFloat(c) * 50, y: 45 + CGFloat(r) * 34)
+                    }
+                }
+            }
+            .scaleEffect(zoom, anchor: UnitPoint(x: focus.x / 352, y: focus.y / 148))
+
+            // Loupe ring at the focus
+            Circle().stroke(AnyShapeStyle(paywallGradient), lineWidth: 2.5)
+                .frame(width: 60, height: 60)
+                .position(focus)
+                .opacity(Double(min(1, (zoom - 1) / 0.6)))
+        }
+        .clipped()
+        .task {
+            while !Task.isCancelled {
+                withAnimation(.easeInOut(duration: 1.1)) { zoom = 1.9 }
+                try? await Task.sleep(nanoseconds: 1_700_000_000)
+                withAnimation(.easeInOut(duration: 0.8)) { zoom = 1 }
+                try? await Task.sleep(nanoseconds: 900_000_000)
             }
         }
     }
