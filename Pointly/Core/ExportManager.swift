@@ -53,7 +53,9 @@ class ExportManager: ObservableObject {
             // Snapshot on the main thread — the user can keep drawing behind
             // the non-modal panel, and a concurrent read of the mutating
             // elements array from the render queue is a data race.
-            let elements = drawingState.elements
+            // Transient ink (laser, fading pen) is excluded — it would render
+            // at full opacity in the file despite being invisible on screen.
+            let elements = drawingState.elements.filter { $0.tool.isPersistent }
 
             DispatchQueue.global(qos: .userInitiated).async {
                 do {
@@ -254,6 +256,22 @@ class ExportManager: ObservableObject {
 
         case .text:
             drawText(element, color: nsColor)
+
+        case .stepBadge:
+            guard let center = element.points.first else { return }
+            let r = DrawingElement.stepBadgeRadius(for: element.thickness)
+            nsColor.withAlphaComponent(element.opacity).setFill()
+            let disc = NSBezierPath(ovalIn: NSRect(x: center.x - r, y: center.y - r,
+                                                   width: r * 2, height: r * 2))
+            disc.fill()
+            NSColor.white.withAlphaComponent(0.9).setStroke()
+            disc.lineWidth = 1.5
+            disc.stroke()
+            let font = NSFont.systemFont(ofSize: r * 1.05, weight: .bold)
+            let attrs: [NSAttributedString.Key: Any] = [.font: font, .foregroundColor: NSColor.white]
+            let str = NSAttributedString(string: element.text ?? "1", attributes: attrs)
+            let size = str.size()
+            str.draw(at: NSPoint(x: center.x - size.width / 2, y: center.y - size.height / 2))
 
         default:
             break

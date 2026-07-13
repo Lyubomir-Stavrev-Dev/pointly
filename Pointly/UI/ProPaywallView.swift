@@ -48,6 +48,8 @@ extension DrawingTool {
         case .spotlight:    return "Dim everything and spotlight exactly what matters — perfect for live demos."
         case .dotPen:       return "Draw precise dotted lines and math-style diagrams with perfect spacing."
         case .cutMove:      return "Draw a rectangle to select any annotations and drag them to a new position."
+        case .stepBadge:    return "Click to drop auto-numbered badges — perfect for step-by-step walkthroughs."
+        case .fadingPen:    return "Ink that fades away on its own — annotate while you talk, never clear the screen."
         default:            return ""
         }
     }

@@ -15,8 +15,9 @@ struct DrawingCanvas: View {
         return state.elements.filter { $0.displayID == nil || $0.displayID == displayID }
     }
 
+    // Any transient (self-fading) element needs the animation timeline running
     private var hasLaserElements: Bool {
-        visibleElements.contains { $0.tool == .laserPointer }
+        visibleElements.contains { !$0.tool.isPersistent }
     }
 
     var body: some View {
@@ -45,8 +46,10 @@ struct DrawingCanvas: View {
         guard !element.points.isEmpty else { return }
         
         switch element.tool {
-        case .pen, .highlighter:
+        case .pen, .highlighter, .fadingPen:
             drawStroke(element, in: context)
+        case .stepBadge:
+            drawStepBadge(element, in: context)
         case .eraser:
             // Eraser is handled by removing elements, no drawing needed
             break
@@ -194,6 +197,27 @@ struct DrawingCanvas: View {
             context.fill(path, with: .color(element.color.opacity(element.opacity * 0.3)))
         }
         strokeWithGlow(path, color: element.color, thickness: element.thickness, in: context)
+    }
+
+    // Auto-numbered step badge: colored disc + soft halo + white bold number
+    private func drawStepBadge(_ element: DrawingElement, in context: GraphicsContext) {
+        guard let center = element.points.first else { return }
+        let r = DrawingElement.stepBadgeRadius(for: element.thickness)
+
+        let halo = Path(ellipseIn: CGRect(x: center.x - r * 1.4, y: center.y - r * 1.4,
+                                          width: r * 2.8, height: r * 2.8))
+        context.fill(halo, with: .color(element.color.opacity(0.20)))
+
+        let disc = Path(ellipseIn: CGRect(x: center.x - r, y: center.y - r,
+                                          width: r * 2, height: r * 2))
+        context.fill(disc, with: .color(element.color))
+        context.stroke(disc, with: .color(.white.opacity(0.9)),
+                       style: StrokeStyle(lineWidth: 1.5))
+
+        let label = Text(element.text ?? "1")
+            .font(.system(size: r * 1.05, weight: .bold, design: .rounded))
+            .foregroundColor(.white)
+        context.draw(label, at: center, anchor: .center)
     }
 
     // Soft two-layer halo in the element's own color under the core stroke —

@@ -680,7 +680,8 @@ private struct ShortcutsContent: View {
 
     private let sections: [(title: String, tools: [DrawingTool])] = [
         ("Draw Tools", [.select, .cursor, .pen, .highlighter, .marker,
-                        .blurBrush, .eraser, .text, .laserPointer, .spotlight, .dotPen, .cutMove]),
+                        .blurBrush, .eraser, .text, .laserPointer, .spotlight, .dotPen, .cutMove,
+                        .fadingPen, .stepBadge]),
         ("Lines",  [.arrow, .line]),
         ("Shapes", [.rectangle, .ellipse, .triangle, .diamond]),
     ]

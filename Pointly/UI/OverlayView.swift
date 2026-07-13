@@ -232,6 +232,7 @@ struct OverlayView: View {
             return
         }
         if drawingState.selectedTool == .text { return }
+        if drawingState.selectedTool == .stepBadge { return }   // click places on gesture end
 
         if !isDrawing {
             isDrawing = true
@@ -245,6 +246,12 @@ struct OverlayView: View {
         guard interactionMode.currentMode == .draw else { return }
         if drawingState.selectedTool == .eraser {
             isEraserStrokeActive = false
+            return
+        }
+        if drawingState.selectedTool == .stepBadge {
+            if hypot(value.translation.width, value.translation.height) < 8 {
+                drawingState.addStepBadge(at: value.startLocation)
+            }
             return
         }
         if drawingState.selectedTool == .text {

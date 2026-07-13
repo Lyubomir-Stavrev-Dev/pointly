@@ -120,7 +120,7 @@ enum ToolCursor {
     private static func hotSpot(for tool: DrawingTool, pad: CGFloat, icon: CGFloat) -> NSPoint {
         let mid = pad + icon / 2
         switch tool {
-        case .pen, .highlighter, .marker, .dotPen, .blurBrush:
+        case .pen, .highlighter, .marker, .dotPen, .blurBrush, .fadingPen:
             return NSPoint(x: pad + 2, y: pad + icon - 2) // pencil tip: bottom-left
         case .eraser, .laserPointer, .spotlight:
             return NSPoint(x: mid, y: mid)

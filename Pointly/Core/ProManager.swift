@@ -89,7 +89,8 @@ final class ProManager: ObservableObject {
 
     // MARK: - Locked tools
 
-    static let proTools: Set<DrawingTool> = [.blurBrush, .laserPointer, .spotlight, .dotPen, .cutMove]
+    static let proTools: Set<DrawingTool> = [.blurBrush, .laserPointer, .spotlight, .dotPen, .cutMove,
+                                             .stepBadge, .fadingPen]
 
     func isLocked(_ tool: DrawingTool) -> Bool {
         !isPro && Self.proTools.contains(tool)

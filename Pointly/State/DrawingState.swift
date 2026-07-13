@@ -14,6 +14,8 @@ enum DrawingTool: String, CaseIterable {
     case laserPointer = "laserPointer"
     case dotPen = "dotPen"
     case cutMove = "cutMove"
+    case stepBadge = "stepBadge"
+    case fadingPen = "fadingPen"
 
     // Shape Tools
     case rectangle = "rectangle"
@@ -41,6 +43,8 @@ enum DrawingTool: String, CaseIterable {
         case .laserPointer: return "Laser Pointer"
         case .dotPen: return "Dot Pen"
         case .cutMove: return "Cut & Move"
+        case .stepBadge: return "Step Badge"
+        case .fadingPen: return "Fading Ink"
         case .rectangle: return "Rectangle"
         case .ellipse: return "Ellipse"
         case .triangle: return "Triangle"
@@ -66,6 +70,8 @@ enum DrawingTool: String, CaseIterable {
         case .laserPointer: return "laser.burst"
         case .dotPen: return "circle.dotted"
         case .cutMove: return "scissors"
+        case .stepBadge: return "1.circle"
+        case .fadingPen: return "scribble.variable"
         case .rectangle: return "rectangle"
         case .ellipse: return "circle"
         case .triangle: return "triangle"
@@ -91,6 +97,8 @@ enum DrawingTool: String, CaseIterable {
         case .laserPointer: return "Animated pointer for presentations"
         case .dotPen: return "Dotted drawing like math diagrams"
         case .cutMove: return "Select an area and drag annotations to a new position"
+        case .stepBadge: return "Click to drop auto-numbered badges for walkthroughs"
+        case .fadingPen: return "Ink that fades away on its own — never clear the screen"
         case .rectangle: return "Draw rectangular shapes"
         case .ellipse: return "Draw circular and oval shapes"
         case .triangle: return "Draw triangle shapes"
@@ -109,7 +117,7 @@ enum DrawingTool: String, CaseIterable {
     /// Whether this tool supports thickness adjustment
     var supportsThickness: Bool {
         switch self {
-        case .pen, .marker, .highlighter, .line, .arrow, .dotPen:
+        case .pen, .marker, .highlighter, .line, .arrow, .dotPen, .fadingPen, .stepBadge:
             return true
         case .blurBrush:
             return true
@@ -137,7 +145,7 @@ enum DrawingTool: String, CaseIterable {
     /// Whether this tool creates persistent marks
     var isPersistent: Bool {
         switch self {
-        case .laserPointer:
+        case .laserPointer, .fadingPen:
             return false  // Fades over time
         case .magnifier, .spotlight, .cursor:
             return false  // Real-time effect only
@@ -220,18 +228,19 @@ struct DrawingElement: Identifiable {
         return !tool.isPersistent
     }
     
-    /// Current opacity considering time-based fade
+    /// Current opacity considering time-based fade.
+    /// Laser: fades continuously over 3s. Fading Ink: holds full for 4s so the
+    /// audience can read it, then fades out over 1.5s.
     var currentOpacity: Double {
         guard shouldFade else { return opacity }
-        
+
         let age = Date().timeIntervalSince(timestamp)
-        let fadeTime: TimeInterval = 3.0  // 3 seconds for laser pointer
-        
-        if age >= fadeTime {
-            return 0.0
-        }
-        
-        let fadeProgress = age / fadeTime
+        let holdTime: TimeInterval = tool == .fadingPen ? 4.0 : 0
+        let fadeTime: TimeInterval = tool == .fadingPen ? 1.5 : 3.0
+
+        if age <= holdTime { return opacity }
+        let fadeProgress = (age - holdTime) / fadeTime
+        if fadeProgress >= 1 { return 0.0 }
         return opacity * (1.0 - fadeProgress)
     }
 
@@ -243,15 +252,23 @@ struct DrawingElement: Identifiable {
             let estimatedHeight = fontSize * 1.5 + 6
             return CGRect(x: pt.x, y: pt.y, width: estimatedWidth, height: estimatedHeight)
         }
+        if tool == .stepBadge, let pt = points.first {
+            let r = DrawingElement.stepBadgeRadius(for: thickness)
+            return CGRect(x: pt.x - r, y: pt.y - r, width: r * 2, height: r * 2)
+        }
         let xs = points.map(\.x), ys = points.map(\.y)
         return CGRect(x: xs.min()!, y: ys.min()!,
                       width: xs.max()! - xs.min()!,
                       height: ys.max()! - ys.min()!)
     }
 
+    static func stepBadgeRadius(for thickness: CGFloat) -> CGFloat {
+        12 + thickness * 1.5
+    }
+
     func contains(_ point: CGPoint, threshold: CGFloat = 12) -> Bool {
         let box = boundingBox.insetBy(dx: -threshold, dy: -threshold)
-        if tool.isShape || tool == .text { return box.contains(point) }
+        if tool.isShape || tool == .text || tool == .stepBadge { return box.contains(point) }
         guard points.count > 1 else {
             return points.first.map { hypot($0.x - point.x, $0.y - point.y) < threshold } ?? false
         }
@@ -501,6 +518,24 @@ class DrawingState: ObservableObject {
         saveAnnotations()
     }
     
+    /// Drop an auto-numbered step badge — number = existing badge count + 1,
+    /// so undo/erase renumbers naturally on the next placement.
+    func addStepBadge(at point: CGPoint) {
+        saveStateForUndo()
+        let next = elements.filter { $0.tool == .stepBadge }.count + 1
+        var element = DrawingElement(
+            tool: .stepBadge,
+            points: [point],
+            color: selectedColor,
+            thickness: strokeThickness,
+            text: "\(next)"
+        )
+        element.displayID = activeDisplayID
+        elements.append(element)
+        redoStack.removeAll()
+        saveAnnotations()
+    }
+
     /// Add a text annotation at a specific point
     func addTextElement(at point: CGPoint, text: String) {
         guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
@@ -587,17 +622,17 @@ class DrawingState: ObservableObject {
     private func handleToolSpecificPostProcessing(_ element: DrawingElement) {
         switch element.tool {
         case .laserPointer:
-            // Schedule fade-out for laser pointer
-            scheduleLaserPointerFade(element)
-
+            scheduleRemoval(of: element, after: 3.5)
+        case .fadingPen:
+            scheduleRemoval(of: element, after: 6.0)   // 4s hold + 1.5s fade + margin
         default:
             break
         }
     }
     
-    private func scheduleLaserPointerFade(_ element: DrawingElement) {
-        // Remove laser pointer elements after fade time
-        DispatchQueue.main.asyncAfter(deadline: .now() + 3.5) { [weak self] in
+    private func scheduleRemoval(of element: DrawingElement, after delay: TimeInterval) {
+        // Remove faded transient elements once fully invisible
+        DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in
             self?.elements.removeAll { $0.id == element.id }
         }
     }
@@ -673,11 +708,11 @@ class DrawingState: ObservableObject {
         }
     }
 
-    // Laser strokes are 3.5s transients — keeping them in undo/redo snapshots
-    // lets a restore resurrect fully-faded (invisible) elements that nothing
-    // removes again, pinning the TimelineView at 60fps forever.
+    // Transient strokes (laser, fading ink) don't belong in undo/redo
+    // snapshots — restoring a fully-faded (invisible) element that nothing
+    // removes again pins the TimelineView at 60fps forever.
     private func snapshotElements() -> [DrawingElement] {
-        elements.filter { $0.tool != .laserPointer }
+        elements.filter { $0.tool.isPersistent }
     }
     
     // For snapshot rendering only — loads elements without touching undo/redo.
