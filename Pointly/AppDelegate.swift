@@ -119,6 +119,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         menu.addItem(NSMenuItem(title: "Toggle Overlay (⌘⇧P)", action: #selector(toggleOverlay), keyEquivalent: ""))
         menu.addItem(NSMenuItem(title: "Whiteboard Canvas (⌘W)", action: #selector(toggleWhiteboardMode), keyEquivalent: ""))
         menu.addItem(NSMenuItem(title: "Countdown Timer", action: #selector(toggleTimer), keyEquivalent: ""))
+        menu.addItem(NSMenuItem(title: "Presenter Cues (clicks & keys)", action: #selector(toggleCues), keyEquivalent: ""))
 
         let upgradeSeparator = NSMenuItem.separator()
         menu.addItem(upgradeSeparator)
@@ -179,6 +180,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     @objc private func toggleTimer() {
         overlayWindowManager?.toggleTimerPanel()
+    }
+
+    @objc private func toggleCues() {
+        overlayWindowManager?.togglePresenterCues()
     }
 
     @objc private func handleHotkeyChanged(_ notification: Notification) {
