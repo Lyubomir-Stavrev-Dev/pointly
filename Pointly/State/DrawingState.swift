@@ -582,14 +582,10 @@ class DrawingState: ObservableObject {
         }
         if errSum / CGFloat(stroke.count) < 0.11 { return (.ellipse, box()) }
 
-        // 2) Polygon: simplify to corners and count them.
+        // 2) Polygon: simplify the CLOSED loop to corners and count them.
         let diag = hypot(w, h)
-        var corners = simplifyRDP(stroke, epsilon: diag * 0.045)
-        if corners.count > 1,
-           hypot(corners.first!.x - corners.last!.x, corners.first!.y - corners.last!.y) < diag * 0.08 {
-            corners.removeLast()   // drop the closing point
-        }
-        corners = dropCollinear(corners, angleThreshold: 165)
+        let corners = dropCollinear(simplifyClosed(stroke, epsilon: diag * 0.06),
+                                    angleThreshold: 160)
 
         switch corners.count {
         case 3: return (.triangle, box())
@@ -610,7 +606,29 @@ class DrawingState: ObservableObject {
         }
     }
 
-    /// Ramer–Douglas–Peucker polyline simplification.
+    /// Simplify a CLOSED stroke to its corner vertices. Splits the loop at its
+    /// two farthest-apart points so each arc has well-separated endpoints (a
+    /// plain RDP over a closed loop has a near-degenerate baseline and
+    /// over-segments — the cause of triangles reading as 4 corners).
+    private func simplifyClosed(_ stroke: [CGPoint], epsilon: CGFloat) -> [CGPoint] {
+        guard stroke.count > 3 else { return stroke }
+        let p0 = stroke[0]
+        let iA = stroke.indices.max(by: { dist(stroke[$0], p0) < dist(stroke[$1], p0) })!
+        let a = stroke[iA]
+        let iB = stroke.indices.max(by: { dist(stroke[$0], a) < dist(stroke[$1], a) })!
+        let lo = min(iA, iB), hi = max(iA, iB)
+        guard lo != hi else { return stroke }
+        let arc1 = Array(stroke[lo...hi])
+        let arc2 = Array(stroke[hi...]) + Array(stroke[0...lo])
+        let c1 = simplifyRDP(arc1, epsilon: epsilon)         // endpoints = lo, hi
+        let c2 = simplifyRDP(arc2, epsilon: epsilon)         // endpoints = hi, lo
+        // Drop the two shared endpoints from the second arc to avoid duplicates.
+        return c1 + c2.dropFirst().dropLast()
+    }
+
+    private func dist(_ a: CGPoint, _ b: CGPoint) -> CGFloat { hypot(a.x - b.x, a.y - b.y) }
+
+    /// Ramer–Douglas–Peucker polyline simplification (open polyline).
     private func simplifyRDP(_ points: [CGPoint], epsilon: CGFloat) -> [CGPoint] {
         guard points.count > 2 else { return points }
         var dMax: CGFloat = 0, index = 0
