@@ -8,7 +8,6 @@ enum ToolCursor {
         case .cursor:                                      return .arrow
         case .select:                                      return .arrow
         case .text:                                        return .iBeam
-        case .laserPointer:                                return laserCursor()
         case .rectangle, .ellipse, .triangle, .diamond,
              .arrow, .line:                                return shapeCursor()
         default: break
@@ -17,54 +16,6 @@ enum ToolCursor {
         let c = build(tool)
         cache[tool] = c
         return c
-    }
-
-    // MARK: - Laser dot cursor (an actual laser point, not an icon)
-
-    private static var _laserCursor: NSCursor?
-    private static func laserCursor() -> NSCursor {
-        if let c = _laserCursor { return c }
-
-        let total: CGFloat = 44
-        let c2 = CGPoint(x: total / 2, y: total / 2)
-        let coreR: CGFloat = 7
-        let haloR: CGFloat = 17
-
-        // Bright coral core, like a real laser dot on a surface
-        let core = CGColor(red: 1.00, green: 0.36, blue: 0.30, alpha: 1)
-
-        let img = NSImage(size: NSSize(width: total, height: total), flipped: false) { _ in
-            guard let ctx = NSGraphicsContext.current?.cgContext else { return false }
-
-            // Soft radial halo fading to nothing — the glow bleed around the dot
-            let colors = [core.copy(alpha: 0.45)!, core.copy(alpha: 0.0)!] as CFArray
-            if let gradient = CGGradient(colorsSpace: CGColorSpaceCreateDeviceRGB(),
-                                         colors: colors, locations: [0, 1]) {
-                ctx.drawRadialGradient(gradient,
-                                       startCenter: c2, startRadius: coreR * 0.6,
-                                       endCenter: c2, endRadius: haloR,
-                                       options: [])
-            }
-
-            // Hot core with a tight warm bloom
-            ctx.saveGState()
-            ctx.setShadow(offset: .zero, blur: 5, color: brandWarm.copy(alpha: 0.9))
-            ctx.setFillColor(core)
-            ctx.fillEllipse(in: CGRect(x: c2.x - coreR, y: c2.y - coreR,
-                                       width: coreR * 2, height: coreR * 2))
-            ctx.restoreGState()
-
-            // Tiny white-hot center so it reads as light, not paint
-            ctx.setFillColor(CGColor(red: 1, green: 0.85, blue: 0.78, alpha: 0.9))
-            let hotR: CGFloat = 2.2
-            ctx.fillEllipse(in: CGRect(x: c2.x - hotR, y: c2.y + coreR * 0.15,
-                                       width: hotR * 2, height: hotR * 2))
-            return true
-        }
-
-        let cursor = NSCursor(image: img, hotSpot: NSPoint(x: total / 2, y: total / 2))
-        _laserCursor = cursor
-        return cursor
     }
 
     // MARK: - SF-symbol tool cursors
