@@ -34,6 +34,11 @@ final class ToolBindingsStore: ObservableObject {
     }
 
     func setBinding(_ shortcut: String, for tool: DrawingTool) {
+        // The main overlay toggle owns its combo — a duplicate Carbon
+        // registration fails silently and one of the two goes dead. Compare as
+        // character sets (recorders emit modifiers in different orders).
+        let mainHotkey = UserDefaults.standard.string(forKey: "globalHotkey") ?? "⌘⇧P"
+        guard Set(shortcut) != Set(mainHotkey) else { return }
         var updated = bindings
         for (t, s) in updated where s == shortcut && t != tool {
             updated.removeValue(forKey: t)

@@ -867,7 +867,12 @@ struct HotkeyRecorderView: View {
         isRecording = true
         eventMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
             guard event.keyCode != 53 else { self.stopRecording(); return nil }
-            self.hotkey = self.formatHotkey(from: event)
+            // Invalid combos keep the current hotkey — accepting them would
+            // either steal a bare key system-wide or persist a hotkey that
+            // Carbon can't register (UI showing a shortcut that never fires).
+            if let recorded = self.formatHotkey(from: event) {
+                self.hotkey = recorded
+            }
             self.stopRecording()
             return nil
         }
@@ -878,14 +883,23 @@ struct HotkeyRecorderView: View {
         if let m = eventMonitor { NSEvent.removeMonitor(m); eventMonitor = nil }
     }
 
-    private func formatHotkey(from event: NSEvent) -> String {
+    private func formatHotkey(from event: NSEvent) -> String? {
+        let f = event.modifierFlags.intersection([.command, .shift, .option, .control])
+        guard !f.isEmpty else { return nil }   // modifier-less = system-wide key theft
         var parts: [String] = []
-        let f = event.modifierFlags
         if f.contains(.command) { parts.append("⌘") }
         if f.contains(.shift)   { parts.append("⇧") }
         if f.contains(.option)  { parts.append("⌥") }
         if f.contains(.control) { parts.append("⌃") }
-        if let c = event.charactersIgnoringModifiers?.uppercased(), !c.isEmpty { parts.append(c) }
-        return parts.joined()
+        guard let c = event.charactersIgnoringModifiers?.uppercased(), !c.isEmpty,
+              GlobalHotkeyManager.keyCode(for: c) != nil else { return nil }   // must be registrable
+        parts.append(c)
+        let candidate = parts.joined()
+        // Reject combos already owned by a tool binding (duplicate Carbon
+        // registrations fail silently). Compare as character sets — the two
+        // recorders emit modifiers in different orders.
+        guard !ToolBindingsStore.shared.bindings.values.contains(where: { Set($0) == Set(candidate) })
+        else { return nil }
+        return candidate
     }
 }
