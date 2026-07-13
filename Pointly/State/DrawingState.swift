@@ -510,24 +510,32 @@ class DrawingState: ObservableObject {
             currentStroke = [first, last]
         }
 
-        // High assist (Pro): a nearly-straight pen stroke snaps to a perfect line.
-        if selectedTool == .pen, straightLineAssistLevel == "high",
-           currentStroke.count > 2,
+        // High assist (Pro): recognize a freehand pen loop as a circle/ellipse,
+        // or straighten a nearly-straight stroke into a line.
+        var recognized: DrawingElement?
+        if selectedTool == .pen, straightLineAssistLevel == "high", currentStroke.count > 2,
            let first = currentStroke.first, let last = currentStroke.last {
-            let chord = hypot(last.x - first.x, last.y - first.y)
-            if chord > 40 {
-                // Max perpendicular deviation of any point from the first→last chord
-                let maxDeviation = currentStroke.map { p -> CGFloat in
-                    abs((last.x - first.x) * (first.y - p.y) - (first.x - p.x) * (last.y - first.y)) / chord
-                }.max() ?? 0
-                if maxDeviation < max(6, chord * 0.025) {
-                    currentStroke = [first, last]
+            if let ellipseBox = recognizeEllipse(from: currentStroke) {
+                var e = DrawingElement(tool: .ellipse, points: ellipseBox,
+                                       color: selectedColor, thickness: strokeThickness)
+                e.displayID = activeDisplayID
+                recognized = e
+            } else {
+                let chord = hypot(last.x - first.x, last.y - first.y)
+                if chord > 40 {
+                    // Max perpendicular deviation of any point from the first→last chord
+                    let maxDeviation = currentStroke.map { p -> CGFloat in
+                        abs((last.x - first.x) * (first.y - p.y) - (first.x - p.x) * (last.y - first.y)) / chord
+                    }.max() ?? 0
+                    if maxDeviation < max(6, chord * 0.025) {
+                        currentStroke = [first, last]
+                    }
                 }
             }
         }
 
-        var element = createDrawingElement()
-        element.displayID = activeDisplayID
+        var element = recognized ?? createDrawingElement()
+        if recognized == nil { element.displayID = activeDisplayID }
         applyArrowDirection(&element)
         elements.append(element)
         currentStroke.removeAll()
@@ -535,6 +543,38 @@ class DrawingState: ObservableObject {
         redoStack.removeAll()
         handleToolSpecificPostProcessing(element)
         saveAnnotations()
+    }
+
+    /// If a freehand stroke is a closed, roughly-elliptical loop, return the
+    /// bounding-box corners for an ellipse (perfect circle when near-square).
+    /// Returns nil for anything that isn't clearly a round loop.
+    private func recognizeEllipse(from stroke: [CGPoint]) -> [CGPoint]? {
+        guard stroke.count >= 12 else { return nil }
+        let xs = stroke.map(\.x), ys = stroke.map(\.y)
+        let minX = xs.min()!, maxX = xs.max()!, minY = ys.min()!, maxY = ys.max()!
+        let w = maxX - minX, h = maxY - minY
+        guard w > 30, h > 30 else { return nil }
+
+        // Must be a closed loop: endpoints near each other relative to size.
+        let endGap = hypot(stroke.first!.x - stroke.last!.x, stroke.first!.y - stroke.last!.y)
+        guard endGap < 0.35 * max(w, h) else { return nil }
+
+        // Every point should sit near the fitted ellipse: (dx/rx)²+(dy/ry)² ≈ 1.
+        let cx = (minX + maxX) / 2, cy = (minY + maxY) / 2
+        let rx = w / 2, ry = h / 2
+        var errSum: CGFloat = 0
+        for p in stroke {
+            let nx = (p.x - cx) / rx, ny = (p.y - cy) / ry
+            errSum += abs((nx * nx + ny * ny).squareRoot() - 1)
+        }
+        guard errSum / CGFloat(stroke.count) < 0.20 else { return nil }
+
+        // Near-square bounds → perfect circle.
+        if min(w, h) / max(w, h) >= 0.82 {
+            let side = max(w, h) / 2
+            return [CGPoint(x: cx - side, y: cy - side), CGPoint(x: cx + side, y: cy + side)]
+        }
+        return [CGPoint(x: minX, y: minY), CGPoint(x: maxX, y: maxY)]
     }
     
     /// Drop an auto-numbered step badge — number = existing badge count + 1,
