@@ -213,7 +213,9 @@ class ExportManager: ObservableObject {
         case .rectangle:
             guard element.points.count >= 2 else { return }
             let r = shapeRect(for: element)
-            let path = NSBezierPath(rect: r)
+            // Rounded corners matching DrawingCanvas.drawRectangle
+            let radius = min(max(4, element.thickness * 1.2), min(r.width, r.height) / 2)
+            let path = NSBezierPath(roundedRect: r, xRadius: radius, yRadius: radius)
             path.lineWidth = element.thickness
             if element.isFilled {
                 nsColor.withAlphaComponent(element.opacity * 0.3).setFill()
@@ -317,7 +319,7 @@ class ExportManager: ObservableObject {
     private func drawArrow(from start: CGPoint, to end: CGPoint, thickness: CGFloat) {
         let angle = atan2(end.y - start.y, end.x - start.x)
         let dist = hypot(end.x - start.x, end.y - start.y)
-        let headLength: CGFloat = min(max(16, thickness * 4.5), max(10, dist * 0.5))
+        let headLength: CGFloat = min(max(20, thickness * 6), max(12, dist * 0.55))
         let headAngle: CGFloat = .pi / 7
 
         let p1 = CGPoint(x: end.x - headLength * cos(angle - headAngle),

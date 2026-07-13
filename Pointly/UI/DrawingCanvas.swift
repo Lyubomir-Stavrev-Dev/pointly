@@ -138,10 +138,13 @@ struct DrawingCanvas: View {
             width: abs(endPoint.x - startPoint.x),
             height: abs(endPoint.y - startPoint.y)
         )
+        // Slightly rounded corners — matches the brand's soft-rect language
+        let radius = max(4, element.thickness * 1.2)
+        let path = Path(roundedRect: rect, cornerRadius: min(radius, min(rect.width, rect.height) / 2))
         if element.isFilled {
-            context.fill(Path(rect), with: .color(element.color.opacity(element.opacity * 0.3)))
+            context.fill(path, with: .color(element.color.opacity(element.opacity * 0.3)))
         }
-        context.stroke(Path(rect), with: .color(element.color), style: StrokeStyle(lineWidth: element.thickness))
+        strokeWithGlow(path, color: element.color, thickness: element.thickness, in: context)
     }
 
     private func drawEllipse(_ element: DrawingElement, in context: GraphicsContext) {
@@ -157,7 +160,7 @@ struct DrawingCanvas: View {
         if element.isFilled {
             context.fill(Path(ellipseIn: rect), with: .color(element.color.opacity(element.opacity * 0.3)))
         }
-        context.stroke(Path(ellipseIn: rect), with: .color(element.color), style: StrokeStyle(lineWidth: element.thickness))
+        strokeWithGlow(Path(ellipseIn: rect), color: element.color, thickness: element.thickness, in: context)
     }
 
     private func drawTriangle(_ element: DrawingElement, in context: GraphicsContext) {
@@ -173,7 +176,7 @@ struct DrawingCanvas: View {
         if element.isFilled {
             context.fill(path, with: .color(element.color.opacity(element.opacity * 0.3)))
         }
-        context.stroke(path, with: .color(element.color), style: StrokeStyle(lineWidth: element.thickness, lineJoin: .round))
+        strokeWithGlow(path, color: element.color, thickness: element.thickness, in: context)
     }
 
     private func drawDiamond(_ element: DrawingElement, in context: GraphicsContext) {
@@ -190,7 +193,7 @@ struct DrawingCanvas: View {
         if element.isFilled {
             context.fill(path, with: .color(element.color.opacity(element.opacity * 0.3)))
         }
-        context.stroke(path, with: .color(element.color), style: StrokeStyle(lineWidth: element.thickness, lineJoin: .round))
+        strokeWithGlow(path, color: element.color, thickness: element.thickness, in: context)
     }
 
     // Soft two-layer halo in the element's own color under the core stroke —
@@ -228,7 +231,7 @@ struct DrawingCanvas: View {
 
         // Solid triangular head — bigger and sleeker than the old open V.
         // Clamped so a short arrow doesn't become all head.
-        let headLength: CGFloat = min(max(16, element.thickness * 4.5), max(10, dist * 0.5))
+        let headLength: CGFloat = min(max(20, element.thickness * 6), max(12, dist * 0.55))
         let headAngle: CGFloat = .pi / 7   // ~26° — sleek point
 
         let tip = endPoint
