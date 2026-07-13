@@ -411,14 +411,19 @@ class DrawingState: ObservableObject {
         }
         // Straight-line assist: for shape tools, only keep start + current endpoint
         let assist = straightLineAssistLevel
+        let shapeTools: Set<DrawingTool> = [.rectangle, .ellipse, .triangle, .diamond]
         if assist != "off",
-           [DrawingTool.line, .arrow, .rectangle, .ellipse, .triangle, .diamond].contains(selectedTool),
+           ([DrawingTool.line, .arrow].contains(selectedTool) || shapeTools.contains(selectedTool)),
            let first = currentStroke.first {
             currentStroke = [first]
-            // High: pro angle snapping for lines/arrows — strong pull to
-            // 0°/45°/90°, gentler pull to 15° steps.
-            if assist == "high", [DrawingTool.line, .arrow].contains(selectedTool) {
-                result = snapAngle(from: first, to: result)
+            if assist == "high" {
+                if [DrawingTool.line, .arrow].contains(selectedTool) {
+                    // Strong pull to 0/45/90°, gentle 15° detents
+                    result = snapAngle(from: first, to: result)
+                } else if shapeTools.contains(selectedTool) {
+                    // Snap a near-square drag to a perfect square/circle
+                    result = snapSquare(from: first, to: result)
+                }
             }
         }
         return result
@@ -437,6 +442,20 @@ class DrawingState: ObservableObject {
         else { return point }
         let rad = snapped * .pi / 180
         return CGPoint(x: origin.x + dist * cos(rad), y: origin.y + dist * sin(rad))
+    }
+
+    // When the drag is roughly square (within 18%), force equal width/height so
+    // ellipse → perfect circle and rectangle/triangle/diamond → regular shape.
+    // Keeps the drag direction (sign) so the shape grows the way you dragged.
+    private func snapSquare(from origin: CGPoint, to point: CGPoint) -> CGPoint {
+        let dx = point.x - origin.x, dy = point.y - origin.y
+        let w = abs(dx), h = abs(dy)
+        guard w > 8, h > 8 else { return point }
+        let ratio = min(w, h) / max(w, h)
+        guard ratio >= 0.82 else { return point }   // only near-squares snap
+        let side = max(w, h)
+        return CGPoint(x: origin.x + (dx < 0 ? -side : side),
+                       y: origin.y + (dy < 0 ? -side : side))
     }
     
     private func initializeToolSpecificProperties() {
