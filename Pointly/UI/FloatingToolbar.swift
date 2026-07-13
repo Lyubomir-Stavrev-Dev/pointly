@@ -63,8 +63,11 @@ struct FloatingToolbar: View {
     var body: some View {
         AdaptiveStack(horizontal: horizontal, spacing: 0, hAlign: .top) {
             dragHandle
-            modeButton
-                .padding(horizontal ? .leading : .top, 6)
+            // Mode button is vertical-only; the horizontal bar saves the space
+            // (minimize in the handle still switches to interact mode).
+            if !horizontal {
+                modeButton.padding(.top, 6)
+            }
 
             divider()
 
@@ -334,17 +337,19 @@ struct FloatingToolbar: View {
                 }
             }
 
-            // Custom picker as last row – small circle with gradient ring
-            HStack(spacing: 5) {
-                Spacer()
-                ColorPicker("", selection: $drawingState.selectedColor)
-                    .labelsHidden()
-                    .frame(width: 16, height: 16)
-                    .clipShape(Circle())
-                    .help("Custom color")
-                Spacer()
+            // Custom picker as last row (omitted in horizontal to keep 2 rows)
+            if !horizontal {
+                HStack(spacing: 5) {
+                    Spacer()
+                    ColorPicker("", selection: $drawingState.selectedColor)
+                        .labelsHidden()
+                        .frame(width: 16, height: 16)
+                        .clipShape(Circle())
+                        .help("Custom color")
+                    Spacer()
+                }
+                .padding(.top, 1)
             }
-            .padding(.top, 1)
         }
         .padding(.vertical, 5)
     }
@@ -373,7 +378,7 @@ struct FloatingToolbar: View {
     @ViewBuilder
     private func section<Content: View>(_ title: String, @ViewBuilder content: () -> Content) -> some View {
         VStack(spacing: 4) {
-            sectionLabel(title)
+            if !horizontal { sectionLabel(title) }   // labels omitted in horizontal
             content()
         }
     }
