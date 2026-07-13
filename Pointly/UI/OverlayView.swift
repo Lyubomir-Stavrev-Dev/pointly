@@ -96,20 +96,34 @@ struct OverlayView: View {
                 }
             }
 
+            // Live callout box+leader behind the field, kept until Enter commits.
+            if let pos = textInputPosition, let target = pendingCalloutTarget {
+                CalloutGhostView(target: target, boxOrigin: pos,
+                                 color: editColor ?? drawingState.selectedColor,
+                                 thickness: editThickness ?? drawingState.strokeThickness,
+                                 text: pendingText.isEmpty ? " " : pendingText,
+                                 dashed: false)
+                    .allowsHitTesting(false)
+            }
+
             // Text input — anchored so the field's TEXT top-left sits at `pos`,
             // matching drawText's .topLeading anchor (a centered .position(pos)
             // made committed text jump down-right by half the field size).
             if let pos = textInputPosition {
+                let isCallout = pendingCalloutTarget != nil
                 ZStack(alignment: .topLeading) {
                     Color.clear.allowsHitTesting(false)
                     TextInputOverlay(
                         text: $pendingText,
-                        color: editColor ?? drawingState.selectedColor,
+                        color: isCallout ? .white : (editColor ?? drawingState.selectedColor),
                         fontSize: max(14, (editThickness ?? drawingState.strokeThickness) * 4),
+                        showBackground: !isCallout,   // callout draws its own box behind
                         onCommit: { commitPendingText() },
                         onCancel: { resetTextEntry() }
                     )
-                    .offset(x: pos.x - 6, y: pos.y - 3)   // compensate the field's padding
+                    // Callout: sit the text inside its box padding. Plain text: top-left anchor.
+                    .offset(x: isCallout ? pos.x + 11 : pos.x - 6,
+                            y: isCallout ? pos.y + 8 : pos.y - 3)
                 }
             }
 
@@ -574,6 +588,7 @@ struct TextInputOverlay: View {
     @Binding var text: String
     let color: Color
     let fontSize: CGFloat
+    var showBackground: Bool = true   // off when a callout box is drawn behind
     let onCommit: () -> Void
     let onCancel: () -> Void
     @FocusState private var isFocused: Bool
@@ -597,6 +612,7 @@ struct TextInputOverlay: View {
                     )
                     .shadow(color: Color(red: 0.96, green: 0.39, blue: 0.30).opacity(0.30), radius: 7)
                     .shadow(color: .black.opacity(0.45), radius: 5, y: 2)
+                    .opacity(showBackground ? 1 : 0)
             )
             .focused($isFocused)
             .onAppear { isFocused = true }
@@ -612,22 +628,25 @@ private struct CalloutGhostView: View {
     let boxOrigin: CGPoint
     let color: Color
     let thickness: CGFloat
+    var text: String = "Label"      // live text so the box grows while typing
+    var dashed: Bool = true         // dashed = ghost placing; solid = active typing
 
     var body: some View {
         Canvas { ctx, _ in
-            let box = DrawingElement.calloutBox(origin: boxOrigin, text: "Label", thickness: thickness)
+            let box = DrawingElement.calloutBox(origin: boxOrigin, text: text, thickness: thickness)
             let anchor = CGPoint(x: min(max(target.x, box.minX), box.maxX),
                                  y: min(max(target.y, box.minY), box.maxY))
+            let style = StrokeStyle(lineWidth: max(1.5, thickness * 0.6), lineCap: .round,
+                                    dash: dashed ? [5, 4] : [])
             var leader = Path(); leader.move(to: target); leader.addLine(to: anchor)
-            ctx.stroke(leader, with: .color(color.opacity(0.5)),
-                       style: StrokeStyle(lineWidth: max(1.5, thickness * 0.6), lineCap: .round, dash: [5, 4]))
+            ctx.stroke(leader, with: .color(color.opacity(dashed ? 0.5 : 0.9)), style: style)
             let dot = 3 + thickness * 0.5
             ctx.fill(Path(ellipseIn: CGRect(x: target.x - dot, y: target.y - dot, width: dot * 2, height: dot * 2)),
-                     with: .color(color.opacity(0.6)))
+                     with: .color(color.opacity(dashed ? 0.6 : 1)))
             let boxPath = Path(roundedRect: box, cornerRadius: 8)
-            ctx.fill(boxPath, with: .color(Color(red: 0.03, green: 0.03, blue: 0.07).opacity(0.5)))
-            ctx.stroke(boxPath, with: .color(color.opacity(0.6)),
-                       style: StrokeStyle(lineWidth: 1.5, dash: [5, 4]))
+            ctx.fill(boxPath, with: .color(Color(red: 0.03, green: 0.03, blue: 0.07).opacity(dashed ? 0.5 : 0.9)))
+            ctx.stroke(boxPath, with: .color(color.opacity(dashed ? 0.6 : 1)),
+                       style: StrokeStyle(lineWidth: 1.5, dash: dashed ? [5, 4] : []))
         }
         .allowsHitTesting(false)
     }
