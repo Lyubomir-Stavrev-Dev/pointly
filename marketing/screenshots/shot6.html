@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><link rel="stylesheet" href="style.css"></head>
+<body>
+<div class="frame">
+  <div class="bg-grad"></div>
+
+  <div class="copy">
+    <span class="eyebrow">Presenter Zoom · Pro</span>
+    <h1 class="headline">Zoom in<br>on the <span class="accent">detail.</span></h1>
+    <p class="subhead">Freeze the screen and magnify any corner of it — then pan around live. The tiny stuff finally lands with the back row.</p>
+  </div>
+
+  <!-- Screen: a code/dashboard frozen and zoomed toward a spot -->
+  <div class="stage dark">
+    <div class="winbar dark">
+      <span class="dot r"></span><span class="dot y"></span><span class="dot g"></span>
+      <span class="wintitle" style="color:#6b6b78;">Terminal — deploy.log</span>
+    </div>
+    <div style="position:relative; height:calc(100% - 44px); background:#0e0e16; overflow:hidden;">
+      <!-- zoomed content: big monospaced lines, one highlighted -->
+      <div style="position:absolute; left:-40px; top:20px; transform:scale(1.9); transform-origin:38% 40%;">
+        <div style="font:600 15px/2.0 'SF Mono',ui-monospace,monospace; padding:26px 40px; color:#6f7a86;">
+          <div>› building release configuration…</div>
+          <div>› signing with Apple Distribution</div>
+          <div style="color:#e9e9f0;">› uploading Pointly.pkg <span style="color:#34D399;">✓ 5.0 MB</span></div>
+          <div style="background:linear-gradient(90deg,rgba(244,100,77,0.22),transparent); border-radius:8px; padding:2px 6px; margin:2px -6px; color:#fff;">› build <span style="color:#FF8C42;">8</span> processed — ready for review</div>
+          <div>› done in 42.1s</div>
+        </div>
+      </div>
+
+      <!-- Loupe ring over the highlighted 'build 8 processed' line -->
+      <div style="position:absolute; left:250px; top:120px; width:150px; height:150px; border-radius:50%;
+        box-shadow:0 0 0 3px rgba(244,100,77,0.9), 0 0 60px rgba(244,100,77,0.35), 0 20px 50px rgba(0,0,0,0.5);"></div>
+    </div>
+  </div>
+
+  <!-- Zoom level badge -->
+  <div class="tooltip" style="right:120px; top:196px;">
+    <svg viewBox="0 0 24 24" width="15" fill="none" stroke="#FF8C42" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3M9 11h4M11 9v4"/></svg>
+    1.9× · scroll to zoom, move to pan
+    <span class="keycap">Esc</span>
+  </div>
+</div>
+</body></html>
