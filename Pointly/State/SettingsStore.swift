@@ -91,7 +91,7 @@ class SettingsStore: ObservableObject {
     
     var penColor: Color {
         get {
-            Color(hex: defaultPenColor) ?? Color(red: 1.0, green: 0.231, blue: 0.188)
+            Color(hex: defaultPenColor) ?? Color(red: 0.957, green: 0.392, blue: 0.302)
         }
         set {
             defaultPenColor = newValue.toHex()
@@ -109,6 +109,10 @@ class SettingsStore: ObservableObject {
     // MARK: - Initialization
     
     init() {
+        // Register defaults BEFORE reading — otherwise bool/double reads return
+        // 0/false for unset keys and the intended defaults never apply.
+        Self.registerDefaults()
+
         // Load values from UserDefaults or use defaults
         self.globalHotkey = UserDefaults.standard.string(forKey: "globalHotkey") ?? "⌘⇧P"
         self.toolbarTheme = UserDefaults.standard.string(forKey: "toolbarTheme") ?? "system"
@@ -128,20 +132,21 @@ class SettingsStore: ObservableObject {
         self.includeTimestampInFilename = UserDefaults.standard.object(forKey: "includeTimestampInFilename") as? Bool ?? true
         self.autoOpenExport = UserDefaults.standard.object(forKey: "autoOpenExport") as? Bool ?? true
         self.showExportNotification = UserDefaults.standard.object(forKey: "showExportNotification") as? Bool ?? true
-
-        registerDefaults()
     }
-    
+
     // MARK: - Methods
-    
-    private func registerDefaults() {
+
+    /// Static + also called from AppDelegate at launch: DrawingState and
+    /// AppDelegate read these keys with raw UserDefaults, so registration must
+    /// happen before ANY reader runs — not just when the Settings window opens.
+    static func registerDefaults() {
         let defaults: [String: Any] = [
             "globalHotkey": "⌘⇧P",
             "toolbarTheme": "system",
             "startupBehavior": "menubar",
             "snapToGrid": false,
             "straightLineAssist": true,
-            "defaultPenColor": "#FF3B30",
+            "defaultPenColor": "#F4644D",
             "defaultThickness": 3.0,
             "showToolbarOnStartup": true,
             "autoSaveAnnotations": false,
@@ -152,7 +157,7 @@ class SettingsStore: ObservableObject {
             "autoOpenExport": true,
             "showExportNotification": true,
         ]
-        
+
         UserDefaults.standard.register(defaults: defaults)
     }
     
@@ -163,7 +168,7 @@ class SettingsStore: ObservableObject {
         startupBehavior = "menubar"
         snapToGrid = false
         straightLineAssist = true
-        defaultPenColor = "#FF3B30"
+        defaultPenColor = "#F4644D"
         defaultThickness = 3.0
         showToolbarOnStartup = true
         autoSaveAnnotations = false
@@ -188,10 +193,14 @@ class SettingsStore: ObservableObject {
             "showToolbarOnStartup": showToolbarOnStartup,
             "autoSaveAnnotations": autoSaveAnnotations,
             "exportFormat": exportFormat,
-            "exportQuality": exportQuality
+            "exportQuality": exportQuality,
+            "gridSize": gridSize,
+            "includeTimestampInFilename": includeTimestampInFilename,
+            "autoOpenExport": autoOpenExport,
+            "showExportNotification": showExportNotification
         ]
     }
-    
+
     /// Import settings from a dictionary
     func importSettings(_ settings: [String: Any]) {
         if let value = settings["globalHotkey"] as? String { globalHotkey = value }
@@ -205,6 +214,10 @@ class SettingsStore: ObservableObject {
         if let value = settings["autoSaveAnnotations"] as? Bool { autoSaveAnnotations = value }
         if let value = settings["exportFormat"] as? String { exportFormat = value }
         if let value = settings["exportQuality"] as? Double { exportQuality = value }
+        if let value = settings["gridSize"] as? Double { gridSize = value }
+        if let value = settings["includeTimestampInFilename"] as? Bool { includeTimestampInFilename = value }
+        if let value = settings["autoOpenExport"] as? Bool { autoOpenExport = value }
+        if let value = settings["showExportNotification"] as? Bool { showExportNotification = value }
     }
 }
 
@@ -237,19 +250,28 @@ extension Color {
         )
     }
     
-    /// Convert Color to hex string
+    /// Convert Color to hex string (#RRGGBB, or #AARRGGBB when translucent —
+    /// Color(hex:) round-trips the 8-digit ARGB form)
     func toHex() -> String {
         guard let components = cgColor?.components, components.count >= 3 else {
-            return "#FF3B30" // Default red
+            return "#F4644D" // Brand default
         }
-        
+
         let r = Float(components[0])
         let g = Float(components[1])
         let b = Float(components[2])
-        
-        return String(format: "#%02lX%02lX%02lX", 
-                     lroundf(r * 255), 
-                     lroundf(g * 255), 
+        let a = Float(components.count >= 4 ? components[3] : 1.0)
+
+        if a < 0.999 {
+            return String(format: "#%02lX%02lX%02lX%02lX",
+                         lroundf(a * 255),
+                         lroundf(r * 255),
+                         lroundf(g * 255),
+                         lroundf(b * 255))
+        }
+        return String(format: "#%02lX%02lX%02lX",
+                     lroundf(r * 255),
+                     lroundf(g * 255),
                      lroundf(b * 255))
     }
 }

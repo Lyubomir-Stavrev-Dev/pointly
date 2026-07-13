@@ -84,7 +84,8 @@ class OverlayWindowManager: ObservableObject {
         win.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
         win.contentView = NSHostingView(rootView:
             OverlayView(drawingState: sharedDrawingState,
-                        interactionMode: sharedInteractionMode))
+                        interactionMode: sharedInteractionMode,
+                        displayID: displayID(for: screen)))
         win.orderOut(nil)
         return win
     }
@@ -592,14 +593,29 @@ class OverlayWindowManager: ObservableObject {
         // Preflight is dialog-free. If not granted, open Settings and bail — the OS
         // dialog never appears this way, so there's nothing stuck on screen.
         if !CGPreflightScreenCaptureAccess() {
+            // Interact mode first so the system dialog / Settings pane is
+            // clickable (not buried under the draw-mode canvas).
             sharedInteractionMode.switchTo(mode: .interact)
+            // ONCE per install: CGRequestScreenCaptureAccess registers Pointly
+            // in the Screen Recording pane — without it a fresh install never
+            // appears in the list and the permission can't be granted at all.
+            // Never call repeatedly: on newer macOS it re-prompts every time
+            // and stacks dialogs.
+            if !UserDefaults.standard.bool(forKey: "hasRequestedScreenCapture") {
+                UserDefaults.standard.set(true, forKey: "hasRequestedScreenCapture")
+                CGRequestScreenCaptureAccess()
+                return
+            }
             NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture")!)
             return
         }
 
-        guard let viewRect = notification.object as? CGRect else { return }
-        guard let mainID = mainDisplayID,
-              let canvasWin = canvasWindows[mainID] else { return }
+        guard let viewRect = notification.userInfo?["rect"] as? CGRect else { return }
+        // Use the display the drag actually happened on (posted by the source
+        // OverlayView) — guessing via NSScreen.main captured the wrong screen
+        // when the key window didn't match the drag's display.
+        let sourceID = notification.userInfo?["displayID"] as? CGDirectDisplayID ?? mainDisplayID
+        guard let sourceID, let canvasWin = canvasWindows[sourceID] else { return }
 
         // SwiftUI (top-left) → NSView (bottom-left) → AppKit screen rect
         let contentH = canvasWin.contentView?.frame.height ?? canvasWin.frame.height
@@ -622,12 +638,14 @@ class OverlayWindowManager: ObservableObject {
 
         Task { @MainActor [weak self] in
             guard let self else { return }
-            await self.captureAndLift(viewRect: viewRect, screenRect: screenRect, cgRect: cgRect)
+            await self.captureAndLift(viewRect: viewRect, screenRect: screenRect,
+                                      cgRect: cgRect, sourceDisplayID: sourceID)
         }
     }
 
     @MainActor
-    private func captureAndLift(viewRect: CGRect, screenRect: NSRect, cgRect: CGRect) async {
+    private func captureAndLift(viewRect: CGRect, screenRect: NSRect, cgRect: CGRect,
+                                sourceDisplayID: CGDirectDisplayID) async {
         guard let content = try? await SCShareableContent.current else { return }
 
         // Find the display that contains the selection
@@ -664,7 +682,9 @@ class OverlayWindowManager: ObservableObject {
         sharedInteractionMode.switchTo(mode: .interact)
 
         let fillColor = Color(sampleEdgeColor(of: cgImage))
-        let coverID = sharedDrawingState.addLiftedCover(rect: viewRect, image: nil, fillColor: fillColor)
+        let coverID = sharedDrawingState.addLiftedCover(rect: viewRect, image: nil,
+                                                        fillColor: fillColor,
+                                                        displayID: sourceDisplayID)
 
         let fgImage = NSImage(cgImage: cgImage, size: screenRect.size)
         let floatingRect = NSRect(x: screenRect.minX + 14, y: screenRect.minY - 14,
@@ -757,7 +777,7 @@ class OverlayWindowManager: ObservableObject {
     func showPaywall(tool: DrawingTool?, isWhiteboardCanvas: Bool = false, initialPlan: ProPlan = .annual) {
         paywallPanel?.orderOut(nil)
 
-        let size = CGSize(width: 400, height: 580)
+        let size = CGSize(width: 400, height: 644)   // must match ProPaywallView's fixed frame — a shorter panel clipped the App Review-required Terms/Privacy links
         let panel = NSPanel(
             contentRect: NSRect(origin: .zero, size: size),
             styleMask: [.titled, .closable, .fullSizeContentView],

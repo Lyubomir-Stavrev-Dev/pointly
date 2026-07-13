@@ -21,10 +21,17 @@ enum ProPlan: String, CaseIterable {
         }
     }
     var fallbackPrice: String {
+        // Shown only until StoreKit products load. The App Store build must not
+        // hardcode a currency (wrong on most storefronts) — show a placeholder.
+        // The direct build's Stripe prices really are EUR.
+        #if DIRECT_BUILD
         switch self {
         case .annual:   return "€12.99"
         case .lifetime: return "€39.99"
         }
+        #else
+        return "…"
+        #endif
     }
     var period: String {
         switch self {
@@ -113,18 +120,33 @@ final class ProManager: ObservableObject {
         Task { await loadProducts() }
     }
 
+    // The singleton keeps the last error forever — the paywall clears it on
+    // appear so a days-old failure isn't shown for an unrelated tool.
+    func clearError() {
+        errorMessage = nil
+    }
+
     // MARK: - Purchase
 
     func purchase(plan: ProPlan = .annual) async {
-        await MainActor.run { purchaseInProgress = true; errorMessage = nil }
+        // Reentrancy guard — a double-tap landing before the first publish
+        // would spawn two StoreKit purchases and flicker purchaseInProgress.
+        let alreadyRunning = await MainActor.run { () -> Bool in
+            if purchaseInProgress { return true }
+            purchaseInProgress = true
+            errorMessage = nil
+            return false
+        }
+        guard !alreadyRunning else { return }
         defer { Task { @MainActor in self.purchaseInProgress = false } }
 
         // Products may have failed to load at launch (offline) — retry once
         // before giving up so recovered connectivity doesn't require a relaunch.
-        if loadedProducts[plan.productID] == nil {
+        // Read loadedProducts on the main actor (it's written there).
+        if await MainActor.run(body: { loadedProducts[plan.productID] == nil }) {
             await loadProducts()
         }
-        guard let product = loadedProducts[plan.productID] else {
+        guard let product = await MainActor.run(body: { loadedProducts[plan.productID] }) else {
             await MainActor.run {
                 errorMessage = "Product unavailable. Check your connection or try again later."
             }

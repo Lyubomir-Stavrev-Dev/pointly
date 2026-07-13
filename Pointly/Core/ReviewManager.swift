@@ -34,9 +34,13 @@ enum ReviewManager {
     }
 
     private static func requestReview() {
+        // App Store builds only — in the direct (website) build the StoreKit
+        // review sheet is a no-op at best.
+        #if !DIRECT_BUILD
         DispatchQueue.main.async {
             SKStoreReviewController.requestReview()
         }
+        #endif
     }
 
     private static var appVersion: String {

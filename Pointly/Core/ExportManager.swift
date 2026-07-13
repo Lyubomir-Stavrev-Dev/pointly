@@ -50,9 +50,14 @@ class ExportManager: ObservableObject {
             NotificationCenter.default.post(name: .restoreCanvasLevel, object: nil)
             guard response == .OK, let url = savePanel.url, let self else { return }
 
+            // Snapshot on the main thread — the user can keep drawing behind
+            // the non-modal panel, and a concurrent read of the mutating
+            // elements array from the render queue is a data race.
+            let elements = drawingState.elements
+
             DispatchQueue.global(qos: .userInitiated).async {
                 do {
-                    let tempURL = try self.createExportFile(drawingState: drawingState, format: format, size: size)
+                    let tempURL = try self.createExportFile(elements: elements, format: format, size: size)
 
                     DispatchQueue.main.async {
                         do {
@@ -84,7 +89,7 @@ class ExportManager: ObservableObject {
     // MARK: - File Creation
 
     private func createExportFile(
-        drawingState: DrawingState,
+        elements: [DrawingElement],
         format: ExportFormat,
         size: CGSize
     ) throws -> URL {
@@ -93,9 +98,9 @@ class ExportManager: ObservableObject {
 
         switch format {
         case .png, .jpeg:
-            try createImageFile(elements: drawingState.elements, format: format, size: size, url: tempURL)
+            try createImageFile(elements: elements, format: format, size: size, url: tempURL)
         case .pdf:
-            try createPDFFile(elements: drawingState.elements, size: size, url: tempURL)
+            try createPDFFile(elements: elements, size: size, url: tempURL)
         }
         return tempURL
     }

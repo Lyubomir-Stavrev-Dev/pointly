@@ -14,6 +14,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         CrashReporter.setup()
 
+        // Before anything reads UserDefaults — DrawingState/AppDelegate use raw
+        // reads, so intended defaults must be registered process-wide up front.
+        SettingsStore.registerDefaults()
+
         NSApp.setActivationPolicy(.accessory)
 
         // Prevent macOS from restoring SwiftUI scene windows on future launches.
@@ -210,6 +214,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         window.backgroundColor = .clear
         window.appearance = NSAppearance(named: .darkAqua)
         window.isReleasedWhenClosed = false
+        window.delegate = self   // red close button must still complete onboarding
         window.contentView = FirstMouseHostingView(rootView: OnboardingView {
             self.onboardingWindow?.orderOut(nil)
             if thenShowToolbar {
@@ -223,6 +228,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     @objc private func openSettings() {
+        openSettingsWindow(initialTab: .general)
+    }
+
+    private func openSettingsWindow(initialTab: SettingsTab) {
         if settingsWindow == nil {
             let window = NSWindow(
                 contentRect: NSRect(x: 0, y: 0, width: 640, height: 500),
@@ -237,33 +246,38 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             window.backgroundColor = .clear
             window.appearance = NSAppearance(named: .darkAqua)
             window.isReleasedWhenClosed = false
-            window.contentView = FirstMouseHostingView(rootView: SettingsView())
+            window.contentView = FirstMouseHostingView(rootView: SettingsView(initialTab: initialTab))
             window.center()
             settingsWindow = window
+            // Register once at creation — the old per-open add (with a remove
+            // that targeted the wrong observer object) stacked duplicates.
+            NotificationCenter.default.addObserver(
+                overlayWindowManager as Any,
+                selector: #selector(OverlayWindowManager.restoreCanvasLevel),
+                name: NSWindow.willCloseNotification,
+                object: window
+            )
         }
         // Lower canvas so Settings (at normal level) renders above it without blending issues
         overlayWindowManager?.lowerCanvasForPanel()
-        NotificationCenter.default.removeObserver(self, name: NSWindow.willCloseNotification, object: settingsWindow)
-        NotificationCenter.default.addObserver(
-            overlayWindowManager as Any,
-            selector: #selector(OverlayWindowManager.restoreCanvasLevel),
-            name: NSWindow.willCloseNotification,
-            object: settingsWindow
-        )
         settingsWindow?.level = .floating
         settingsWindow?.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
     }
 
     @objc private func showTutorial() {
-        onboardingWindow = nil  // force a fresh window each time
+        onboardingWindow?.orderOut(nil)   // don't orphan a visible window (its
+        onboardingWindow = nil            // dismiss closure would hide the new one)
         showOnboarding(thenShowToolbar: false)
     }
 
     @objc private func openKeyboardShortcuts() {
-        openSettings()
-        // Small delay so SwiftUI has time to subscribe to the notification on first open
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.08) {
+        if settingsWindow == nil {
+            // First open: pass the tab directly — a delayed notification raced
+            // SwiftUI's subscription and could land on the default tab.
+            openSettingsWindow(initialTab: .shortcuts)
+        } else {
+            openSettings()
             NotificationCenter.default.post(name: .navigateToShortcuts, object: nil)
         }
     }
@@ -319,6 +333,19 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 extension AppDelegate: GlobalHotkeyManagerDelegate {
     func hotkeyPressed() {
         toggleOverlay()  // already contains interact-mode → draw logic
+    }
+}
+
+// MARK: - NSWindowDelegate (onboarding close button)
+
+extension AppDelegate: NSWindowDelegate {
+    func windowWillClose(_ notification: Notification) {
+        guard let window = notification.object as? NSWindow,
+              window === onboardingWindow else { return }
+        // The red close button bypasses OnboardingView's buttons — without
+        // this, first-run users who close the window get onboarding again on
+        // every launch and (LSUIElement, no Dock icon) an app that looks dead.
+        UserDefaults.standard.set(true, forKey: "hasSeenOnboarding")
     }
 }
 

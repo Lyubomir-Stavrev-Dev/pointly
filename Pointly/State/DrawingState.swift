@@ -191,6 +191,12 @@ struct DrawingElement: Identifiable {
     let text: String?               // For text tool
     let isFilled: Bool              // For shape fills (rectangle, ellipse)
 
+    /// Display the element was drawn on. Points are window-LOCAL coordinates,
+    /// so an element must only render/hit-test on its own display — a single
+    /// shared element list otherwise mirrors annotations onto every screen.
+    /// nil (pre-existing saves) renders everywhere.
+    var displayID: CGDirectDisplayID? = nil
+
     init(tool: DrawingTool, points: [CGPoint], color: Color, thickness: CGFloat,
          blurRadius: CGFloat? = nil, glowIntensity: CGFloat? = nil,
          textureType: TextureType? = nil, animationSpeed: CGFloat? = nil,
@@ -283,6 +289,7 @@ struct LiftedCover: Identifiable {
     let rect: CGRect     // canvas view coordinates (SwiftUI, top-left)
     let image: NSImage?  // background screenshot if available
     let fillColor: Color // solid-color fallback (sampled from captured image edges)
+    var displayID: CGDirectDisplayID? = nil   // display the capture happened on
 }
 
 class DrawingState: ObservableObject {
@@ -307,6 +314,15 @@ class DrawingState: ObservableObject {
     private var currentStroke: [CGPoint] = []
     private var isDrawing = false
     private var tempElementID: UUID? = nil   // tracks in-progress preview element
+
+    /// Display the current gesture is happening on — set by the OverlayView
+    /// that owns the gesture (one per screen sharing this state). New elements
+    /// are stamped with it and hit-testing is scoped to it.
+    var activeDisplayID: CGDirectDisplayID? = nil
+
+    private func onActiveDisplay(_ e: DrawingElement) -> Bool {
+        e.displayID == nil || activeDisplayID == nil || e.displayID == activeDisplayID
+    }
     
     // Computed properties for undo/redo availability
     var canUndo: Bool {
@@ -334,7 +350,8 @@ class DrawingState: ObservableObject {
         selectedColor = Color(hex: colorHex) ?? (Color(hex: "#F4644D") ?? Color(red: 0.957, green: 0.392, blue: 0.302))
         let savedThickness = UserDefaults.standard.double(forKey: "defaultThickness")
         strokeThickness = savedThickness > 0 ? CGFloat(savedThickness) : 3.0
-        saveStateForUndo()
+        // No baseline undo push here — every mutation pushes before changing,
+        // so an empty stack correctly means "nothing to undo" at launch.
     }
     
     // MARK: - Drawing Operations
@@ -419,7 +436,17 @@ class DrawingState: ObservableObject {
         // Remove the preview/temp element before appending the final committed element
         removeTempElement()
 
-        let element = createDrawingElement()
+        // Shapes render only from first→last point — keeping every intermediate
+        // drag point bloats memory and makes boundingBox track the drag path
+        // instead of the rendered geometry (selection handles float away).
+        let shapeTools: Set<DrawingTool> = [.line, .arrow, .rectangle, .ellipse, .triangle, .diamond]
+        if shapeTools.contains(selectedTool), currentStroke.count > 2,
+           let first = currentStroke.first, let last = currentStroke.last {
+            currentStroke = [first, last]
+        }
+
+        var element = createDrawingElement()
+        element.displayID = activeDisplayID
         elements.append(element)
         currentStroke.removeAll()
         isDrawing = false
@@ -432,13 +459,14 @@ class DrawingState: ObservableObject {
     func addTextElement(at point: CGPoint, text: String) {
         guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
         saveStateForUndo()
-        let element = DrawingElement(
+        var element = DrawingElement(
             tool: .text,
             points: [point],
             color: selectedColor,
             thickness: strokeThickness,
             text: text
         )
+        element.displayID = activeDisplayID
         elements.append(element)
         redoStack.removeAll()
         saveAnnotations()
@@ -515,11 +543,7 @@ class DrawingState: ObservableObject {
         case .laserPointer:
             // Schedule fade-out for laser pointer
             scheduleLaserPointerFade(element)
-            
-        case .blurBrush:
-            // Trigger screen blur effect
-            triggerScreenBlurEffect(element)
-            
+
         default:
             break
         }
@@ -532,17 +556,10 @@ class DrawingState: ObservableObject {
         }
     }
     
-    private func triggerScreenBlurEffect(_ element: DrawingElement) {
-        // Notify Metal renderer to apply blur effect
-        NotificationCenter.default.post(
-            name: .applyBlurEffect,
-            object: element
-        )
-    }
-    
     private func updateCurrentElement() {
         removeTempElement()
-        let tempElement = createDrawingElement()
+        var tempElement = createDrawingElement()
+        tempElement.displayID = activeDisplayID
         tempElementID = tempElement.id
         elements.append(tempElement)
     }
@@ -558,7 +575,9 @@ class DrawingState: ObservableObject {
     // Call on every drag point — no undo save (beginEraseStroke owns that).
     func eraseAt(_ point: CGPoint) {
         let radius: CGFloat = max(24, strokeThickness * 3)
-        elements.removeAll { $0.contains(point, threshold: radius) }
+        // Scoped to the gesture's display — same local coords exist on every
+        // screen, so an unscoped erase deletes another display's annotations.
+        elements.removeAll { onActiveDisplay($0) && $0.contains(point, threshold: radius) }
     }
     
     // MARK: - Undo/Redo Operations
@@ -574,6 +593,7 @@ class DrawingState: ObservableObject {
         if let previousState = undoStack.popLast() {
             elements = previousState
         }
+        saveAnnotations()   // otherwise an undone stroke returns after relaunch
     }
 
     func redo() {
@@ -585,6 +605,7 @@ class DrawingState: ObservableObject {
         if let nextState = redoStack.popLast() {
             elements = nextState
         }
+        saveAnnotations()
     }
 
     private func saveStateForUndo() {
@@ -632,7 +653,7 @@ class DrawingState: ObservableObject {
     // MARK: - Selection
 
     func hitTest(at point: CGPoint, threshold: CGFloat = 12) -> DrawingElement? {
-        elements.reversed().first { $0.contains(point, threshold: threshold) }
+        elements.reversed().first { onActiveDisplay($0) && $0.contains(point, threshold: threshold) }
     }
 
     func clearSelection() { selectedElementIDs = [] }
@@ -643,7 +664,7 @@ class DrawingState: ObservableObject {
     }
 
     func selectElements(in rect: CGRect) {
-        selectedElementIDs = Set(elements.filter { rect.intersects($0.boundingBox) }.map(\.id))
+        selectedElementIDs = Set(elements.filter { onActiveDisplay($0) && rect.intersects($0.boundingBox) }.map(\.id))
     }
 
     // Call once at the start of a move/resize drag — one undo snapshot for the
@@ -693,15 +714,16 @@ class DrawingState: ObservableObject {
 
     func deleteElements(in rect: CGRect) {
         saveStateForUndo()
-        elements.removeAll { rect.intersects($0.boundingBox) }
+        elements.removeAll { onActiveDisplay($0) && rect.intersects($0.boundingBox) }
         selectedElementIDs = []
         redoStack.removeAll()
         saveAnnotations()
     }
 
     @discardableResult
-    func addLiftedCover(rect: CGRect, image: NSImage?, fillColor: Color) -> UUID {
-        let cover = LiftedCover(rect: rect, image: image, fillColor: fillColor)
+    func addLiftedCover(rect: CGRect, image: NSImage?, fillColor: Color,
+                        displayID: CGDirectDisplayID? = nil) -> UUID {
+        let cover = LiftedCover(rect: rect, image: image, fillColor: fillColor, displayID: displayID)
         liftedCovers.append(cover)
         return cover.id
     }
@@ -719,7 +741,6 @@ class DrawingState: ObservableObject {
 
 extension Notification.Name {
     static let toolChanged         = Notification.Name("ToolChanged")
-    static let applyBlurEffect     = Notification.Name("ApplyBlurEffect")
     static let startLaserAnimation = Notification.Name("StartLaserAnimation")
     static let cancelTextInput     = Notification.Name("CancelTextInput")
 }
@@ -737,6 +758,7 @@ private struct PersistedElement: Codable {
     let glowIntensity: Double?
     let text: String?
     let isFilled: Bool
+    var displayID: UInt32? = nil   // optional → old saves decode fine
 }
 
 extension DrawingState {
@@ -762,7 +784,8 @@ extension DrawingState {
                 blurRadius: el.blurRadius.map { Double($0) },
                 glowIntensity: el.glowIntensity.map { Double($0) },
                 text: el.text,
-                isFilled: el.isFilled
+                isFilled: el.isFilled,
+                displayID: el.displayID
             )
         }
         if let data = try? JSONEncoder().encode(encoded) {
@@ -784,7 +807,7 @@ extension DrawingState {
                 return CGPoint(x: arr[0], y: arr[1])
             }
             guard !points.isEmpty else { return nil }
-            return DrawingElement(
+            var element = DrawingElement(
                 tool: tool,
                 points: points,
                 color: Color(hex: p.colorHex) ?? .red,
@@ -794,6 +817,8 @@ extension DrawingState {
                 text: p.text,
                 isFilled: p.isFilled
             )
+            element.displayID = p.displayID
+            return element
         }
         if !loaded.isEmpty {
             saveStateForUndo()

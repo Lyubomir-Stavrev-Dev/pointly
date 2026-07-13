@@ -3,12 +3,20 @@ import SwiftUI
 /// Canvas view that renders all drawing elements
 struct DrawingCanvas: View {
     @ObservedObject var state: DrawingState
+    /// Display this canvas belongs to. Element points are window-local, so
+    /// each canvas draws only its own display's elements (nil = draw all).
+    var displayID: CGDirectDisplayID? = nil
     /// Set to false for static snapshot rendering (e.g. ImageRenderer) to avoid
     /// TimelineView's animation infrastructure which doesn't work in that context.
     var animated: Bool = true
 
+    private var visibleElements: [DrawingElement] {
+        guard let displayID else { return state.elements }
+        return state.elements.filter { $0.displayID == nil || $0.displayID == displayID }
+    }
+
     private var hasLaserElements: Bool {
-        state.elements.contains { $0.tool == .laserPointer }
+        visibleElements.contains { $0.tool == .laserPointer }
     }
 
     var body: some View {
@@ -19,14 +27,14 @@ struct DrawingCanvas: View {
         if animated && hasLaserElements {
             TimelineView(.animation(minimumInterval: 1.0 / 60.0)) { _ in
                 Canvas { context, size in
-                    for element in state.elements { drawElement(element, in: context) }
+                    for element in visibleElements { drawElement(element, in: context) }
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .allowsHitTesting(false)
             }
         } else {
             Canvas { context, size in
-                for element in state.elements { drawElement(element, in: context) }
+                for element in visibleElements { drawElement(element, in: context) }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .allowsHitTesting(false)

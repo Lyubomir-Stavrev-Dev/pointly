@@ -69,6 +69,11 @@ final class LicenseManager: ObservableObject {
         }
     }
 
+    @MainActor
+    func clearError() {
+        errorMessage = nil
+    }
+
     // MARK: - Background revalidation (never hard-revokes while offline)
 
     private func revalidateQuietly() async {

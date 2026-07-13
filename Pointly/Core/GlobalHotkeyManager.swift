@@ -23,7 +23,9 @@ class GlobalHotkeyManager {
 
     /// Register a global hotkey with an optional per-hotkey callback.
     /// If no callback is provided, `delegate?.hotkeyPressed()` is called instead.
-    func registerHotkey(keyCode: UInt32, modifiers: NSEvent.ModifierFlags, callback: (() -> Void)? = nil) {
+    /// Returns false when Carbon rejects the combo (e.g. owned by another app).
+    @discardableResult
+    func registerHotkey(keyCode: UInt32, modifiers: NSEvent.ModifierFlags, callback: (() -> Void)? = nil) -> Bool {
         let id = Self.globalNextID
         Self.globalNextID += 1
 
@@ -44,8 +46,11 @@ class GlobalHotkeyManager {
             hotkeyRefs[id] = ref
             installEventHandlerIfNeeded()
             print("✅ Hotkey registered (id: \(id), keyCode: \(keyCode))")
+            return true
         } else {
+            hotkeyCallbacks.removeValue(forKey: id)   // don't keep a callback for a dead registration
             print("❌ Failed to register hotkey (keyCode: \(keyCode)): \(status)")
+            return false
         }
     }
 

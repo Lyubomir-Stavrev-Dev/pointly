@@ -2,12 +2,17 @@ import Foundation
 
 // MARK: - Top-level handlers (C function pointers cannot capture context)
 
+// Previous handler (e.g. from an SDK) — chained so setup() doesn't silently
+// disable it. Global, not a capture, so the C function pointer stays valid.
+private var _pointlyPreviousExceptionHandler: (@convention(c) (NSException) -> Void)? = nil
+
 private func _pointlyUncaughtExceptionHandler(_ exception: NSException) {
     _pointlyWriteCrashLog(
         name: exception.name.rawValue,
         reason: exception.reason ?? "no reason",
         callStack: exception.callStackSymbols
     )
+    _pointlyPreviousExceptionHandler?(exception)
 }
 
 private func _pointlySignalHandler(_ sig: Int32) {
@@ -63,7 +68,11 @@ private func _pointlyWriteCrashLog(name: String, reason: String, callStack: [Str
 
 enum CrashReporter {
     static func setup() {
+        _pointlyPreviousExceptionHandler = NSGetUncaughtExceptionHandler()
         NSSetUncaughtExceptionHandler(_pointlyUncaughtExceptionHandler)
+        // Signal handlers re-raise with SIG_DFL after logging, preserving the
+        // system crash reporter. (Note: the handler body is not strictly
+        // async-signal-safe — acceptable trade-off for best-effort local logs.)
         for sig in [SIGABRT, SIGSEGV, SIGILL, SIGBUS, SIGFPE] {
             signal(sig, _pointlySignalHandler)
         }

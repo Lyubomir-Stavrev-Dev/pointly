@@ -1,15 +1,17 @@
 import SwiftUI
-import MetalKit
 
 struct OverlayView: View {
     @ObservedObject var drawingState: DrawingState
     @ObservedObject var interactionMode: InteractionModeManager
+    /// The display this canvas window lives on — elements are stamped with it
+    /// and each canvas renders only its own display's elements.
+    var displayID: CGDirectDisplayID = 0
     @State private var isDrawing = false
     @State private var canvasSize = CGSize.zero
-    @State private var metalRenderer: MetalRenderer?
 
     @State private var showModeIndicator = false
     @State private var modeIndicatorOpacity = 0.0
+    @State private var modeHUDWorkItem: DispatchWorkItem? = nil
 
     @State private var hintTool: DrawingTool? = nil
     @State private var hintKey: String = ""
@@ -42,7 +44,7 @@ struct OverlayView: View {
 
             // Erase covers for Cut & Move — rendered at canvas level so they reliably
             // hide real app content beneath the transparent canvas window.
-            ForEach(drawingState.liftedCovers) { cover in
+            ForEach(drawingState.liftedCovers.filter { $0.displayID == nil || $0.displayID == displayID }) { cover in
                 Rectangle()
                     .fill(cover.fillColor)
                     .frame(width: cover.rect.width, height: cover.rect.height)
@@ -62,11 +64,7 @@ struct OverlayView: View {
                 }
 
             // Canvas
-            if let renderer = metalRenderer {
-                MetalDrawingCanvas(state: drawingState, renderer: renderer)
-            } else {
-                DrawingCanvas(state: drawingState)
-            }
+            DrawingCanvas(state: drawingState, displayID: displayID)
 
             // Mode HUD
             if showModeIndicator {
@@ -82,25 +80,30 @@ struct OverlayView: View {
                 }
             }
 
-            // Text input
+            // Text input — anchored so the field's TEXT top-left sits at `pos`,
+            // matching drawText's .topLeading anchor (a centered .position(pos)
+            // made committed text jump down-right by half the field size).
             if let pos = textInputPosition {
-                TextInputOverlay(
-                    text: $pendingText,
-                    color: drawingState.selectedColor,
-                    fontSize: max(14, drawingState.strokeThickness * 4),
-                    onCommit: {
-                        drawingState.addTextElement(at: pos, text: pendingText)
-                        textInputPosition = nil
-                        pendingText = ""
-                        drawingState.isTextInputActive = false
-                    },
-                    onCancel: {
-                        textInputPosition = nil
-                        pendingText = ""
-                        drawingState.isTextInputActive = false
-                    }
-                )
-                .position(pos)
+                ZStack(alignment: .topLeading) {
+                    Color.clear.allowsHitTesting(false)
+                    TextInputOverlay(
+                        text: $pendingText,
+                        color: drawingState.selectedColor,
+                        fontSize: max(14, drawingState.strokeThickness * 4),
+                        onCommit: {
+                            drawingState.addTextElement(at: pos, text: pendingText)
+                            textInputPosition = nil
+                            pendingText = ""
+                            drawingState.isTextInputActive = false
+                        },
+                        onCancel: {
+                            textInputPosition = nil
+                            pendingText = ""
+                            drawingState.isTextInputActive = false
+                        }
+                    )
+                    .offset(x: pos.x - 6, y: pos.y - 3)   // compensate the field's padding
+                }
             }
 
             // Selection visuals (rubber band + bounding box border) — no hit testing
@@ -139,7 +142,7 @@ struct OverlayView: View {
         .background(
             GeometryReader { geo in
                 Color.clear
-                    .onAppear { canvasSize = geo.size; initializeMetalRenderer() }
+                    .onAppear { canvasSize = geo.size }
                     .onChange(of: geo.size) { _, newSize in canvasSize = newSize }
             }
         )
@@ -152,6 +155,14 @@ struct OverlayView: View {
         .onReceive(NotificationCenter.default.publisher(for: .interactionModeChanged)) { handleModeChange($0) }
         .onChange(of: drawingState.selectedTool) { _, tool in
             if tool != .select && tool != .cutMove { drawingState.clearSelection() }
+            // Commit in-progress text instead of leaving the field floating
+            // (empty text is dropped by addTextElement's guard).
+            if let pos = textInputPosition {
+                drawingState.addTextElement(at: pos, text: pendingText)
+                textInputPosition = nil
+                pendingText = ""
+                drawingState.isTextInputActive = false
+            }
             // Reset any in-flight gesture — tool hotkeys fire mid-drag, and a
             // half-finished stroke/move otherwise corrupts the next gesture
             // (ghost strokes, un-undoable erases, stuck rubber band).
@@ -206,6 +217,7 @@ struct OverlayView: View {
 
     private func handleDrawingChanged(_ value: DragGesture.Value) {
         guard interactionMode.currentMode == .draw else { return }
+        drawingState.activeDisplayID = displayID
 
         if drawingState.selectedTool == .spotlight {
             spotlightPosition = value.location
@@ -237,6 +249,11 @@ struct OverlayView: View {
         }
         if drawingState.selectedTool == .text {
             if hypot(value.translation.width, value.translation.height) < 8 {
+                // Commit any in-progress text before opening a new input —
+                // click-away used to silently discard what was typed.
+                if let pos = textInputPosition {
+                    drawingState.addTextElement(at: pos, text: pendingText)
+                }
                 textInputPosition = value.startLocation
                 pendingText = ""
                 drawingState.isTextInputActive = true
@@ -251,6 +268,7 @@ struct OverlayView: View {
 
     private func handleSelectionChanged(_ value: DragGesture.Value) {
         if isDraggingHandle { return }
+        drawingState.activeDisplayID = displayID
 
         if selAction == nil {
             let startPt = value.startLocation
@@ -294,7 +312,10 @@ struct OverlayView: View {
         if case .rubberBanding = selAction {
             if drawingState.selectedTool == .cutMove {
                 if let r = drawingState.selectionRubberBand, r.width > 10, r.height > 10 {
-                    NotificationCenter.default.post(name: .captureAndLift, object: r)
+                    // Pass the source display explicitly — the handler used to
+                    // guess via NSScreen.main and could capture the wrong screen.
+                    NotificationCenter.default.post(name: .captureAndLift, object: nil,
+                        userInfo: ["rect": r, "displayID": displayID])
                 }
                 drawingState.selectionRubberBand = nil
             } else {
@@ -395,21 +416,22 @@ struct OverlayView: View {
         return CGRect(x: minX, y: minY, width: maxX - minX, height: maxY - minY)
     }
 
-    // MARK: - Metal init
-
-    private func initializeMetalRenderer() {
-        do { metalRenderer = try MetalRenderer() } catch {}
-    }
-
     // MARK: - Mode change
 
     private func handleModeChange(_ notification: Notification) {
+        // Cancellable like the keystroke-hint HUD — rapid mode toggles used to
+        // leave stale timers that hid the NEW indicator early.
+        modeHUDWorkItem?.cancel()
         showModeIndicator = true
         withAnimation(.easeInOut(duration: 0.3)) { modeIndicatorOpacity = 1.0 }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+        let fade = DispatchWorkItem {
             withAnimation(.easeInOut(duration: 0.5)) { modeIndicatorOpacity = 0.0 }
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { showModeIndicator = false }
+            let hide = DispatchWorkItem { showModeIndicator = false }
+            modeHUDWorkItem = hide
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5, execute: hide)
         }
+        modeHUDWorkItem = fade
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5, execute: fade)
         updateCursor()
     }
 
@@ -499,61 +521,7 @@ struct TextInputOverlay: View {
             .focused($isFocused)
             .onAppear { isFocused = true }
             .onSubmit { onCommit() }
-    }
-}
-
-// MARK: - Metal Drawing Canvas
-
-struct MetalDrawingCanvas: View {
-    @ObservedObject var state: DrawingState
-    let renderer: MetalRenderer
-
-    var body: some View {
-        MetalView(drawingState: state, renderer: renderer)
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .allowsHitTesting(false)
-    }
-}
-
-struct MetalView: NSViewRepresentable {
-    @ObservedObject var drawingState: DrawingState
-    let renderer: MetalRenderer
-
-    func makeNSView(context: Context) -> MTKView {
-        let mtkView = MTKView()
-        mtkView.device = renderer.device
-        mtkView.delegate = context.coordinator
-        mtkView.preferredFramesPerSecond = renderer.targetFrameRate
-        mtkView.enableSetNeedsDisplay = false
-        mtkView.isPaused = false
-        mtkView.layer?.isOpaque = false
-        return mtkView
-    }
-
-    func updateNSView(_ nsView: MTKView, context: Context) {
-        context.coordinator.drawingState = drawingState
-    }
-
-    func makeCoordinator() -> Coordinator { Coordinator(renderer: renderer, drawingState: drawingState) }
-
-    class Coordinator: NSObject, MTKViewDelegate {
-        let renderer: MetalRenderer
-        var drawingState: DrawingState
-
-        init(renderer: MetalRenderer, drawingState: DrawingState) {
-            self.renderer = renderer
-            self.drawingState = drawingState
-        }
-
-        func mtkView(_ view: MTKView, drawableSizeWillChange size: CGSize) {}
-
-        func draw(in view: MTKView) {
-            guard let drawable = view.currentDrawable else { return }
-            renderer.render(elements: drawingState.elements,
-                            to: drawable,
-                            viewportSize: CGSize(width: view.drawableSize.width,
-                                                height: view.drawableSize.height))
-        }
+            .onExitCommand { onCancel() }   // Escape cancels directly from the field
     }
 }
 

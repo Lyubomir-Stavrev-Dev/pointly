@@ -302,6 +302,10 @@ struct ProPaywallView: View {
         .onAppear {
             selectedPlan = initialPlan
             proManager.ensureProductsLoaded()
+            proManager.clearError()   // don't show a stale error from a previous open
+            #if DIRECT_BUILD
+            LicenseManager.shared.clearError()
+            #endif
         }
         .onChange(of: proManager.isPro) { _, isPro in
             if isPro { onDismiss() }

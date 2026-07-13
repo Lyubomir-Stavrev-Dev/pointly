@@ -55,7 +55,10 @@ struct LiftedCaptureView: View {
         .overlay(alignment: .bottomTrailing) { if isHovered { handle(.bottomRight) } }
         .onHover { hovered in
             withAnimation { isHovered = hovered }
-            (hovered ? NSCursor.openHand : NSCursor.arrow).set()
+            // Only set the hand on entry — forcing .arrow on exit stomped the
+            // custom tool cursor when the pointer moved back onto the canvas
+            // (the canvas's onContinuousHover restores it anyway).
+            if hovered { NSCursor.openHand.set() }
         }
     }
 

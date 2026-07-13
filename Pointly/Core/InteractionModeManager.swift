@@ -55,76 +55,35 @@ class InteractionModeManager: ObservableObject {
     // MARK: - Private Properties
     
     private var cancellables = Set<AnyCancellable>()
-    private weak var overlayWindow: NSWindow?
-    
+
     // MARK: - Initialization
-    
+
     init() {
         setupModeTransitionAnimations()
     }
-    
+
     // MARK: - Public Methods
-    
-    /// Set the overlay window to manage
-    /// - Parameter window: The overlay window to control
-    func setOverlayWindow(_ window: NSWindow) {
-        self.overlayWindow = window
-        applyModeToWindow()
-    }
-    
+
     /// Switch to a specific interaction mode
     /// - Parameter mode: Target interaction mode
+    /// Window levels/mouse pass-through are applied by OverlayWindowManager,
+    /// which observes .interactionModeChanged for all canvas windows.
     func switchTo(mode: InteractionMode) {
         guard canSwitchMode && mode != currentMode else { return }
         currentMode = mode
-        applyModeToWindow()
+        postModeChanged()
         NSHapticFeedbackManager.defaultPerformer.perform(.generic, performanceTime: .now)
     }
-    
+
     /// Toggle between interact and draw modes
     func toggleMode() {
         let newMode: InteractionMode = currentMode == .interact ? .draw : .interact
         switchTo(mode: newMode)
     }
-    
-    /// Temporarily switch to a mode (e.g., for modifier key hold)
-    /// - Parameters:
-    ///   - mode: Temporary mode to switch to
-    ///   - completion: Called when temporary mode ends
-    func temporaryMode(_ mode: InteractionMode, completion: @escaping () -> Void) {
-        let originalMode = currentMode
-        switchTo(mode: mode)
-        
-        // Return to original mode after a delay or external trigger
-        // This will be enhanced in future phases for modifier key handling
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-            self.switchTo(mode: originalMode)
-            completion()
-        }
-    }
-    
+
     // MARK: - Private Methods
-    
-    private func applyModeToWindow() {
-        if let window = overlayWindow {
-            switch currentMode {
-            case .interact:
-                window.ignoresMouseEvents = true
-                window.level = .floating
-            case .draw:
-                window.ignoresMouseEvents = false
-                window.level = .screenSaver
-            }
-        }
-        updateWindowAppearance()
-    }
-    
-    /// Update visual appearance based on current mode
-    private func updateWindowAppearance() {
-        // This will be enhanced with visual mode indicators
-        // For now, we'll use subtle background tinting
-        
-        // Post notification for UI components to update
+
+    private func postModeChanged() {
         NotificationCenter.default.post(
             name: .interactionModeChanged,
             object: self,
@@ -209,33 +168,6 @@ extension Notification.Name {
     
     /// Posted when menu bar icon should be updated
     static let updateMenuBarIcon = Notification.Name("UpdateMenuBarIcon")
-}
-
-// MARK: - Global Hotkey Integration
-
-extension InteractionModeManager {
-    
-    /// Register global hotkeys for mode switching
-    /// - Parameter hotkeyManager: Global hotkey manager instance
-    func registerModeHotkeys(with hotkeyManager: GlobalHotkeyManager) {
-        // Register Tab key for mode toggle (common in professional tools)
-        hotkeyManager.registerHotkey(
-            keyCode: 48,  // Tab key
-            modifiers: []
-        ) { [weak self] in
-            self?.toggleMode()
-        }
-        
-        // Register Escape for quick switch to interact mode
-        hotkeyManager.registerHotkey(
-            keyCode: 53,  // Escape key
-            modifiers: []
-        ) { [weak self] in
-            if self?.currentMode == .draw {
-                self?.switchTo(mode: .interact)
-            }
-        }
-    }
 }
 
 // MARK: - Architecture Notes

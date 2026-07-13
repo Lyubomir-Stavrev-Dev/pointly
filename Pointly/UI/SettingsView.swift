@@ -416,9 +416,9 @@ private struct DrawingContent: View {
                     Image(systemName: "bolt.fill")
                         .foregroundStyle(brandGradient)
                     VStack(alignment: .leading, spacing: 2) {
-                        Text("Metal-accelerated rendering")
+                        Text("Native rendering engine")
                             .font(.system(size: 12, weight: .medium))
-                        Text("Optimised for Retina & 4K displays · < 10ms latency")
+                        Text("Optimised for Retina & 4K displays")
                             .font(.system(size: 11))
                             .foregroundColor(.white.opacity(0.45))
                     }
