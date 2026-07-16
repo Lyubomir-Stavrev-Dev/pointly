@@ -21,53 +21,128 @@
     html{scroll-behavior:smooth}
     body{background:#07070f;color:#e9e9f2;font-family:-apple-system,"SF Pro Display","Segoe UI",sans-serif;-webkit-font-smoothing:antialiased;line-height:1.6}
     a{color:inherit;text-decoration:none}
-    .wrap{max-width:880px;margin:0 auto;padding:0 24px}
+    .wrap{max-width:900px;margin:0 auto;padding:0 24px}
     .bg{position:fixed;inset:0;z-index:-1;background:radial-gradient(1100px 640px at 82% -12%,rgba(233,69,140,.22),transparent 60%),radial-gradient(900px 720px at 8% 108%,rgba(79,172,254,.12),transparent 55%),linear-gradient(160deg,#12101f,#0a0912 55%,#07070f)}
     nav{display:flex;align-items:center;justify-content:space-between;padding:22px 0}
     .logo{display:flex;align-items:center;gap:10px;font-weight:800;font-size:18px}
     .logo img{width:30px;height:30px;border-radius:8px}
     .cta{background:var(--grad);color:#fff;font-weight:700;font-size:14px;padding:10px 18px;border-radius:12px;box-shadow:0 8px 24px -6px rgba(244,100,77,.5)}
-    .hero{text-align:center;padding:34px 0 8px}
+    .hero{text-align:center;padding:30px 0 8px}
     .eyebrow{display:inline-block;font-size:13px;font-weight:800;letter-spacing:.18em;text-transform:uppercase;background:var(--grad);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:14px}
     h1{font-size:50px;font-weight:800;letter-spacing:-2px;line-height:1.04;margin-bottom:16px}
     h1 .accent{background:var(--grad);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
     .lead{font-size:20px;color:rgba(255,255,255,.66);max-width:600px;margin:0 auto 8px}
 
-    /* ── Animated redeem demo ── */
-    .demo{position:relative;width:100%;max-width:440px;height:300px;margin:38px auto 10px}
-    .card{position:absolute;inset:0;border-radius:22px;padding:26px;background:linear-gradient(180deg,rgba(24,24,42,.9),rgba(13,13,26,.95));border:1px solid rgba(255,255,255,.12);box-shadow:0 40px 90px -30px rgba(0,0,0,.7);backdrop-filter:blur(20px);display:flex;flex-direction:column}
-    .card-title{display:flex;align-items:center;gap:10px;font-size:14px;font-weight:700;color:rgba(255,255,255,.8);margin-bottom:20px}
-    .card-title .dot{width:11px;height:11px;border-radius:50%}
-    .r{background:#ff5f57}.y{background:#febc2e}.g{background:#28c840}
-    .asicon{margin-left:auto;width:26px;height:26px;border-radius:7px;background:linear-gradient(135deg,#1a72f0,#0a4bd0);display:flex;align-items:center;justify-content:center;font-weight:900;color:#fff;font-size:15px}
-    .field-label{font-size:12px;color:rgba(255,255,255,.4);margin-bottom:8px;font-weight:600;letter-spacing:.02em}
-    .field{height:50px;border-radius:12px;background:rgba(255,255,255,.06);border:1.5px solid rgba(255,255,255,.14);display:flex;align-items:center;padding:0 16px;font:700 20px/1 ui-monospace,"SF Mono",monospace;letter-spacing:2px;color:#fff;overflow:hidden}
-    .caret{display:inline-block;width:2px;height:22px;background:var(--b2);margin-left:2px;animation:blink 1s steps(1) infinite}
-    @keyframes blink{50%{opacity:0}}
-    .code-txt{white-space:nowrap;overflow:hidden;display:inline-block;width:0;animation:type 8s infinite}
-    @keyframes type{0%{width:0}18%{width:0}42%{width:12.5ch}62%{width:12.5ch}100%{width:12.5ch}}
-    .redeem-btn{margin-top:auto;height:46px;border-radius:12px;background:var(--grad);display:flex;align-items:center;justify-content:center;font-weight:800;color:#fff;font-size:15px;box-shadow:0 10px 26px -8px rgba(244,100,77,.6);animation:press 8s infinite}
-    @keyframes press{0%,60%{transform:scale(1);filter:brightness(1)}66%{transform:scale(.95);filter:brightness(1.15)}72%,100%{transform:scale(1);filter:brightness(1)}}
-    /* success overlay */
-    .success{position:absolute;inset:0;border-radius:22px;background:linear-gradient(180deg,rgba(20,16,30,.96),rgba(12,10,20,.98));display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;opacity:0;animation:reveal 8s infinite}
-    @keyframes reveal{0%,72%{opacity:0;transform:scale(.96)}78%,96%{opacity:1;transform:scale(1)}100%{opacity:0;transform:scale(.96)}}
-    .check{width:74px;height:74px;border-radius:50%;background:var(--grad);display:flex;align-items:center;justify-content:center;box-shadow:0 0 50px rgba(244,100,77,.5)}
-    .check svg{width:38px;height:38px}
-    .success h3{font-size:26px;font-weight:800;letter-spacing:-.5px}
-    .success p{color:rgba(255,255,255,.55);font-size:15px}
-    .badge{font-size:11px;font-weight:900;letter-spacing:.08em;padding:5px 12px;border-radius:999px;background:var(--grad);color:#fff}
+    /* ══ Guided App Store screencast ══ */
+    .demo{margin:40px auto 6px;width:560px;max-width:100%}
+    .scene{position:relative;width:560px;height:360px;border-radius:16px;overflow:hidden;
+      background:#1c1c22;box-shadow:0 50px 110px -34px rgba(0,0,0,.8),0 0 0 1px rgba(255,255,255,.07)}
+    @media(max-width:600px){.demo{width:100%}.scene{transform:scale(.62);transform-origin:top center;margin-bottom:-136px}}
 
-    .steps{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px;margin:44px 0}
+    /* window chrome */
+    .titlebar{height:38px;background:#2a2a31;display:flex;align-items:center;padding:0 14px;gap:8px;border-bottom:1px solid rgba(0,0,0,.3)}
+    .tl{width:12px;height:12px;border-radius:50%}
+    .tl.r{background:#ff5f57}.tl.y{background:#febc2e}.tl.g{background:#28c840}
+    .titlebar .search{margin-left:auto;width:150px;height:22px;border-radius:6px;background:rgba(255,255,255,.08)}
+    .body{display:flex;height:calc(100% - 38px)}
+    .sidebar{width:168px;background:#242429;border-right:1px solid rgba(0,0,0,.3);padding:14px 10px;display:flex;flex-direction:column;gap:3px}
+    .side-item{display:flex;align-items:center;gap:9px;padding:7px 10px;border-radius:7px;font-size:12.5px;color:rgba(255,255,255,.66);font-weight:500}
+    .side-item .ic{width:15px;height:15px;border-radius:4px;background:rgba(255,255,255,.18)}
+    .side-item.sel{background:rgba(255,255,255,.09);color:#fff}
+    .side-item.sel .ic{background:var(--b1)}
+    .account{margin-top:auto;display:flex;align-items:center;gap:9px;padding:8px 9px;border-radius:9px}
+    .account .av{width:26px;height:26px;border-radius:50%;background:linear-gradient(135deg,#5b8def,#8a5bef);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:12px;color:#fff}
+    .account .nm{font-size:12.5px;font-weight:700;color:#fff}
+    .account.hot{background:rgba(255,255,255,.12);animation:acctHot 13s infinite}
+    @keyframes acctHot{0%,13%{background:rgba(255,255,255,0)}15%,19%{background:rgba(90,141,239,.28)}22%,100%{background:rgba(255,255,255,0)}}
+    .content{flex:1;padding:16px;overflow:hidden}
+    .feat{height:120px;border-radius:12px;background:linear-gradient(135deg,#33333c,#26262d);margin-bottom:12px;position:relative;overflow:hidden}
+    .feat::after{content:"";position:absolute;left:16px;top:16px;width:120px;height:12px;border-radius:4px;background:rgba(255,255,255,.14);box-shadow:0 22px 0 rgba(255,255,255,.1),0 40px 0 rgba(255,255,255,.07)}
+    .tiles{display:flex;gap:10px}
+    .tile{flex:1;height:74px;border-radius:10px;background:#2c2c34}
+
+    /* account popover (Redeem menu) */
+    .popover{position:absolute;left:14px;bottom:52px;width:210px;padding:6px;border-radius:12px;
+      background:rgba(38,38,46,.98);border:1px solid rgba(255,255,255,.12);box-shadow:0 24px 50px -12px rgba(0,0,0,.7);
+      opacity:0;transform:translateY(8px) scale(.96);transform-origin:bottom left;animation:pop 13s infinite;z-index:20}
+    .pop-item{padding:8px 11px;border-radius:8px;font-size:12.5px;color:rgba(255,255,255,.75);display:flex;align-items:center;gap:9px}
+    .pop-item .gi{width:15px;height:15px;border-radius:4px;background:rgba(255,255,255,.2)}
+    .pop-item.redeem{color:#fff;font-weight:700;animation:redeemHi 13s infinite}
+    .pop-item.redeem .gi{background:var(--grad)}
+    @keyframes redeemHi{0%,26%{background:transparent}28%,31%{background:rgba(244,100,77,.28)}33%,100%{background:transparent}}
+    @keyframes pop{0%,15%{opacity:0;transform:translateY(8px) scale(.96)}17%,31%{opacity:1;transform:translateY(0) scale(1)}33%,100%{opacity:0;transform:translateY(8px) scale(.96)}}
+
+    /* redeem sheet */
+    .sheet{position:absolute;left:50%;top:50%;transform:translate(-50%,-46%) scale(.97);width:340px;padding:24px;border-radius:18px;
+      background:linear-gradient(180deg,rgba(30,30,40,.99),rgba(18,18,28,.99));border:1px solid rgba(255,255,255,.14);
+      box-shadow:0 40px 90px -20px rgba(0,0,0,.75);opacity:0;animation:sheet 13s infinite;z-index:25}
+    @keyframes sheet{0%,32%{opacity:0;transform:translate(-50%,-42%) scale(.97)}35%,67%{opacity:1;transform:translate(-50%,-50%) scale(1)}70%,100%{opacity:0;transform:translate(-50%,-42%) scale(.97)}}
+    .sheet h4{font-size:15px;margin-bottom:16px;text-align:center;color:#fff}
+    .sheet .lab{font-size:11px;color:rgba(255,255,255,.4);font-weight:700;margin-bottom:7px}
+    .sheet .fld{height:46px;border-radius:11px;background:rgba(255,255,255,.06);border:1.5px solid rgba(255,255,255,.16);display:flex;align-items:center;padding:0 14px;overflow:hidden}
+    .code{white-space:nowrap;overflow:hidden;display:inline-block;width:0;font:800 18px/1 ui-monospace,"SF Mono",monospace;letter-spacing:2px;color:#fff;animation:type 13s infinite}
+    @keyframes type{0%,40%{width:0}54%{width:13ch}67%{width:13ch}70%,100%{width:0}}
+    .care{display:inline-block;width:2px;height:20px;background:var(--b2);margin-left:1px;animation:blink 1s steps(1) infinite}
+    @keyframes blink{50%{opacity:0}}
+    .rbtn{margin-top:16px;height:44px;border-radius:11px;background:var(--grad);display:flex;align-items:center;justify-content:center;font-weight:800;color:#fff;box-shadow:0 10px 26px -8px rgba(244,100,77,.6);animation:rbtn 13s infinite}
+    @keyframes rbtn{0%,62%{filter:brightness(1);transform:scale(1)}64%{filter:brightness(1.2);transform:scale(.96)}67%,100%{filter:brightness(1);transform:scale(1)}}
+
+    /* success */
+    .succ{position:absolute;inset:0;background:linear-gradient(180deg,rgba(20,16,30,.97),rgba(12,10,20,.99));
+      display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;opacity:0;animation:succ 13s infinite;z-index:30}
+    @keyframes succ{0%,70%{opacity:0;transform:scale(.97)}74%,94%{opacity:1;transform:scale(1)}98%,100%{opacity:0}}
+    .check{width:72px;height:72px;border-radius:50%;background:var(--grad);display:flex;align-items:center;justify-content:center;box-shadow:0 0 50px rgba(244,100,77,.5)}
+    .check svg{width:36px;height:36px}
+    .succ h3{font-size:24px;font-weight:800;letter-spacing:-.5px}
+    .succ .badge{font-size:11px;font-weight:900;letter-spacing:.08em;padding:5px 12px;border-radius:999px;background:var(--grad);color:#fff}
+    .succ p{color:rgba(255,255,255,.55);font-size:14px}
+
+    /* cursor */
+    .cursor{position:absolute;width:22px;height:22px;left:400px;top:96px;z-index:40;animation:move 13s cubic-bezier(.5,0,.3,1) infinite;filter:drop-shadow(0 2px 4px rgba(0,0,0,.6))}
+    .cursor svg{width:22px;height:22px}
+    .cursor::after{content:"";position:absolute;left:-6px;top:-6px;width:30px;height:30px;border-radius:50%;border:2px solid var(--b2);opacity:0;animation:click 13s infinite}
+    @keyframes move{
+      0%{left:400px;top:96px} 11%{left:400px;top:96px}
+      15%{left:66px;top:312px} 19%{left:66px;top:312px}
+      25%{left:150px;top:250px} 31%{left:150px;top:250px}
+      40%{left:340px;top:250px} 62%{left:340px;top:250px}
+      66%{left:340px;top:250px} 74%{left:340px;top:250px}
+      100%{left:400px;top:96px}
+    }
+    @keyframes click{
+      0%,15%{opacity:0;transform:scale(.4)}
+      15.5%{opacity:.85;transform:scale(.5)} 18.5%{opacity:0;transform:scale(1.7)}
+      29.5%{opacity:0;transform:scale(.4)} 30%{opacity:.85;transform:scale(.5)} 33%{opacity:0;transform:scale(1.7)}
+      63.5%{opacity:0;transform:scale(.4)} 64%{opacity:.85;transform:scale(.5)} 67%{opacity:0;transform:scale(1.7)}
+      100%{opacity:0}
+    }
+
+    /* caption strip */
+    .caps{position:relative;height:30px;margin-top:16px;text-align:center}
+    .cap{position:absolute;inset:0;font-size:15px;font-weight:600;color:rgba(255,255,255,.8);opacity:0}
+    .cap b{background:var(--grad);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+    .c1{animation:cap 13s infinite;--s:0;--e:13}
+    .c2{animation:cap 13s infinite;--s:13;--e:24}
+    .c3{animation:cap 13s infinite;--s:24;--e:33}
+    .c4{animation:cap 13s infinite;--s:33;--e:69}
+    .c5{animation:cap 13s infinite;--s:70;--e:100}
+    .c1{animation-name:cap1}.c2{animation-name:cap2}.c3{animation-name:cap3}.c4{animation-name:cap4}.c5{animation-name:cap5}
+    @keyframes cap1{0%{opacity:0}2%{opacity:1}11%{opacity:1}13%{opacity:0}100%{opacity:0}}
+    @keyframes cap2{0%,13%{opacity:0}15%{opacity:1}22%{opacity:1}24%{opacity:0}100%{opacity:0}}
+    @keyframes cap3{0%,24%{opacity:0}26%{opacity:1}31%{opacity:1}33%{opacity:0}100%{opacity:0}}
+    @keyframes cap4{0%,34%{opacity:0}37%{opacity:1}66%{opacity:1}69%{opacity:0}100%{opacity:0}}
+    @keyframes cap5{0%,70%{opacity:0}74%{opacity:1}96%{opacity:1}99%{opacity:0}100%{opacity:0}}
+
+    .steps{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:16px;margin:40px 0}
     .step{padding:22px;border:1px solid rgba(255,255,255,.09);border-radius:16px;background:rgba(255,255,255,.03)}
     .step .n{width:34px;height:34px;border-radius:10px;background:var(--grad);display:flex;align-items:center;justify-content:center;font-weight:800;color:#fff;margin-bottom:12px}
     .step h4{font-size:16px;margin-bottom:6px}
     .step p{color:rgba(255,255,255,.66);font-size:14px}
-    .step kbd{background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.18);border-radius:5px;padding:1px 6px;font-size:12px;font-weight:700}
-
+    .step a{color:var(--b2);font-weight:600}
     h2{font-size:28px;font-weight:800;letter-spacing:-.6px;margin:44px 0 14px;text-align:center}
     .two{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin:14px 0}
     .panel{padding:24px;border:1px solid rgba(255,255,255,.09);border-radius:16px;background:rgba(255,255,255,.03)}
-    .panel h4{font-size:15px;margin-bottom:12px;color:rgba(255,255,255,.55);text-transform:uppercase;letter-spacing:.06em;font-size:12px;font-weight:800}
+    .panel h4{margin-bottom:12px;color:rgba(255,255,255,.55);text-transform:uppercase;letter-spacing:.06em;font-size:12px;font-weight:800}
     .panel ul{list-style:none}
     .panel li{position:relative;padding-left:24px;margin-bottom:9px;color:rgba(255,255,255,.8);font-size:15px}
     .panel li::before{content:"";position:absolute;left:0;top:9px;width:8px;height:8px;border-radius:2px;background:var(--grad)}
@@ -89,61 +164,83 @@
     <div class="hero">
       <span class="eyebrow">Pointly for Creators</span>
       <h1>Your Pro+ code,<br><span class="accent">on the house.</span></h1>
-      <p class="lead">Thanks for featuring Pointly. Here's how to unlock every Pro feature in about 20 seconds — no card, no catch.</p>
+      <p class="lead">Thanks for featuring Pointly. Here's the whole redeem flow — about 20 seconds, no card, no catch.</p>
     </div>
 
-    <!-- Animated redeem demo -->
+    <!-- Guided App Store screencast -->
     <div class="demo" aria-hidden="true">
-      <div class="card">
-        <div class="card-title"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span> Redeem Gift Card or Code<span class="asicon">A</span></div>
-        <div class="field-label">Enter your code</div>
-        <div class="field"><span class="code-txt">PNTLY-PRO-2026</span><span class="caret"></span></div>
-        <div class="redeem-btn">Redeem</div>
+      <div class="scene">
+        <div class="titlebar"><span class="tl r"></span><span class="tl y"></span><span class="tl g"></span><span class="search"></span></div>
+        <div class="body">
+          <div class="sidebar">
+            <div class="side-item sel"><span class="ic"></span>Discover</div>
+            <div class="side-item"><span class="ic"></span>Arcade</div>
+            <div class="side-item"><span class="ic"></span>Create</div>
+            <div class="side-item"><span class="ic"></span>Work</div>
+            <div class="side-item"><span class="ic"></span>Categories</div>
+            <div class="side-item"><span class="ic"></span>Updates</div>
+            <div class="account hot"><span class="av">L</span><span class="nm">Lyubomir S.</span></div>
+          </div>
+          <div class="content">
+            <div class="feat"></div>
+            <div class="tiles"><div class="tile"></div><div class="tile"></div><div class="tile"></div></div>
+          </div>
+        </div>
+
+        <!-- account popover -->
+        <div class="popover">
+          <div class="pop-item redeem"><span class="gi"></span>Redeem Gift Card or Code</div>
+          <div class="pop-item"><span class="gi"></span>Purchased</div>
+          <div class="pop-item"><span class="gi"></span>Account Settings</div>
+        </div>
+
+        <!-- redeem sheet -->
+        <div class="sheet">
+          <h4>Redeem Gift Card or Code</h4>
+          <div class="lab">ENTER YOUR CODE</div>
+          <div class="fld"><span class="code">PNTLY-PRO-26</span><span class="care"></span></div>
+          <div class="rbtn">Redeem</div>
+        </div>
+
+        <!-- success -->
+        <div class="succ">
+          <div class="check"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></div>
+          <h3>Pro+ unlocked</h3>
+          <span class="badge">LIFETIME · ALL FEATURES</span>
+          <p>Reopen Pointly — everything's on.</p>
+        </div>
+
+        <!-- cursor -->
+        <div class="cursor"><svg viewBox="0 0 24 24" fill="#fff" stroke="#000" stroke-width="1"><path d="M4 2l7 18 2.5-7.5L21 10 4 2z"/></svg></div>
       </div>
-      <div class="success">
-        <div class="check"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></div>
-        <h3>Pro+ unlocked</h3>
-        <span class="badge">LIFETIME · ALL FEATURES</span>
-        <p>Reopen Pointly — everything's on.</p>
+
+      <div class="caps">
+        <div class="cap c1">Open the <b>App Store</b> app</div>
+        <div class="cap c2">Click <b>your name</b>, bottom-left</div>
+        <div class="cap c3">Choose <b>Redeem Gift Card or Code</b></div>
+        <div class="cap c4">Paste your code &amp; press <b>Redeem</b></div>
+        <div class="cap c5"><b>Pro+ unlocked</b> — for life 🎉</div>
       </div>
     </div>
 
-    <!-- Steps -->
+    <!-- static step reference -->
     <div class="steps">
-      <div class="step"><div class="n">1</div><h4>Install Pointly</h4><p>Grab it free from the <a href="https://apps.apple.com/app/pointly-annotate/id6785933008" style="color:var(--b2);font-weight:600">Mac App Store</a> if you haven't yet.</p></div>
-      <div class="step"><div class="n">2</div><h4>Open Redeem</h4><p>In the <strong>App Store</strong> app, click your name (bottom-left) → <strong>Redeem Gift Card or Code</strong>. Or Store menu → Redeem.</p></div>
-      <div class="step"><div class="n">3</div><h4>Enter the code</h4><p>Paste the code I sent you and press <strong>Redeem</strong>. It's tied to your Apple ID.</p></div>
-      <div class="step"><div class="n">4</div><h4>You're Pro+</h4><p>Reopen Pointly — Presenter Zoom, Spotlight, Laser, Cut &amp; Move, and everything else is unlocked, for life.</p></div>
+      <div class="step"><div class="n">1</div><h4>Install Pointly</h4><p>Grab it free from the <a href="https://apps.apple.com/app/pointly-annotate/id6785933008">Mac App Store</a>.</p></div>
+      <div class="step"><div class="n">2</div><h4>Open Redeem</h4><p>In the <strong>App Store</strong> app, click your name (bottom-left) → <strong>Redeem Gift Card or Code</strong>.</p></div>
+      <div class="step"><div class="n">3</div><h4>Enter the code</h4><p>Paste the code I sent and press <strong>Redeem</strong>. It's tied to your Apple ID.</p></div>
+      <div class="step"><div class="n">4</div><h4>You're Pro+</h4><p>Reopen Pointly — every Pro feature is unlocked, for life.</p></div>
     </div>
 
     <h2>What's unlocked</h2>
     <div class="two">
-      <div class="panel">
-        <h4>Pro tools</h4>
-        <ul>
-          <li>Presenter Zoom</li>
-          <li>Presenter Cues (clicks &amp; keys)</li>
-          <li>Spotlight &amp; Laser Pointer</li>
-          <li>Blur Brush &amp; Cut &amp; Move</li>
-        </ul>
-      </div>
-      <div class="panel">
-        <h4>More Pro</h4>
-        <ul>
-          <li>Countdown Timer</li>
-          <li>Callout &amp; Step Badges</li>
-          <li>Whiteboard Canvas</li>
-          <li>Smart shape recognition (High assist)</li>
-        </ul>
-      </div>
+      <div class="panel"><h4>Pro tools</h4><ul><li>Presenter Zoom</li><li>Presenter Cues (clicks &amp; keys)</li><li>Spotlight &amp; Laser Pointer</li><li>Blur Brush &amp; Cut &amp; Move</li></ul></div>
+      <div class="panel"><h4>More Pro</h4><ul><li>Countdown Timer</li><li>Callout &amp; Step Badges</li><li>Whiteboard Canvas</li><li>Smart shape recognition</li></ul></div>
     </div>
 
     <h2>A tiny ask</h2>
-    <p style="text-align:center;color:rgba(255,255,255,.66);max-width:620px;margin:0 auto">No script, no rules — just show it how you'd actually use it. If it's a fit, a link to <strong>trypointly.com</strong> or the App Store in your description helps a ton. Filming a specific feature and something's not clear? Email me and I'll jump on a quick call.</p>
+    <p style="text-align:center;color:rgba(255,255,255,.66);max-width:620px;margin:0 auto">No script, no rules — just show it how you'd actually use it. If it's a fit, a link to <strong>trypointly.com</strong> or the App Store in your description helps a ton.</p>
 
-    <div class="contact">
-      <a class="btn" href="mailto:lyubomirstavrev02@gmail.com?subject=Pointly%20—%20creator">Email me a question</a>
-    </div>
+    <div class="contact"><a class="btn" href="mailto:lyubomirstavrev02@gmail.com?subject=Pointly%20—%20creator">Email me a question</a></div>
 
     <footer>
       Need a fresh code (they expire ~28 days)? <a href="mailto:lyubomirstavrev02@gmail.com">Just ask.</a><br>
