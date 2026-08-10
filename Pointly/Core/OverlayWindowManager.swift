@@ -8,6 +8,7 @@ class OverlayWindowManager: ObservableObject {
     private var canvasWindows: [CGDirectDisplayID: NSWindow] = [:]
     private var toolbarPanel: NSPanel?
     private var paywallPanel: NSPanel?
+    private var spinWheelPanel: NSPanel?
     private var liftedCaptures: [(panel: NSPanel, coverID: UUID)] = []
     private var isOverlayActive = false
     private var colorPanelObserver: NSKeyValueObservation?
@@ -805,10 +806,53 @@ class OverlayWindowManager: ObservableObject {
                 if self?.isOverlayActive == true, let mainID = self?.mainDisplayID {
                     self?.canvasWindows[mainID]?.makeKey()
                 }
+                // Last-chance welcome offer for new users who walked away.
+                // spinOfferAvailable is false after a purchase, so this only
+                // fires on "Maybe Later".
+                self?.maybeShowSpinWheel()
             }, initialPlan: initialPlan)
         )
         panel.center()
         paywallPanel = panel
+        panel.makeKeyAndOrderFront(nil)
+        NSApp.activate(ignoringOtherApps: true)
+    }
+
+    // MARK: - Spin-wheel welcome offer
+
+    private func maybeShowSpinWheel() {
+        guard ProManager.shared.spinOfferAvailable, spinWheelPanel == nil else { return }
+
+        let size = CGSize(width: 400, height: 620)   // must match SpinWheelView's fixed frame
+        let panel = NSPanel(
+            contentRect: NSRect(origin: .zero, size: size),
+            styleMask: [.titled, .closable, .fullSizeContentView],
+            backing: .buffered,
+            defer: false
+        )
+        panel.title = ""
+        panel.titlebarAppearsTransparent = true
+        panel.titleVisibility = .hidden
+        panel.backgroundColor = .clear
+        panel.isOpaque = false
+        panel.hasShadow = true
+        panel.ignoresMouseEvents = false
+        panel.isReleasedWhenClosed = false
+        panel.appearance = NSAppearance(named: .darkAqua)
+        panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
+        panel.level = NSWindow.Level(rawValue: NSWindow.Level.screenSaver.rawValue + 3)
+
+        panel.contentView = FirstMouseHostingView(rootView:
+            SpinWheelView(proManager: .shared, onDismiss: { [weak self, weak panel] in
+                panel?.orderOut(nil)
+                self?.spinWheelPanel = nil
+                if self?.isOverlayActive == true, let mainID = self?.mainDisplayID {
+                    self?.canvasWindows[mainID]?.makeKey()
+                }
+            })
+        )
+        panel.center()
+        spinWheelPanel = panel
         panel.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
     }

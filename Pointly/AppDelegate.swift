@@ -46,6 +46,16 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
         overlayWindowManager = OverlayWindowManager()
 
+        #if DEBUG
+        // Dev-only, for paywall/spin-wheel styling and tests:
+        // defaults write com.pointly.macos debugShowPaywallOnLaunch -bool true
+        if UserDefaults.standard.bool(forKey: "debugShowPaywallOnLaunch") {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+                NotificationCenter.default.post(name: .showPaywallForPlan, object: ProPlan.lifetime)
+            }
+        }
+        #endif
+
         if !isFirstLaunch {
             if UserDefaults.standard.object(forKey: "showToolbarOnStartup") as? Bool ?? false {
                 overlayWindowManager?.toggleOverlay()

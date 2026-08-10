@@ -52,6 +52,12 @@ enum ProPlan: String, CaseIterable {
 final class ProManager: ObservableObject {
     static let shared = ProManager()
 
+    // Spin-wheel welcome offer: a separate discounted lifetime non-consumable
+    // (60% off Pro+). Must exist in App Store Connect at the discounted price.
+    static let spinOfferProductID = "com.pointly.macos.pro.lifetime.spin60"
+    // Direct build: Stripe promotion code applied on the buy page instead.
+    static let spinOfferPromoCode = "SPIN60"
+
     @Published private(set) var isPro              = false
     @Published private(set) var purchaseInProgress = false
     @Published private(set) var errorMessage: String? = nil
@@ -100,10 +106,51 @@ final class ProManager: ObservableObject {
         loadedProducts[plan.productID]
     }
 
+    var spinOfferProduct: Product? {
+        loadedProducts[Self.spinOfferProductID]
+    }
+
+    /// Every product ID that unlocks Pro (plans + the spin-wheel offer).
+    private static var allProProductIDs: Set<String> {
+        Set(ProPlan.allCases.map(\.productID)).union([spinOfferProductID])
+    }
+
+    // MARK: - Spin-wheel welcome offer
+
+    // One-shot: shown a single time, to new users only (first 14 days), after
+    // they decline the paywall. The App Store build additionally requires the
+    // discounted product to have loaded — a wheel that can't sell is worse
+    // than no wheel.
+    var spinOfferAvailable: Bool {
+        #if DEBUG
+        // Dev-only, for demos/tests (bypasses the one-shot flag and product
+        // check): defaults write com.pointly.macos debugForceSpinOffer -bool true
+        if UserDefaults.standard.bool(forKey: "debugForceSpinOffer") { return !isPro }
+        #endif
+        guard !isPro else { return false }
+        guard !UserDefaults.standard.bool(forKey: "spinOfferShown") else { return false }
+        let defaults = UserDefaults.standard
+        let firstLaunch = defaults.object(forKey: "firstLaunchDate") as? Date ?? {
+            let now = Date()
+            defaults.set(now, forKey: "firstLaunchDate")
+            return now
+        }()
+        guard Date().timeIntervalSince(firstLaunch) < 14 * 24 * 3600 else { return false }
+        #if DIRECT_BUILD
+        return true
+        #else
+        return spinOfferProduct != nil
+        #endif
+    }
+
+    func markSpinOfferShown() {
+        UserDefaults.standard.set(true, forKey: "spinOfferShown")
+    }
+
     // MARK: - Load Products
 
     private func loadProducts() async {
-        let ids = ProPlan.allCases.map(\.productID)
+        let ids = Self.allProProductIDs
         do {
             let products = try await Product.products(for: Set(ids))
             await MainActor.run {
@@ -130,6 +177,14 @@ final class ProManager: ObservableObject {
     // MARK: - Purchase
 
     func purchase(plan: ProPlan = .annual) async {
+        await purchase(productID: plan.productID)
+    }
+
+    func purchaseSpinOffer() async {
+        await purchase(productID: Self.spinOfferProductID)
+    }
+
+    private func purchase(productID: String) async {
         // Reentrancy guard — a double-tap landing before the first publish
         // would spawn two StoreKit purchases and flicker purchaseInProgress.
         let alreadyRunning = await MainActor.run { () -> Bool in
@@ -144,10 +199,10 @@ final class ProManager: ObservableObject {
         // Products may have failed to load at launch (offline) — retry once
         // before giving up so recovered connectivity doesn't require a relaunch.
         // Read loadedProducts on the main actor (it's written there).
-        if await MainActor.run(body: { loadedProducts[plan.productID] == nil }) {
+        if await MainActor.run(body: { loadedProducts[productID] == nil }) {
             await loadProducts()
         }
-        guard let product = await MainActor.run(body: { loadedProducts[plan.productID] }) else {
+        guard let product = await MainActor.run(body: { loadedProducts[productID] }) else {
             await MainActor.run {
                 errorMessage = "Product unavailable. Check your connection or try again later."
             }
@@ -197,7 +252,7 @@ final class ProManager: ObservableObject {
     // MARK: - Entitlement Check
 
     private func refreshEntitlements() async {
-        let proIDs = Set(ProPlan.allCases.map(\.productID))
+        let proIDs = Self.allProProductIDs
         var entitled = false
         for await result in Transaction.currentEntitlements {
             guard case .verified(let tx) = result else { continue }
@@ -222,7 +277,7 @@ final class ProManager: ObservableObject {
 
     private func listenForTransactions() -> Task<Void, Never> {
         Task(priority: .background) { [weak self] in
-            let proIDs = Set(ProPlan.allCases.map(\.productID))
+            let proIDs = Self.allProProductIDs
             for await result in Transaction.updates {
                 guard case .verified(let tx) = result else { continue }
                 guard proIDs.contains(tx.productID) else { continue }
