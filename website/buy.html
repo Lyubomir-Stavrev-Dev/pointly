@@ -127,10 +127,21 @@
 
 <script>
   // Highlight the plan the app asked for (trypointly.com/buy?plan=annual|lifetime)
-  const plan = new URLSearchParams(location.search).get('plan');
+  const params = new URLSearchParams(location.search);
+  const plan = params.get('plan');
   if (plan) {
     const btn = document.querySelector(`.buy-btn[data-plan="${plan === 'annual' ? 'annual' : 'lifetime'}"]`);
     if (btn) btn.closest('.card').style.borderColor = 'rgba(255,140,66,0.9)';
+  }
+  // Spin-wheel welcome offer (trypointly.com/buy?promo=SPIN60): pre-apply the
+  // Stripe promotion code. Requires "Allow promotion codes" on the payment links.
+  const promo = params.get('promo');
+  if (promo && /^[A-Za-z0-9_-]{1,30}$/.test(promo)) {
+    document.querySelectorAll('.buy-btn').forEach(a => {
+      const url = new URL(a.href);
+      url.searchParams.set('prefilled_promo_code', promo);
+      a.href = url.toString();
+    });
   }
 </script>
 </body>

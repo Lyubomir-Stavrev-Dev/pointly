@@ -187,6 +187,7 @@ struct OverlayView: View {
                 isDrawing = false
             }
             isEraserStrokeActive = false
+            calloutTarget = nil
             if case .moving = selAction { drawingState.commitTransform() }
             selAction = nil
             drawingState.selectionRubberBand = nil

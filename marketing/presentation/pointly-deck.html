@@ -209,6 +209,22 @@
   setTimeout(()=>hint.style.opacity=0,4000);
   document.addEventListener("mousemove",()=>{hint.style.opacity=.28;clearTimeout(window._h);window._h=setTimeout(()=>hint.style.opacity=0,2500);});
   show(0);
+
+  // ?coords → dump exact element rects as JSON (for scripted demo recordings)
+  if(location.search.includes("coords")){
+    setTimeout(()=>{
+      const r=el=>{if(!el)return null;const b=el.getBoundingClientRect();return[Math.round(b.x),Math.round(b.y),Math.round(b.width),Math.round(b.height)];};
+      const out={vw:innerWidth,vh:innerHeight};
+      out.statnum=r(document.querySelector(".stat-num"));
+      out.hotbar=r(document.querySelector(".bar.hot"));
+      out.chartcard=r(document.querySelector(".slide:nth-child(3) .card"));
+      document.querySelectorAll("ul.big li").forEach((li,x)=>out["bullet"+x]=r(li));
+      out.quote=r(document.querySelector(".quote"));
+      document.querySelectorAll(".slide:nth-child(6) .val").forEach((v,x)=>out["secret"+x]=r(v));
+      document.querySelectorAll(".fbox").forEach((b,x)=>out["fbox"+x]=r(b));
+      document.body.innerHTML="<pre id='coords'>"+JSON.stringify(out)+"</pre>";
+    },500);
+  }
 </script>
 </body>
 </html>

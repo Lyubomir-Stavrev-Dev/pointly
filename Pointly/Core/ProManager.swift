@@ -89,6 +89,12 @@ final class ProManager: ObservableObject {
             await loadProducts()
             await refreshEntitlements()
         }
+        // Re-check entitlements whenever the app comes back to the foreground —
+        // covers promo codes / renewals redeemed while the app was inactive.
+        NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)
+            .dropFirst()
+            .sink { [weak self] _ in Task { await self?.refreshEntitlements() } }
+            .store(in: &cancellables)
     }
 
     deinit { updatesTask?.cancel() }
