@@ -124,13 +124,13 @@ final class ProManager: ObservableObject {
     // MARK: - Spin-wheel welcome offer
 
     // One-shot: shown a single time, to new users only (first 14 days), after
-    // they decline the paywall. The App Store build additionally requires the
-    // discounted product to have loaded — a wheel that can't sell is worse
-    // than no wheel.
+    // they decline the paywall. Visibility is decoupled from product loading —
+    // the wheel shows regardless, and the purchase path retries loading if the
+    // product isn't ready yet (handles slow/sandbox StoreKit environments).
     var spinOfferAvailable: Bool {
         #if DEBUG
-        // Dev-only, for demos/tests (bypasses the one-shot flag and product
-        // check): defaults write com.pointly.macos debugForceSpinOffer -bool true
+        // Dev-only, for demos/tests (bypasses the one-shot flag):
+        // defaults write com.pointly.macos debugForceSpinOffer -bool true
         if UserDefaults.standard.bool(forKey: "debugForceSpinOffer") { return !isPro }
         #endif
         guard !isPro else { return false }
@@ -142,11 +142,7 @@ final class ProManager: ObservableObject {
             return now
         }()
         guard Date().timeIntervalSince(firstLaunch) < 14 * 24 * 3600 else { return false }
-        #if DIRECT_BUILD
         return true
-        #else
-        return spinOfferProduct != nil
-        #endif
     }
 
     func markSpinOfferShown() {
