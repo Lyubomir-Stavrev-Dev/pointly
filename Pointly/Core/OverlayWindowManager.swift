@@ -294,8 +294,25 @@ class OverlayWindowManager: ObservableObject {
             var frame = panel.frame
             frame.origin.y += frame.height - newH
             frame.size = CGSize(width: newW, height: newH)
-            panel.setFrame(frame, display: true)
+            panel.setFrame(self.clampedToScreen(frame), display: true)
         }
+    }
+
+    // Clamp a panel frame to its nearest screen's visibleFrame so it can never
+    // be dragged or resized off-screen on small or reconfigured displays.
+    private func clampedToScreen(_ frame: NSRect) -> NSRect {
+        let screen = NSScreen.screens.min(by: {
+            let a = $0.frame.intersection(frame)
+            let b = $1.frame.intersection(frame)
+            return (a.width * a.height) > (b.width * b.height)
+        }) ?? NSScreen.main ?? NSScreen.screens.first
+        guard let visible = screen?.visibleFrame else { return frame }
+        var f = frame
+        if f.maxX > visible.maxX { f.origin.x = visible.maxX - f.width }
+        if f.minX < visible.minX { f.origin.x = visible.minX }
+        if f.maxY > visible.maxY { f.origin.y = visible.maxY - f.height }
+        if f.minY < visible.minY { f.origin.y = visible.minY }
+        return f
     }
 
     // MARK: - Toolbar theme
@@ -339,7 +356,11 @@ class OverlayWindowManager: ObservableObject {
             if let s = screen(for: id) { win.setFrame(s.frame, display: true) }
             win.orderFrontRegardless()
         }
-        toolbarPanel?.orderFrontRegardless()
+        if let panel = toolbarPanel {
+            let clamped = clampedToScreen(panel.frame)
+            if clamped != panel.frame { panel.setFrame(clamped, display: true) }
+            panel.orderFrontRegardless()
+        }
         applyModeToWindows()
     }
 
@@ -798,7 +819,9 @@ class OverlayWindowManager: ObservableObject {
         panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
         panel.level = NSWindow.Level(rawValue: NSWindow.Level.screenSaver.rawValue + 3)
 
-        panel.contentView = FirstMouseHostingView(rootView:
+        // NSHostingController (not NSHostingView) so contentViewController is set —
+        // required by AppStore.presentOfferCodeRedeemSheet(from:) for promo code redemption.
+        let paywallVC = NSHostingController(rootView:
             ProPaywallView(tool: tool, isWhiteboardCanvas: isWhiteboardCanvas, feature: feature,
                            proManager: .shared, onDismiss: { [weak self, weak panel] in
                 panel?.orderOut(nil)
@@ -812,6 +835,7 @@ class OverlayWindowManager: ObservableObject {
                 self?.maybeShowSpinWheel()
             }, initialPlan: initialPlan)
         )
+        panel.contentViewController = paywallVC
         panel.center()
         paywallPanel = panel
         panel.makeKeyAndOrderFront(nil)
@@ -820,7 +844,7 @@ class OverlayWindowManager: ObservableObject {
 
     // MARK: - Spin-wheel welcome offer
 
-    private func maybeShowSpinWheel() {
+    func maybeShowSpinWheel() {
         guard ProManager.shared.spinOfferAvailable, spinWheelPanel == nil else { return }
 
         let size = CGSize(width: 400, height: 620)   // must match SpinWheelView's fixed frame

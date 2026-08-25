@@ -15,7 +15,6 @@
   }
   *{margin:0;padding:0;box-sizing:border-box;}
   html,body{width:100%;height:100%;overflow:hidden;background:#05050c;font-family:"Inter",-apple-system,sans-serif;color:var(--text);}
-  /* stage */
   .deck{position:fixed;inset:0;}
   .slide{
     position:absolute;inset:0;display:flex;flex-direction:column;justify-content:center;
@@ -27,53 +26,93 @@
       linear-gradient(160deg,#141127 0%,#0b0a16 55%,#05050c 100%);
   }
   .slide.active{opacity:1;visibility:visible;transform:scale(1);}
-  /* hide deck chrome on the empty opening slide (for recording the tutorial modal) */
   body.clean-mode .progress,
   body.clean-mode .counter,
   body.clean-mode .hint,
   body.clean-mode .brandmark{opacity:0 !important;visibility:hidden;}
-  .slide::after{ /* subtle grain */
+  .slide::after{
     content:"";position:absolute;inset:0;pointer-events:none;opacity:.5;
     background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");
   }
+  /* type */
   .kicker{font-size:1.15vw;font-weight:700;letter-spacing:.22em;text-transform:uppercase;
     background:var(--grad);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:2.4vmin;}
   h1{font-size:8.2vmin;font-weight:800;letter-spacing:-.02em;line-height:1.04;}
   h2{font-size:6vmin;font-weight:800;letter-spacing:-.02em;line-height:1.08;margin-bottom:1vmin;}
   .grad{background:var(--grad);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;}
-  .lead{font-size:2.4vmin;color:var(--muted);max-width:60ch;line-height:1.6;margin-top:2.4vmin;}
+  .lead{font-size:2.2vmin;color:var(--muted);max-width:62ch;line-height:1.65;margin-top:2.2vmin;}
   .two{display:grid;grid-template-columns:1.05fr .95fr;gap:6vmin;align-items:center;}
-  ul.big{list-style:none;margin-top:3vmin;}
-  ul.big li{display:flex;gap:2vmin;align-items:flex-start;font-size:2.6vmin;color:rgba(255,255,255,.82);margin:1.9vmin 0;line-height:1.4;}
+  /* bullet list */
+  ul.big{list-style:none;margin-top:2.4vmin;}
+  ul.big li{display:flex;gap:2vmin;align-items:flex-start;font-size:2.5vmin;color:rgba(255,255,255,.82);margin:1.7vmin 0;line-height:1.45;}
   ul.big li::before{content:"";flex:none;width:1.5vmin;height:1.5vmin;border-radius:50%;margin-top:1.1vmin;background:var(--grad);box-shadow:0 0 18px rgba(244,100,77,.6);}
-  /* card / chart */
+  /* cards */
   .card{background:rgba(255,255,255,0.045);border:1px solid rgba(255,255,255,0.09);border-radius:2.4vmin;
     padding:4vmin 4.4vmin;box-shadow:0 3vmin 8vmin rgba(0,0,0,.4);backdrop-filter:blur(8px);}
+  .three{display:grid;grid-template-columns:1fr 1fr 1fr;gap:3.5vmin;align-items:stretch;margin-top:3.5vmin;}
+  .card-sm{background:rgba(255,255,255,0.045);border:1px solid rgba(255,255,255,0.09);border-radius:2vmin;
+    padding:3.2vmin 3.4vmin;box-shadow:0 2vmin 6vmin rgba(0,0,0,.35);backdrop-filter:blur(8px);}
+  .card-icon{font-size:4vmin;margin-bottom:1.8vmin;}
+  .card-title{font-size:2.5vmin;font-weight:800;letter-spacing:-.01em;margin-bottom:1vmin;}
+  .card-body{font-size:1.85vmin;color:var(--muted);line-height:1.55;}
+  /* stat chart */
   .stat-label{font-size:1.9vmin;color:var(--muted);font-weight:600;}
   .stat-num{font-size:9vmin;font-weight:800;letter-spacing:-.03em;margin:.4vmin 0 1vmin;}
   .stat-num small{font-size:3vmin;font-weight:700;color:#28c840;margin-left:1.2vmin;letter-spacing:0;}
   .bars{display:flex;align-items:flex-end;gap:2.2vmin;height:34vmin;padding-bottom:3.4vmin;}
-  .bar{flex:1;border-radius:1.2vmin 1.2vmin .3vmin .3vmin;background:rgba(255,255,255,.12);position:relative;transition:height .6s;}
+  .bar{flex:1;border-radius:1.2vmin 1.2vmin .3vmin .3vmin;background:rgba(255,255,255,.12);position:relative;}
   .bar.hot{background:var(--grad);box-shadow:0 0 34px rgba(244,100,77,.5);}
   .bar span{position:absolute;bottom:-3vmin;width:100%;text-align:center;font-size:1.5vmin;color:var(--muted);}
-  /* settings/secrets card */
+  /* secrets */
   .row{display:flex;justify-content:space-between;align-items:center;padding:2.4vmin 0;border-top:1px solid rgba(255,255,255,.08);}
   .row:first-child{border-top:0;}
   .row .l b{display:block;font-size:2.1vmin;}
   .row .l span{font-size:1.5vmin;color:var(--muted);}
   .val{font-family:ui-monospace,"SF Mono",monospace;font-size:1.9vmin;background:rgba(0,0,0,.35);border:1px solid rgba(255,255,255,.1);padding:1.1vmin 1.8vmin;border-radius:1vmin;}
-  .pill{font-size:1.4vmin;font-weight:700;color:#28c840;background:rgba(40,200,64,.14);padding:.7vmin 1.6vmin;border-radius:2vmin;}
-  /* flow boxes */
+  .gpill{font-size:1.4vmin;font-weight:700;color:#28c840;background:rgba(40,200,64,.14);padding:.7vmin 1.6vmin;border-radius:2vmin;}
+  /* flow */
   .flow{display:flex;align-items:center;gap:2.5vmin;margin-top:4vmin;flex-wrap:wrap;}
   .fbox{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.12);border-radius:1.8vmin;padding:2.6vmin 3vmin;font-size:2.2vmin;font-weight:600;min-width:22vmin;text-align:center;}
   .farrow{font-size:3.4vmin;color:var(--brand-2);}
+  /* quote */
   .quote{font-size:4.4vmin;font-weight:700;line-height:1.3;letter-spacing:-.01em;max-width:24ch;}
   .cite{margin-top:3vmin;font-size:2vmin;color:var(--muted);}
-  /* title slide icon */
-  .titlewrap{display:flex;flex-direction:column;align-items:flex-start;}
+  /* title */
   .logo-row{display:flex;align-items:center;gap:2.4vmin;margin-bottom:4vmin;}
   .logo-icon{width:11vmin;height:11vmin;border-radius:2.6vmin;box-shadow:0 2vmin 6vmin rgba(244,100,77,.45);}
-  /* chrome: progress + counter + hint */
+
+  /* ── STEP BADGE slide ── no pre-baked numbers; placeholder invites a click */
+  .steps{display:flex;flex-direction:column;gap:2vmin;margin-top:2.8vmin;}
+  .step{display:flex;align-items:center;gap:3vmin;background:rgba(255,255,255,.04);
+    border:1px solid rgba(255,255,255,.08);border-radius:1.6vmin;padding:2.2vmin 3vmin;}
+  .step-placeholder{
+    width:5.5vmin;height:5.5vmin;border-radius:50%;flex:none;
+    border:2px dashed rgba(244,100,77,0.38);
+    background:rgba(244,100,77,0.06);
+  }
+  .step-text b{display:block;font-size:2.3vmin;font-weight:700;}
+  .step-text span{font-size:1.75vmin;color:var(--muted);}
+
+  /* ── CALLOUT slide ── component boxes with no pre-baked labels */
+  .arch{display:grid;grid-template-columns:1fr 1fr;gap:3vmin;margin-top:3vmin;}
+  .arch-box{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);
+    border-radius:1.6vmin;padding:2.8vmin 3.2vmin;}
+  .arch-box h3{font-size:2.3vmin;font-weight:700;margin-bottom:1vmin;}
+  .arch-box p{font-size:1.75vmin;color:var(--muted);line-height:1.5;}
+
+  /* ── CUT & MOVE slide ── metric "buried" in corner, inviting a lift */
+  .cutmove-grid{display:grid;grid-template-columns:1fr 1fr;gap:3vmin;margin-top:3vmin;}
+  .metric-box{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);
+    border-radius:1.6vmin;padding:2.6vmin 3vmin;}
+  .metric-box .lbl{font-size:1.7vmin;color:var(--muted);font-weight:600;margin-bottom:.8vmin;}
+  .metric-box .num{font-size:5.5vmin;font-weight:900;letter-spacing:-.03em;}
+  .metric-box .delta{font-size:1.8vmin;font-weight:700;color:#28c840;margin-top:.4vmin;}
+  .metric-box .sub{font-size:1.6vmin;color:var(--muted);margin-top:.4vmin;}
+  .metric-box.buried{border-color:rgba(244,100,77,.25);background:rgba(244,100,77,.05);position:relative;}
+  .buried-hint{position:absolute;top:-1.4vmin;right:2vmin;font-size:1.2vmin;font-weight:700;
+    letter-spacing:.1em;text-transform:uppercase;color:var(--brand-1);background:#05050c;padding:0 .8vmin;}
+
+  /* chrome */
   .progress{position:fixed;top:0;left:0;height:.5vmin;background:var(--grad);z-index:10;transition:width .5s;}
   .counter{position:fixed;bottom:3vmin;right:4vmin;font-size:1.6vmin;color:rgba(255,255,255,.4);z-index:10;font-variant-numeric:tabular-nums;}
   .hint{position:fixed;bottom:3vmin;left:4vmin;font-size:1.5vmin;color:rgba(255,255,255,.28);z-index:10;transition:opacity .4s;}
@@ -87,28 +126,28 @@
 
 <div class="deck" id="deck">
 
-  <!-- 0 · EMPTY BACKDROP (same dark background as the rest; for recording the tutorial modal) -->
+  <!-- 0 · EMPTY BACKDROP -->
   <section class="slide active" data-clean></section>
 
   <!-- 1 · TITLE -->
   <section class="slide">
-    <div class="titlewrap">
+    <div>
       <div class="logo-row">
         <img class="logo-icon" src="../../website/icon-1024.png" alt="">
         <div class="kicker" style="margin:0;">Live screen annotation</div>
       </div>
       <h1>Annotate your<br><span class="grad">screen, live.</span></h1>
-      <p class="lead">Draw, highlight, spotlight and point at anything — on top of any app, in real time. This deck is your playground. Let's show what Pointly can do.</p>
+      <p class="lead">Draw, highlight, spotlight and point at anything — on top of any app, in real time. Every slide in this deck is a live playground for Pointly's tools.</p>
     </div>
   </section>
 
-  <!-- 2 · BIG STAT + CHART  (pen circle · arrow · spotlight the peak) -->
+  <!-- 2 · PEN + ARROW — circle the peak, draw an arrow to it -->
   <section class="slide">
     <div class="two">
       <div>
-        <div class="kicker">Q3 · Growth</div>
+        <div class="kicker">Pen · Arrow · Spotlight</div>
         <h2>Momentum is<br><span class="grad">accelerating.</span></h2>
-        <p class="lead">Every quarter beat the last. September was the strongest month on record — circle it, point to it, put a spotlight on it.</p>
+        <p class="lead">September was the strongest month on record. Circle it with the Pen, draw an Arrow to the number, then Spotlight the whole card.</p>
       </div>
       <div class="card">
         <div class="stat-label">Weekly active teams</div>
@@ -125,52 +164,146 @@
     </div>
   </section>
 
-  <!-- 3 · BULLETS  (highlighter · laser down the list) -->
+  <!-- 3 · LASER + HIGHLIGHTER — sweep down the list -->
   <section class="slide">
-    <div class="kicker">Why teams choose us</div>
-    <h2>Built for people who<br><span class="grad">think out loud.</span></h2>
+    <div class="kicker">Laser Pointer · Highlighter</div>
+    <h2>Four bets we're<br><span class="grad">making in Q4.</span></h2>
+    <p class="lead">Use the Laser to sweep each line as you speak, or the Highlighter to mark the one that matters most.</p>
     <ul class="big">
-      <li>Present over <b>any</b> app — Keynote, browsers, code, video calls</li>
-      <li>One global hotkey. No setup, no account, no friction</li>
-      <li>Laser pointer &amp; spotlight keep every eye exactly where you want it</li>
-      <li>Blur sensitive info on the fly, before you share your screen</li>
+      <li>Ship a native Windows client — 40 % of inbound requests are Windows users</li>
+      <li>Launch a team workspace with shared annotation history &amp; replay</li>
+      <li>API access so devs can trigger Pointly annotations from CI dashboards</li>
+      <li>Offline mode — full feature set with no internet connection required</li>
+      <li>Integration with Loom, Zoom &amp; Google Meet for recorded sessions</li>
     </ul>
   </section>
 
-  <!-- 4 · QUOTE  (spotlight · highlight a phrase) -->
+  <!-- 4 · SPOTLIGHT — spotlight the phrase that converts -->
   <section class="slide" style="align-items:flex-start;">
-    <div class="kicker">The insight</div>
+    <div class="kicker">Spotlight · Highlight</div>
     <p class="quote">"The demos that convert are the ones where the audience always knows <span class="grad">exactly where to look.</span>"</p>
     <p class="cite">— what forty recorded product demos taught us</p>
+    <p class="lead">Spotlight the phrase in quotes. Then highlight "exactly where to look" so it sticks.</p>
   </section>
 
-  <!-- 5 · SECRETS  (blur brush over the key + email) -->
+  <!-- 5 · BLUR BRUSH — hide the key and email live -->
   <section class="slide">
-    <div class="kicker">Live demo — production settings</div>
+    <div class="kicker">Blur Brush</div>
     <h2 style="margin-bottom:3vmin;">Some things you<br><span class="grad">don't want on camera.</span></h2>
     <div class="card" style="max-width:70%;">
       <div class="row"><div class="l"><b>Live API key</b><span>Full access — keep this secret</span></div><div class="val">sk_live_DEMO_not_a_real_key_00</div></div>
       <div class="row"><div class="l"><b>Billing owner</b><span>Receives invoices</span></div><div class="val">billing@acme-inc.example</div></div>
-      <div class="row"><div class="l"><b>Webhook</b><span>Endpoint health, 24h</span></div><div><span class="pill">HEALTHY</span></div></div>
+      <div class="row"><div class="l"><b>Webhook</b><span>Endpoint health, 24h</span></div><div><span class="gpill">HEALTHY</span></div></div>
     </div>
-    <p class="lead">Wipe the key and the email with the Blur Brush — then share with confidence.</p>
+    <p class="lead">Wipe the key and the email with the Blur Brush — then share your screen with confidence.</p>
   </section>
 
-  <!-- 6 · FLOW  (cut & move the boxes · whiteboard arrows) -->
+  <!-- 6 · STEP BADGE — placeholders only; presenter clicks to number each row -->
   <section class="slide">
-    <div class="kicker">How it flows</div>
-    <h2>From idea to <span class="grad">"aha"</span> in three steps.</h2>
-    <div class="flow">
-      <div class="fbox">Hit the hotkey</div>
-      <div class="farrow">→</div>
-      <div class="fbox">Draw on anything</div>
-      <div class="farrow">→</div>
-      <div class="fbox">They finally get it</div>
+    <div class="kicker">Step Badge</div>
+    <h2>Walk them through it,<br><span class="grad">one step at a time.</span></h2>
+    <p class="lead">Click each row with the Step Badge tool to drop a numbered badge — ①, ②, ③, ④ appear as you speak.</p>
+    <div class="steps">
+      <div class="step">
+        <div class="step-placeholder"></div>
+        <div class="step-text"><b>Open Pointly with your global hotkey</b><span>Overlay appears instantly over any window</span></div>
+      </div>
+      <div class="step">
+        <div class="step-placeholder"></div>
+        <div class="step-text"><b>Pick a tool from the floating toolbar</b><span>Draw, highlight, blur, badge — everything is one click away</span></div>
+      </div>
+      <div class="step">
+        <div class="step-placeholder"></div>
+        <div class="step-text"><b>Annotate live — no export, no screenshot</b><span>Your audience sees the marks appear in real time</span></div>
+      </div>
+      <div class="step">
+        <div class="step-placeholder"></div>
+        <div class="step-text"><b>Clear all ink with one key</b><span>Screen goes back to pristine — ready for the next topic</span></div>
+      </div>
     </div>
-    <p class="lead">Grab a box with Cut &amp; Move, sketch your own arrows on the whiteboard — reshape the story as you tell it.</p>
   </section>
 
-  <!-- 7 · CLOSE -->
+  <!-- 7 · CALLOUT — architecture boxes with NO labels; presenter drags callouts on -->
+  <section class="slide">
+    <div class="kicker">Callout</div>
+    <h2>Label anything.<br><span class="grad">Right on screen.</span></h2>
+    <p class="lead">Drag from any component to an empty area, type a label — a leader line connects them. No pre-baked tags here; add yours now.</p>
+    <div class="arch">
+      <div class="arch-box">
+        <h3>OverlayWindowManager</h3>
+        <p>Creates a full-screen transparent NSWindow per display. Owns all standalone controller lifetimes.</p>
+      </div>
+      <div class="arch-box">
+        <h3>DrawingState</h3>
+        <p>ObservableObject holding all drawn elements, the selected tool, undo stack, and colour / thickness.</p>
+      </div>
+      <div class="arch-box">
+        <h3>OverlayView</h3>
+        <p>SwiftUI canvas. Receives mouse input in draw mode, becomes click-through in interact mode.</p>
+      </div>
+      <div class="arch-box">
+        <h3>ProManager</h3>
+        <p>Tracks isPro state, validates StoreKit entitlements, gates Pro tools and standalone panels.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 8 · CUT & MOVE — one key metric is "buried"; presenter lifts and centres it -->
+  <section class="slide">
+    <div class="kicker">Cut &amp; Move</div>
+    <h2>That number<br><span class="grad">deserves the spotlight.</span></h2>
+    <p class="lead">The MRR metric is buried bottom-right. Grab it with Cut &amp; Move and float it front and centre so nobody misses it.</p>
+    <div class="cutmove-grid">
+      <div class="metric-box">
+        <div class="lbl">Daily Active Users</div>
+        <div class="num">8,412</div>
+        <div class="delta">▲ 18 % vs last week</div>
+      </div>
+      <div class="metric-box">
+        <div class="lbl">Avg Session Length</div>
+        <div class="num">14 min</div>
+        <div class="delta">▲ 6 % vs last week</div>
+      </div>
+      <div class="metric-box">
+        <div class="lbl">Support Tickets</div>
+        <div class="num">23</div>
+        <div class="sub">Down from 61 last week</div>
+        <div class="delta">▼ 62 %</div>
+      </div>
+      <div class="metric-box buried">
+        <div class="buried-hint">grab me</div>
+        <div class="lbl">Monthly Recurring Revenue</div>
+        <div class="num grad">$48,200</div>
+        <div class="delta">▲ 41 % MoM — new record</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 9 · PRESENTER TOOLS — Timer, Cues, Zoom (standalone; activate alongside slides) -->
+  <section class="slide">
+    <div class="kicker">Pro — presenter suite</div>
+    <h2>Run tighter sessions.<br><span class="grad">Every time.</span></h2>
+    <div class="three">
+      <div class="card-sm">
+        <div class="card-icon">⏱</div>
+        <div class="card-title">Countdown Timer</div>
+        <div class="card-body">Floating draggable timer with 5, 10 and 15 min presets plus ±1 min nudge. Chimes on finish. Activate it now — it floats above everything.</div>
+      </div>
+      <div class="card-sm">
+        <div class="card-icon">👆</div>
+        <div class="card-title">Presenter Cues</div>
+        <div class="card-body">Every click and keystroke you make appears on screen as a ripple or pill — so the audience can follow your every action without guessing.</div>
+      </div>
+      <div class="card-sm">
+        <div class="card-icon">🔍</div>
+        <div class="card-title">Presenter Zoom</div>
+        <div class="card-body">Freeze the display and magnify any detail. Scroll to zoom toward the cursor, mouse to pan. Esc to exit back to your slide.</div>
+      </div>
+    </div>
+    <p class="lead" style="margin-top:3vmin;">All three run alongside your slides — toggle from the menu bar at any time.</p>
+  </section>
+
+  <!-- 10 · CLOSE -->
   <section class="slide" style="align-items:center;text-align:center;">
     <img class="logo-icon" src="../../website/icon-1024.png" alt="" style="width:14vmin;height:14vmin;margin-bottom:4vmin;">
     <h1 style="font-size:9vmin;">Point. Explain. <span class="grad">Impact.</span></h1>
@@ -179,7 +312,7 @@
 
 </div>
 
-<div class="counter" id="counter">01 / 07</div>
+<div class="counter" id="counter">01 / 11</div>
 <div class="hint" id="hint">← → to move · F for fullscreen</div>
 
 <script>
@@ -203,25 +336,24 @@
     else if(e.key==="Home"){show(0);} else if(e.key==="End"){show(slides.length-1);}
     else if(e.key.toLowerCase()==="f"){ if(!document.fullscreenElement){document.documentElement.requestFullscreen();} else {document.exitFullscreen();} }
   });
-  // click right/left half to navigate
   document.addEventListener("click",e=>{ (e.clientX > innerWidth/2) ? next() : prev(); });
-  // fade the hint after a few seconds
   setTimeout(()=>hint.style.opacity=0,4000);
   document.addEventListener("mousemove",()=>{hint.style.opacity=.28;clearTimeout(window._h);window._h=setTimeout(()=>hint.style.opacity=0,2500);});
   show(0);
 
-  // ?coords → dump exact element rects as JSON (for scripted demo recordings)
   if(location.search.includes("coords")){
     setTimeout(()=>{
       const r=el=>{if(!el)return null;const b=el.getBoundingClientRect();return[Math.round(b.x),Math.round(b.y),Math.round(b.width),Math.round(b.height)];};
       const out={vw:innerWidth,vh:innerHeight};
-      out.statnum=r(document.querySelector(".stat-num"));
       out.hotbar=r(document.querySelector(".bar.hot"));
-      out.chartcard=r(document.querySelector(".slide:nth-child(3) .card"));
+      out.statnum=r(document.querySelector(".stat-num"));
       document.querySelectorAll("ul.big li").forEach((li,x)=>out["bullet"+x]=r(li));
       out.quote=r(document.querySelector(".quote"));
-      document.querySelectorAll(".slide:nth-child(6) .val").forEach((v,x)=>out["secret"+x]=r(v));
-      document.querySelectorAll(".fbox").forEach((b,x)=>out["fbox"+x]=r(b));
+      document.querySelectorAll(".val").forEach((v,x)=>out["secret"+x]=r(v));
+      document.querySelectorAll(".step-placeholder").forEach((s,x)=>out["stepslot"+x]=r(s));
+      document.querySelectorAll(".arch-box").forEach((b,x)=>out["arch"+x]=r(b));
+      document.querySelectorAll(".metric-box").forEach((m,x)=>out["metric"+x]=r(m));
+      out.buried=r(document.querySelector(".metric-box.buried"));
       document.body.innerHTML="<pre id='coords'>"+JSON.stringify(out)+"</pre>";
     },500);
   }

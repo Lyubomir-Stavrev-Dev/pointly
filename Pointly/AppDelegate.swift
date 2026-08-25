@@ -240,12 +240,18 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         window.appearance = NSAppearance(named: .darkAqua)
         window.isReleasedWhenClosed = false
         window.delegate = self   // red close button must still complete onboarding
-        window.contentView = FirstMouseHostingView(rootView: OnboardingView {
+        window.contentView = FirstMouseHostingView(rootView: OnboardingView(onDismiss: {
             self.onboardingWindow?.orderOut(nil)
             if thenShowToolbar {
                 self.overlayWindowManager?.toggleOverlay()
             }
-        })
+        }, onContinueFree: {
+            // User skipped purchasing — show spin-wheel welcome offer if eligible.
+            // Small delay so the onboarding window has time to order out first.
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                self.overlayWindowManager?.maybeShowSpinWheel()
+            }
+        }))
         window.center()
         onboardingWindow = window
         window.makeKeyAndOrderFront(nil)

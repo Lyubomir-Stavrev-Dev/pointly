@@ -1,5 +1,6 @@
 import SwiftUI
 import AppKit
+import StoreKit
 
 // MARK: - Brand (local copy)
 
@@ -293,9 +294,26 @@ struct ProPaywallView: View {
                                 .buttonStyle(.plain)
                         }
                         #else
-                        HStack(spacing: 20) {
+                        HStack(spacing: 12) {
                             Button("Restore Purchase") {
                                 Task { await proManager.restorePurchases() }
+                            }
+                            .font(.system(size: 10))
+                            .foregroundColor(.white.opacity(0.28))
+                            .buttonStyle(.plain)
+
+                            Text("·").foregroundColor(.white.opacity(0.15))
+
+                            Button("Redeem Code") {
+                                Task {
+                                    if let vc = NSApplication.shared.keyWindow?.contentViewController {
+                                        if #available(macOS 15.0, *) {
+                                            try? await AppStore.presentOfferCodeRedeemSheet(from: vc)
+                                        } else {
+                                            NSWorkspace.shared.open(URL(string: "https://apps.apple.com/redeem")!)
+                                        }
+                                    }
+                                }
                             }
                             .font(.system(size: 10))
                             .foregroundColor(.white.opacity(0.28))

@@ -269,8 +269,12 @@ struct DrawingElement: Identifiable {
 
     static func calloutBox(origin: CGPoint, text: String, thickness: CGFloat) -> CGRect {
         let fontSize = calloutFontSize(for: thickness)
-        let w = max(48, CGFloat(text.count) * fontSize * 0.6 + 22)
-        let h = fontSize * 1.5 + 12
+        let font = NSFont.systemFont(ofSize: fontSize, weight: .semibold)
+        let measured = (text as NSString).size(withAttributes: [.font: font])
+        let hPad: CGFloat = 16
+        let vPad: CGFloat = 8
+        let w = max(48, measured.width + hPad * 2)
+        let h = max(28, measured.height + vPad * 2)
         return CGRect(x: origin.x, y: origin.y, width: w, height: h)
     }
 

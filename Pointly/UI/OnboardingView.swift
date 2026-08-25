@@ -59,6 +59,7 @@ struct OnboardingView: View {
     @State private var hoverLifetime = false
     @State private var hoverFree     = false
     let onDismiss: () -> Void
+    var onContinueFree: (() -> Void)? = nil
 
     var body: some View {
         ZStack {
@@ -219,6 +220,7 @@ struct OnboardingView: View {
                         Button {
                             UserDefaults.standard.set(true, forKey: "hasSeenOnboarding")
                             onDismiss()
+                            onContinueFree?()
                         } label: {
                             Text("Continue Free")
                                 .font(.system(size: 12, weight: .medium))
