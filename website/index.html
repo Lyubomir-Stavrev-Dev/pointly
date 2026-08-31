@@ -4,9 +4,14 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Pointly — Screen Annotation App for Mac: Draw, Highlight & Present Live</title>
-  <meta name="description" content="Pointly turns your Mac screen into a canvas. Draw, highlight, laser-point, spotlight, zoom, and time anything over any app — live. Built for presentations, teaching, demos, and screen recordings. Free on the Mac App Store." />
+  <meta name="description" content="Pointly turns your Mac screen into a canvas. Draw, highlight, laser-point, spotlight, add callouts, step badges, fading ink, and present live over any app. Built for presentations, teaching, demos, and screen recordings. Free on the Mac App Store." />
   <meta name="keywords" content="screen annotation mac, draw on screen mac, annotate screen, presentation tool mac, laser pointer app, highlight screen, screen markup, whiteboard mac, presenter zoom mac, screen zoom presentation, countdown timer overlay, keystroke visualizer mac, click visualizer" />
   <link rel="canonical" href="https://trypointly.com/" />
+
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@700&display=swap" rel="stylesheet">
 
   <!-- Icons -->
   <link rel="icon" href="/favicon.ico" sizes="any" />
@@ -41,7 +46,7 @@
     "alternateName": ["trypointly", "Pointly Annotate", "Pointly for Mac"],
     "operatingSystem": "macOS 14.0 or later",
     "applicationCategory": "UtilitiesApplication",
-    "description": "Screen annotation for Mac: draw, highlight, laser-point, and spotlight anything over any app, live. Built for presentations, teaching, and demos.",
+    "description": "Screen annotation for Mac: draw, highlight, laser-point, spotlight, add callouts, step badges, fading ink, countdown timers, and presenter zoom over any app. Built for presentations, teaching, and demos.",
     "image": "https://trypointly.com/og-image.png",
     "url": "https://trypointly.com/",
     "installUrl": "https://apps.apple.com/app/pointly-annotate/id6785933008",
@@ -130,6 +135,13 @@
 
     .nav-links a:hover { color: var(--text); }
 
+    .nav-logo img {
+      width: 34px; height: 34px; max-width: 34px; max-height: 34px;
+      border-radius: 9px; flex-shrink: 0;
+      object-fit: cover; display: block;
+      box-shadow: 0 2px 10px rgba(244,100,77,0.3);
+    }
+
     .nav-cta {
       background: var(--grad);
       color: #fff; border: none; border-radius: 10px;
@@ -146,32 +158,77 @@
       min-height: 100vh;
       display: grid;
       grid-template-columns: 1fr 1.4fr;
+      grid-template-rows: auto auto;
+      align-content: center;
       align-items: center;
-      gap: 40px;
-      padding: 120px 60px 80px;
+      column-gap: 40px;
+      row-gap: 32px;
+      padding: 72px 60px 56px;
       position: relative;
       overflow: hidden;
+    }
+    .hero-bottom {
+      grid-column: 1 / -1;
+      display: grid;
+      grid-template-columns: 1fr 1.4fr;
+      column-gap: 40px;
+      align-items: center;
+    }
+
+    /* Background dot grid */
+    .hero::before {
+      content: '';
+      position: absolute; inset: 0;
+      background-image: radial-gradient(circle, rgba(255,255,255,0.065) 1px, transparent 1px);
+      background-size: 34px 34px;
+      -webkit-mask-image: radial-gradient(ellipse 85% 85% at 65% 35%, rgba(0,0,0,0.7), transparent);
+      mask-image: radial-gradient(ellipse 85% 85% at 65% 35%, rgba(0,0,0,0.7), transparent);
+      pointer-events: none; z-index: 0;
     }
 
     /* Background glow blobs */
     .hero::after {
       content: '';
       position: absolute;
-      width: 700px; height: 700px;
-      background: radial-gradient(circle, rgba(244,100,77,0.12) 0%, transparent 70%);
-      top: -100px; right: -100px; pointer-events: none;
-      border-radius: 50%;
+      width: 900px; height: 900px;
+      background: radial-gradient(circle, rgba(244,100,77,0.22) 0%, rgba(200,60,30,0.1) 40%, transparent 70%);
+      top: -200px; right: -180px; pointer-events: none;
+      border-radius: 50%; z-index: 0;
     }
 
+    /* Large purple bloom covering the right half */
     .hero-blob-2 {
       position: absolute;
-      width: 500px; height: 500px;
-      background: radial-gradient(circle, rgba(233,69,140,0.08) 0%, transparent 70%);
-      bottom: 0; left: 10%; pointer-events: none;
-      border-radius: 50%;
+      width: 900px; height: 900px;
+      background: radial-gradient(ellipse at center, rgba(100,30,200,0.38) 0%, rgba(80,20,160,0.18) 40%, transparent 70%);
+      top: -10%; right: -5%; pointer-events: none;
+      border-radius: 50%; z-index: 0;
     }
 
-    .hero-left { position: relative; z-index: 2; }
+    /* Soft purple bleed into the left side */
+    .hero-blob-3 {
+      position: absolute;
+      width: 600px; height: 600px;
+      background: radial-gradient(circle, rgba(80,20,160,0.14) 0%, transparent 70%);
+      top: 20%; left: -5%; pointer-events: none;
+      border-radius: 50%; z-index: 0;
+    }
+
+    .hero-left {
+      position: relative; z-index: 2;
+      display: flex; flex-direction: column;
+      justify-content: center;
+    }
+    .hero-left-pills {
+      display: flex; flex-wrap: nowrap; gap: 6px;
+      background: rgba(14,14,30,0.88);
+      border: 1px solid rgba(255,255,255,0.13);
+      border-radius: 16px;
+      padding: 18px 20px;
+      box-shadow: 0 0 0 1px rgba(255,255,255,0.04) inset,
+                  0 8px 32px rgba(0,0,0,0.55),
+                  0 1px 0 rgba(255,255,255,0.07) inset;
+    }
 
     .hero-badge {
       display: inline-flex; align-items: center; gap: 8px;
@@ -214,11 +271,18 @@
       margin-bottom: 22px;
     }
 
+    @keyframes text-shimmer {
+      0%   { background-position: -300% center; }
+      100% { background-position: 300% center; }
+    }
+
     h1 span {
-      background: var(--grad);
+      background: linear-gradient(90deg, #F4644D 0%, #FF8C42 25%, #ffe8d6 48%, #FF8C42 72%, #E9458C 100%);
+      background-size: 300% auto;
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
       background-clip: text;
+      animation: text-shimmer 5s linear infinite;
     }
 
     .hero-sub {
@@ -279,15 +343,37 @@
     /* ── MacBook Mockup ── */
     .hero-right {
       position: relative; z-index: 2;
-      display: flex; align-items: center; justify-content: center;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      gap: 24px;
+      padding-bottom: 40px;
+    }
+    .hero-right-proof {
+      display: flex; align-items: center; justify-content: center; gap: 28px;
+      width: 100%; padding: 0 8px;
     }
 
     .macbook-wrap {
       position: relative;
-      width: 100%; max-width: 820px;
-      filter: drop-shadow(0 40px 80px rgba(0,0,0,0.6))
-              drop-shadow(0 0 60px rgba(244,100,77,0.15));
+      width: 100%; max-width: 960px;
+      filter: drop-shadow(0 40px 100px rgba(0,0,0,0.7))
+              drop-shadow(0 0 80px rgba(100,30,200,0.2))
+              drop-shadow(0 0 40px rgba(244,100,77,0.12));
       animation: float 6s ease-in-out infinite;
+    }
+
+    .hero-app-wrap {
+      width: 150%;
+      max-width: 1100px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 24px;
+    }
+    .hero-app-img {
+      width: 100%;
+      display: block;
+      border-radius: 14px;
     }
 
     @keyframes float {
@@ -456,13 +542,12 @@
       z-index: 10;
     }
     .pt-toolbar {
-      background: rgba(8,8,20,0.94);
+      background: rgba(8,8,20,0.97);
       border: 1px solid rgba(255,255,255,0.11);
       border-radius: 18px;
       padding: 8px 7px;
       display: flex; flex-direction: column; gap: 4px;
       width: 96px;
-      backdrop-filter: blur(24px);
       box-shadow: 0 20px 50px rgba(0,0,0,0.75), inset 0 1px 0 rgba(255,255,255,0.07);
     }
     .pt-hdr { display: flex; justify-content: space-between; padding: 0 1px 2px; }
@@ -509,12 +594,11 @@
 
     /* SIZE bar */
     .pt-sz {
-      background: rgba(8,8,20,0.94);
+      background: rgba(8,8,20,0.97);
       border: 1px solid rgba(255,255,255,0.11);
       border-radius: 16px; padding: 10px 5px;
       display: flex; flex-direction: column; align-items: center; gap: 5px;
       width: 28px;
-      backdrop-filter: blur(24px);
       box-shadow: 0 20px 50px rgba(0,0,0,0.75), inset 0 1px 0 rgba(255,255,255,0.07);
     }
     .pt-sz-ic { color: rgba(255,255,255,0.3); }
@@ -540,6 +624,233 @@
     }
     .pt-sz-l { font-size: 5px; font-weight: 700; letter-spacing: 0.1em; color: rgba(255,255,255,0.2); }
 
+    /* Mock screen content */
+    .mock-screen {
+      position: absolute; inset: 0;
+      background: #0c0c1e;
+      display: flex; flex-direction: column;
+    }
+    .ms-browser-bar {
+      height: 26px; background: rgba(255,255,255,0.03);
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+      display: flex; align-items: center; padding: 0 10px; gap: 5px; flex-shrink: 0;
+    }
+    .ms-url-bar {
+      flex: 1; height: 13px; background: rgba(255,255,255,0.07);
+      border-radius: 3px; margin: 0 8px;
+      display: flex; align-items: center; padding: 0 6px; gap: 4px;
+    }
+    .ms-url-dot { width: 5px; height: 5px; border-radius: 50%; background: #28ca41; }
+    .ms-url-text { flex: 1; height: 5px; background: rgba(255,255,255,0.18); border-radius: 2px; }
+    .ms-page {
+      flex: 1; padding: 14px 16px; display: flex; flex-direction: column; gap: 10px; overflow: hidden;
+    }
+    .ms-page-nav {
+      display: flex; align-items: center; gap: 10px; margin-bottom: 2px;
+    }
+    .ms-pn-logo { width: 14px; height: 14px; border-radius: 4px; background: rgba(244,100,77,0.5); flex-shrink: 0; }
+    .ms-pn-link { height: 5px; border-radius: 3px; background: rgba(255,255,255,0.18); }
+    .ms-page-hero {
+      display: flex; flex-direction: column; gap: 6px; margin-bottom: 2px;
+    }
+    .ms-ph-tag { width: 72px; height: 8px; border-radius: 10px; background: rgba(244,100,77,0.2); border: 1px solid rgba(244,100,77,0.18); }
+    .ms-ph-h1 { height: 12px; border-radius: 3px; background: rgba(255,255,255,0.65); }
+    .ms-ph-h1.l2 { width: 72%; background: rgba(244,100,77,0.45); }
+    .ms-ph-sub { height: 6px; border-radius: 3px; background: rgba(255,255,255,0.22); }
+    .ms-ph-ctas { display: flex; gap: 8px; margin-top: 4px; }
+    .ms-ph-btn { height: 18px; border-radius: 5px; }
+    .ms-ph-btn.primary { width: 88px; background: rgba(255,255,255,0.8); }
+    .ms-ph-btn.secondary { width: 60px; background: rgba(244,100,77,0.25); border: 1px solid rgba(244,100,77,0.2); }
+    .ms-card-row { display: flex; gap: 8px; }
+    .ms-mini-card {
+      flex: 1; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.07);
+      border-radius: 8px; padding: 8px; display: flex; flex-direction: column; gap: 5px;
+    }
+    .ms-mc-img { height: 32px; border-radius: 5px; }
+    .ms-mc-line { height: 6px; border-radius: 3px; background: rgba(255,255,255,0.3); }
+    .ms-mc-line.short { width: 65%; background: rgba(255,255,255,0.15); }
+
+    /* ── Dashboard mockup (hero app window content) ── */
+    .dash-screen {
+      position: absolute; inset: 0;
+      background: #0c0d1f;
+      display: flex; overflow: hidden;
+    }
+    .ds-sidebar {
+      width: 52px; flex-shrink: 0;
+      background: rgba(255,255,255,0.025);
+      border-right: 1px solid rgba(255,255,255,0.06);
+      display: flex; flex-direction: column; align-items: center;
+      padding: 14px 0; gap: 6px;
+    }
+    .ds-sb-logo {
+      width: 22px; height: 22px; border-radius: 7px;
+      background: linear-gradient(135deg, #F4644D, #E9458C); flex-shrink: 0;
+      box-shadow: 0 2px 8px rgba(244,100,77,0.4); margin-bottom: 8px;
+    }
+    .ds-sb-item {
+      width: 32px; height: 28px; border-radius: 7px;
+      background: rgba(255,255,255,0.05);
+      position: relative;
+    }
+    .ds-sb-item::after {
+      content: ''; position: absolute; left: 8px; top: 50%; transform: translateY(-50%);
+      width: 16px; height: 4px; border-radius: 2px; background: rgba(255,255,255,0.18);
+    }
+    .ds-sb-item.active {
+      background: rgba(244,100,77,0.12);
+      border: 1px solid rgba(244,100,77,0.2);
+    }
+    .ds-sb-item.active::after { background: rgba(244,100,77,0.7); }
+    .ds-main {
+      flex: 1; display: flex; flex-direction: column; overflow: hidden;
+    }
+    .ds-header {
+      height: 34px; flex-shrink: 0;
+      border-bottom: 1px solid rgba(255,255,255,0.05);
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0 16px;
+    }
+    .ds-breadcrumb { display: flex; align-items: center; gap: 5px; }
+    .ds-bc-part { height: 5px; border-radius: 3px; background: rgba(255,255,255,0.18); }
+    .ds-bc-part:first-child { width: 28px; }
+    .ds-bc-part:last-child { width: 44px; background: rgba(255,255,255,0.38); }
+    .ds-bc-sep { font-size: 9px; color: rgba(255,255,255,0.2); }
+    .ds-h-actions { display: flex; gap: 5px; }
+    .ds-h-btn { height: 16px; border-radius: 4px; background: rgba(255,255,255,0.08); }
+    .ds-h-btn:first-child { width: 40px; }
+    .ds-h-btn:last-child { width: 52px; background: rgba(244,100,77,0.2); border: 1px solid rgba(244,100,77,0.18); }
+    .ds-body {
+      flex: 1; padding: 16px 20px; display: flex; flex-direction: column; gap: 8px; overflow: hidden;
+    }
+    .ds-page-title { height: 11px; width: 55%; border-radius: 3px; background: rgba(255,255,255,0.6); margin-bottom: 4px; }
+    .ds-row { height: 6px; border-radius: 3px; background: rgba(255,255,255,0.16); }
+    .ds-chart-wrap {
+      flex-shrink: 0; height: 90px; margin: 6px 0;
+      background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05);
+      border-radius: 8px; overflow: hidden; position: relative;
+    }
+    .ds-chart-wrap svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+    .ds-table-row {
+      display: flex; align-items: center; gap: 8px;
+      height: 18px; flex-shrink: 0;
+      border-radius: 5px; padding: 0 6px;
+      background: rgba(255,255,255,0.025);
+    }
+    .ds-tr-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+    .ds-tr-line { height: 5px; border-radius: 3px; background: rgba(255,255,255,0.22); }
+    .ds-tr-num { margin-left: auto; width: 20px; height: 5px; border-radius: 3px; background: rgba(255,255,255,0.12); }
+
+    /* Annotation SVG overlay */
+    .ds-annotations {
+      position: absolute; inset: 0; width: 100%; height: 100%;
+      pointer-events: none; z-index: 20;
+      overflow: visible;
+    }
+    @keyframes annot-appear {
+      0%, 20%  { opacity: 0; }
+      35%, 80% { opacity: 1; }
+      95%, 100%{ opacity: 0; }
+    }
+    .annot-group { animation: annot-appear 5s ease-in-out infinite; }
+
+    /* Decorative hero elements */
+    .hero-deco-dotgrid {
+      position: absolute;
+      left: 38%; top: 50%; transform: translate(-50%, -50%);
+      pointer-events: none; z-index: 1;
+      display: grid;
+      grid-template-columns: repeat(4, 18px);
+      grid-template-rows: repeat(5, 18px);
+      gap: 14px;
+    }
+    .hero-deco-plus {
+      color: rgba(244,100,77,0.5);
+      font-size: 13px; font-weight: 300; line-height: 1;
+      display: flex; align-items: center; justify-content: center;
+      user-select: none;
+    }
+    /* fade outer dots */
+    .hero-deco-plus:nth-child(n+13) { opacity: 0.3; }
+    .hero-deco-plus:nth-child(-n+4)  { opacity: 0.3; }
+    .hero-deco-plus:nth-child(4n)    { opacity: 0.25; }
+    .hero-deco-plus:nth-child(4n+1)  { opacity: 0.25; }
+
+    .hero-deco-dashes {
+      position: absolute;
+      top: 60px; right: 28px;
+      width: 90px; pointer-events: none; z-index: 3;
+    }
+    .hero-deco-dot {
+      position: absolute; border-radius: 50%;
+      background: #F4644D; pointer-events: none; z-index: 3;
+    }
+    .hero-deco-orbit {
+      position: absolute;
+      right: -50px; top: 50%; transform: translateY(-50%);
+      pointer-events: none; z-index: 1;
+    }
+
+    /* proof-pill shared styles */
+    .proof-pill {
+      display: flex; align-items: center; gap: 12px;
+      flex: 1; min-width: 0;
+    }
+    .proof-pill-icon {
+      width: 44px; height: 44px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+    }
+    .proof-pill-icon svg { width: 20px; height: 20px; }
+    .proof-pill-text {
+      font-size: 12.5px; font-weight: 600;
+      color: rgba(255,255,255,0.8); line-height: 1.35;
+    }
+    /* hero-proof-social kept for backwards compat but not used */
+    /* Avatars — overlapping circles */
+    .proof-avatars {
+      display: flex; align-items: center; flex-shrink: 0;
+    }
+    .proof-avatar {
+      width: 44px; height: 44px; border-radius: 50%;
+      border: 2.5px solid rgba(7,7,15,0.9);
+      overflow: hidden; flex-shrink: 0;
+      margin-left: -14px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.5);
+    }
+    .proof-avatar:first-child { margin-left: 0; }
+    .proof-avatar img {
+      width: 100%; height: 100%; object-fit: cover; display: block;
+    }
+
+    /* Stars + text */
+    .proof-stars-block { display: flex; flex-direction: column; gap: 5px; }
+    .proof-stars { color: #F5C518; font-size: 16px; letter-spacing: 2px; line-height: 1; }
+    .proof-stars-text { font-size: 12.5px; color: rgba(255,255,255,0.55); line-height: 1.45; max-width: 190px; }
+
+    /* Divider between the two groups */
+    .proof-divider { width: 1px; height: 44px; background: rgba(255,255,255,0.1); flex-shrink: 0; }
+
+    /* Laurel + count block */
+    .proof-count-block {
+      display: flex; align-items: center; gap: 4px; flex-shrink: 0;
+    }
+    .proof-count-inner {
+      display: flex; flex-direction: column; align-items: center; gap: 0;
+      text-align: center;
+    }
+    .proof-laurel-half {
+      flex-shrink: 0; height: 72px; width: auto; display: block;
+      filter: brightness(0.45) saturate(0.5) sepia(0.4) hue-rotate(220deg);
+    }
+    .proof-count-label { font-size: 11px; color: rgba(255,255,255,0.4); font-weight: 500; }
+    .proof-count-num {
+      font-size: 30px; font-weight: 900; letter-spacing: -1px; line-height: 1;
+      background: var(--grad);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+    }
+    .proof-count-sub { font-size: 11px; color: rgba(255,255,255,0.4); }
+
     /* MacBook base */
     .macbook-base {
       background: linear-gradient(180deg, #2a2a3a 0%, #1a1a28 100%);
@@ -560,26 +871,38 @@
 
     /* ── Stats bar ── */
     .stats {
-      display: flex; justify-content: center; gap: 0;
-      padding: 16px 60px 0;
+      display: flex; justify-content: center; align-items: stretch; gap: 0;
+      padding: 48px 60px 0;
       position: relative; z-index: 2;
     }
 
     .stat-item {
-      flex: 1; max-width: 220px;
+      flex: 1; max-width: 240px;
       display: flex; align-items: center; gap: 14px;
-      padding: 18px 24px;
+      padding: 20px 28px;
       border-right: 1px solid var(--border);
+      transition: background 0.2s;
     }
 
     .stat-item:last-child { border-right: none; }
 
+    .stat-item:hover { background: rgba(244,100,77,0.03); }
+
     .stat-icon {
-      width: 36px; height: 36px; border-radius: 10px;
+      width: 38px; height: 38px; border-radius: 11px;
       background: rgba(244,100,77,0.1);
       border: 1px solid rgba(244,100,77,0.2);
       display: flex; align-items: center; justify-content: center;
-      font-size: 16px; flex-shrink: 0;
+      flex-shrink: 0;
+      color: var(--brand-1);
+    }
+
+    .stat-icon svg { width: 18px; height: 18px; }
+
+    .stat-num {
+      display: block; font-size: 22px; font-weight: 900; letter-spacing: -0.5px;
+      background: var(--grad);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
     }
 
     .stat-text strong {
@@ -588,6 +911,43 @@
 
     .stat-text span {
       font-size: 11px; color: var(--muted);
+    }
+
+    /* ── Marquee strip ── */
+    .marquee-strip {
+      overflow: hidden; white-space: nowrap;
+      padding: 14px 0;
+      border-top: 1px solid var(--border);
+      border-bottom: 1px solid var(--border);
+      margin: 0;
+      position: relative; z-index: 2;
+      mask-image: linear-gradient(90deg, transparent, black 8%, black 92%, transparent);
+      -webkit-mask-image: linear-gradient(90deg, transparent, black 8%, black 92%, transparent);
+    }
+
+    .marquee-track {
+      display: inline-flex; gap: 48px; align-items: center;
+      animation: marquee 28s linear infinite;
+    }
+
+    @keyframes marquee {
+      from { transform: translateX(0); }
+      to { transform: translateX(-50%); }
+    }
+
+    .marquee-item {
+      display: inline-flex; align-items: center; gap: 8px;
+      font-size: 12px; font-weight: 600; letter-spacing: 0.05em;
+      color: rgba(255,255,255,0.35);
+      text-transform: uppercase;
+      flex-shrink: 0;
+    }
+
+    .marquee-item svg { width: 14px; height: 14px; opacity: 0.5; }
+
+    .marquee-dot {
+      width: 4px; height: 4px; border-radius: 50%;
+      background: var(--brand-1); opacity: 0.4; flex-shrink: 0;
     }
 
     /* ── Section shared ── */
@@ -635,12 +995,26 @@
       padding: 28px;
       transition: border-color 0.25s, transform 0.25s, box-shadow 0.25s;
       cursor: default;
+      position: relative; overflow: hidden;
+    }
+
+    .feature-card::after {
+      content: '';
+      position: absolute; inset: 0;
+      background: linear-gradient(110deg, transparent 25%, rgba(255,255,255,0.06) 50%, transparent 75%);
+      transform: translateX(-120%) skewX(-20deg);
+      transition: transform 0.55s ease;
+      pointer-events: none;
     }
 
     .feature-card:hover {
-      border-color: rgba(244,100,77,0.3);
+      border-color: rgba(244,100,77,0.35);
       transform: translateY(-4px);
       box-shadow: 0 20px 48px rgba(0,0,0,0.3), 0 0 0 1px rgba(244,100,77,0.1);
+    }
+
+    .feature-card:hover::after {
+      transform: translateX(220%) skewX(-20deg);
     }
 
     .feature-card.featured {
@@ -667,6 +1041,18 @@
       font-size: 13.5px; color: var(--muted); line-height: 1.6;
     }
 
+    .features-more {
+      text-align: center;
+      margin-top: 28px;
+      font-size: 13px;
+      color: rgba(255,255,255,0.3);
+    }
+    .features-more a {
+      color: rgba(244,100,77,0.7);
+      text-decoration: none;
+    }
+    .features-more a:hover { color: #F4644D; }
+
     .feature-tag {
       display: inline-block;
       margin-top: 14px;
@@ -687,12 +1073,14 @@
       border-radius: 28px;
       overflow: hidden;
       display: grid;
-      grid-template-columns: 340px 1fr;
-      min-height: 520px;
+      grid-template-columns: 400px 1fr;
+      max-width: 1100px;
+      margin: 0 auto;
+      min-height: 480px;
     }
 
     .tools-left {
-      padding: 44px 36px;
+      padding: 40px 32px;
       display: flex; flex-direction: column; justify-content: center;
       border-right: 1px solid var(--border);
     }
@@ -746,7 +1134,7 @@
       border: 1px solid rgba(255,255,255,0.07);
       position: relative; z-index: 1;
       display: block;
-      max-width: 100%; height: auto;
+      width: min(100%, 500px); height: auto;
     }
 
     .tool-name-label {
@@ -813,10 +1201,22 @@
 
     .price-card:hover { transform: translateY(-4px); }
 
+    @keyframes glow-pulse {
+      0%, 100% {
+        box-shadow: 0 0 0 1px rgba(244,100,77,0.22), 0 24px 60px rgba(244,100,77,0.12), 0 0 32px rgba(244,100,77,0.07);
+        border-color: rgba(244,100,77,0.38);
+      }
+      50% {
+        box-shadow: 0 0 0 1px rgba(244,100,77,0.55), 0 24px 60px rgba(244,100,77,0.22), 0 0 60px rgba(244,100,77,0.16);
+        border-color: rgba(244,100,77,0.65);
+      }
+    }
+
     .price-card.popular {
       background: linear-gradient(135deg, rgba(244,100,77,0.1), rgba(233,69,140,0.07));
-      border-color: rgba(244,100,77,0.35);
-      box-shadow: 0 0 0 1px rgba(244,100,77,0.15), 0 24px 60px rgba(244,100,77,0.12);
+      border-color: rgba(244,100,77,0.38);
+      box-shadow: 0 0 0 1px rgba(244,100,77,0.2), 0 24px 60px rgba(244,100,77,0.12);
+      animation: glow-pulse 3s ease-in-out infinite;
     }
 
     .price-badge {
@@ -991,45 +1391,138 @@
     }
 
     /* ── Responsive ── */
+
+    /* Large screens: widen the pricing grid */
+    @media (min-width: 1400px) {
+      .pricing-grid { max-width: 1040px; }
+    }
+
+    /* Tablet / medium screens */
+    @media (max-width: 1100px) {
+      nav { padding: 18px 40px; }
+      .hero { padding: 120px 40px 80px; }
+      .features { padding: 100px 40px; }
+      .tools-section { padding: 0 40px 100px; }
+      .pricing { padding: 0 40px 100px; }
+      .cta-banner { padding: 0 40px 100px; }
+      .stats { padding: 48px 40px 0; }
+      .section-divider { margin: 0 40px; }
+    }
+
     @media (max-width: 900px) {
-      nav { padding: 16px 24px; }
+      nav { padding: 14px 20px; }
       .nav-links { display: none; }
 
       .hero {
         grid-template-columns: 1fr;
-        padding: 100px 24px 60px;
+        align-items: start;
+        padding: 90px 20px 0;
         text-align: center;
+        gap: 32px;
+        min-height: auto;
       }
 
-      .hero-sub { margin: 0 auto 40px; }
-      .hero-actions { justify-content: center; }
-      .hero-note { justify-content: center; }
+      .hero::before { opacity: 0.35; }
       .hero::after { display: none; }
+      .hero-blob-2, .hero-blob-3 { display: none; }
+      .hero-deco-dotgrid, .hero-deco-dashes, .hero-deco-dot, .hero-deco-orbit { display: none; }
 
+      .hero-left { padding-bottom: 0; justify-content: flex-start; }
+      .hero-left-pills { justify-content: center; }
+      .hero-right { padding-bottom: 0; }
+      .hero-right-proof { justify-content: center; flex-wrap: wrap; gap: 16px; }
+
+      .hero-left { z-index: 2; }
+      .hero-sub { margin: 0 auto 36px; max-width: 380px; }
+      .hero-actions { justify-content: center; flex-wrap: wrap; }
+      .hero-note { justify-content: center; flex-wrap: wrap; }
       .hero-right { order: -1; }
-      .macbook-wrap { max-width: 380px; }
 
-      .stats { flex-direction: column; align-items: center; padding: 40px 24px 0; }
-      .stat-item { border-right: none; border-bottom: 1px solid var(--border); width: 100%; max-width: 320px; }
-      .stat-item:last-child { border-bottom: none; }
+      /* Mobile image: full width, no overflow */
+      .hero-app-wrap { width: 100%; max-width: 100%; }
+      .hero-app-img { width: 100%; border-radius: 10px; }
 
-      .features { padding: 60px 24px; }
-      .features-grid { grid-template-columns: 1fr; }
+      /* Bottom row: stack vertically on mobile */
+      .hero-bottom {
+        grid-template-columns: 1fr;
+        row-gap: 20px;
+      }
 
-      .tools-section { padding: 0 24px 60px; }
-      .tools-inner { grid-template-columns: 1fr; }
+      /* Pills: 2×2 grid on mobile */
+      .hero-left-pills {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+        padding: 14px 16px;
+      }
+      .proof-pill { flex: unset; gap: 10px; }
+      .proof-pill-icon { width: 38px; height: 38px; }
+      .proof-pill-icon svg { width: 17px; height: 17px; }
+      .proof-pill-text { font-size: 12px; }
+
+      .hero-right-proof { justify-content: center; flex-wrap: wrap; }
+
+      /* Stats: 2×2 grid on tablet */
+      .stats {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        padding: 32px 20px 0;
+      }
+      .stat-item {
+        border-right: none;
+        border-bottom: 1px solid var(--border);
+        width: 100%; max-width: none;
+        padding: 16px 18px;
+      }
+      .stat-item:nth-child(odd) { border-right: 1px solid var(--border); }
+      .stat-item:nth-child(3), .stat-item:nth-child(4) { border-bottom: none; }
+      .stat-num { font-size: 18px; }
+      .marquee-strip { display: none; }
+
+      .features { padding: 60px 20px; }
+      .features-grid { grid-template-columns: repeat(2, 1fr); gap: 12px; }
+
+      /* Tools: single-column, chips in 2 cols */
+      .tools-section { padding: 0 20px 60px; }
+      .tools-inner {
+        grid-template-columns: 1fr;
+        min-height: auto;
+        border-radius: 20px;
+      }
       .tools-canvas, .tools-toolbar { display: none; }
-      .tools-left { padding: 36px; }
+      .tools-left {
+        padding: 28px 24px 32px;
+        border-right: none;
+        border-bottom: 1px solid var(--border);
+      }
+      .tools-grid { grid-template-columns: repeat(2, 1fr); gap: 7px; }
 
-      .pricing { padding: 0 24px 60px; }
-      .pricing-grid { grid-template-columns: 1fr; max-width: 400px; }
+      .pricing { padding: 0 20px 60px; }
+      .pricing-grid { grid-template-columns: 1fr; max-width: 460px; margin: 0 auto; gap: 14px; }
 
-      .cta-banner { padding: 0 24px 60px; }
-      .cta-inner { padding: 40px 24px; }
+      .cta-banner { padding: 0 20px 60px; }
+      .cta-inner { padding: 44px 24px; }
 
-      .section-divider { margin: 0 24px; }
+      .section-divider { margin: 0 20px; }
 
-      footer { padding: 32px 24px; flex-direction: column; align-items: center; text-align: center; }
+      footer {
+        padding: 32px 20px;
+        flex-direction: column; align-items: center; text-align: center;
+        gap: 16px;
+      }
+      .footer-links { flex-wrap: wrap; justify-content: center; gap: 14px; }
+    }
+
+    @media (max-width: 600px) {
+      .features-grid { grid-template-columns: 1fr; gap: 10px; }
+      .tools-grid { grid-template-columns: repeat(2, 1fr); }
+      .tool-chip { font-size: 11.5px; padding: 8px 10px; gap: 7px; }
+      .tool-chip-pro { font-size: 8px; }
+
+      /* Stats: single column on phone */
+      .stats { grid-template-columns: 1fr; }
+      .stat-item { border-right: none !important; border-bottom: 1px solid var(--border) !important; }
+      .stat-item:last-child { border-bottom: none !important; }
     }
   </style>
 </head>
@@ -1038,7 +1531,7 @@
   <!-- Nav -->
   <nav>
     <a href="#" class="nav-logo">
-      <img src="/favicon-192.png" alt="Pointly icon" style="width:34px;height:34px;border-radius:9px;box-shadow:0 4px 16px rgba(244,100,77,0.45);" />
+      <img src="/favicon-192.png" alt="Pointly icon" style="width:34px;height:34px;border-radius:9px;" />
       Pointly
     </a>
     <ul class="nav-links">
@@ -1054,7 +1547,7 @@
     <div class="hero-left">
       <div class="hero-badge">
         <div class="hero-badge-dot"></div>
-        Now available on macOS
+        New in v1.3.2 — Presenter Tools &amp; more
       </div>
       <p class="hero-tagline">Point. Explain. Impact.</p>
       <h1>Annotate your<br/><span>screen, live.</span></h1>
@@ -1077,115 +1570,127 @@
         <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>
         Free to download · No account required · works worldwide, incl. the EU · macOS 14+
       </p>
+
     </div>
 
     <div class="hero-right">
-      <div class="macbook-wrap">
-        <!-- Screen -->
-        <div class="macbook-screen">
-          <div class="macbook-titlebar">
-            <div class="dot dot-r"></div>
-            <div class="dot dot-y"></div>
-            <div class="dot dot-g"></div>
-          </div>
-          <div class="macbook-content">
-            <div class="screen-bg"></div>
-
-            <!-- Blog skeleton -->
-            <div class="blog-skeleton">
-              <div class="sk-img"></div>
-              <div class="sk-title"></div>
-              <div class="sk-sub"></div>
-              <div class="sk-meta">
-                <div class="sk-av"></div>
-                <div class="sk-by">
-                  <div class="sk-ln" style="width:80px"></div>
-                  <div class="sk-ln" style="width:55px;opacity:0.6"></div>
-                </div>
-              </div>
-              <div class="sk-sep"></div>
-              <div class="sk-ln" style="width:100%"></div>
-              <div class="sk-ln" style="width:92%"></div>
-              <div class="sk-ln" style="width:78%"></div>
-              <div class="sk-gap"></div>
-              <div class="sk-ln" style="width:100%"></div>
-              <div class="sk-ln" style="width:88%"></div>
-              <div class="sk-ln" style="width:65%"></div>
-              <div class="sk-gap"></div>
-              <div class="sk-ln" style="width:96%"></div>
-              <div class="sk-ln" style="width:72%"></div>
-            </div>
-
-            <!-- Spotlight: warm glow (below overlay) + dark radial overlay -->
-            <div class="spotlight-glow"></div>
-            <div class="spotlight-overlay"></div>
-
-            <!-- Pointly floating toolbar + SIZE bar -->
-            <div class="pt-overlay">
-              <div class="pt-toolbar">
-                <!-- Header: hamburger + minimize -->
-                <div class="pt-hdr">
-                  <div class="pt-hbtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="3" y1="7" x2="21" y2="7"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="17" x2="21" y2="17"/></svg></div>
-                  <div class="pt-hbtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="5" y1="12" x2="19" y2="12"/></svg></div>
-                </div>
-                <!-- Draw mode button -->
-                <div class="pt-draw">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
-                  Draw
-                </div>
-                <!-- DRAW tools section -->
-                <div class="pt-sec">DRAW</div>
-                <div class="pt-grid">
-                  <div class="pt-t"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a8 8 0 1 0 5.66 13.66"/><path d="M17.66 16.66 L21 21"/></svg></div>
-                  <div class="pt-t"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></div>
-                  <div class="pt-t"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11 3 17v3h9l3-3"/><path d="m22 12-4.6 4.6a2 2 0 0 1-2.8 0l-5.2-5.2a2 2 0 0 1 0-2.8L14 4Z"/></svg></div>
-                  <div class="pt-t"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75Z"/><path d="M20.71 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75Z"/></svg></div>
-                  <div class="pt-t"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 20H7L3 16l10-10 7 7-3.5 3.5"/><path d="m6 11 7 7"/></svg></div>
-                  <div class="pt-t"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 7 4 4 20 4 20 7"/><line x1="9" y1="20" x2="15" y2="20"/><line x1="12" y1="4" x2="12" y2="20"/></svg></div>
-                  <div class="pt-t on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="5"/><path d="M12 1v3M12 20v3M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h3M20 12h3M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg></div>
-                  <div class="pt-t lk"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="2"/><path d="M12 2v3M12 19v3M4.22 4.22l2.12 2.12M17.66 17.66l2.12 2.12M2 12h3M19 12h3M4.22 19.78l2.12-2.12M17.66 6.34l2.12-2.12"/></svg></div>
-                  <div class="pt-t lk"><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg></div>
-                  <div class="pt-t lk"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6" r="2.5"/><circle cx="6" cy="18" r="2.5"/><path d="M5.69 5.1 20 12 5.69 18.9"/></svg></div>
-                </div>
-                <div class="pt-div"></div>
-                <!-- LINES section -->
-                <div class="pt-sec">LINES</div>
-                <div class="pt-grid">
-                  <div class="pt-t"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="19" x2="19" y2="5"/><polyline points="13 5 19 5 19 11"/></svg></div>
-                  <div class="pt-t"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="5" y1="19" x2="19" y2="5"/></svg></div>
-                </div>
-                <div class="pt-div"></div>
-                <!-- Colors -->
-                <div class="pt-cols">
-                  <div class="pt-clr sel" style="background:#ffffff"></div>
-                  <div class="pt-clr" style="background:#F4644D"></div>
-                  <div class="pt-clr" style="background:#82aaff"></div>
-                  <div class="pt-clr" style="background:#c3e88d"></div>
-                  <div class="pt-clr" style="background:#c792ea"></div>
-                </div>
-              </div>
-              <!-- SIZE bar -->
-              <div class="pt-sz">
-                <div class="pt-sz-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 2v3M12 19v3M4.22 4.22l2.12 2.12M17.66 17.66l2.12 2.12M2 12h3M19 12h3"/></svg></div>
-                <div class="pt-sz-tr">
-                  <div class="pt-sz-fi"></div>
-                  <div class="pt-sz-th"></div>
-                </div>
-                <div class="pt-sz-v">10</div>
-                <div class="pt-sz-l">SIZE</div>
-              </div>
-            </div>
-          </div>
-        </div>
-        <!-- Base -->
-        <div class="macbook-base"></div>
+      <div class="hero-app-wrap">
+        <img src="landpage_mac.png" alt="Pointly annotation tools on a Mac" class="hero-app-img"/>
       </div>
     </div>
 
+    <!-- Bottom row: pills (left) + social proof (right) — same grid row so they align -->
+    <div class="hero-bottom">
+      <!-- Feature pills -->
+      <div class="hero-left-pills">
+        <div class="proof-pill">
+          <div class="proof-pill-icon" style="background:linear-gradient(135deg,rgba(200,80,40,0.7),rgba(140,35,20,0.75));box-shadow:0 0 12px rgba(255,144,112,0.28);">
+            <svg viewBox="0 0 24 24" fill="none" stroke="#FF9070" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+          </div>
+          <span class="proof-pill-text">Smooth &amp; Natural</span>
+        </div>
+        <div class="proof-pill">
+          <div class="proof-pill-icon" style="background:linear-gradient(135deg,rgba(180,45,45,0.7),rgba(110,22,22,0.75));box-shadow:0 0 12px rgba(255,107,107,0.25);">
+            <svg viewBox="0 0 24 24" fill="none" stroke="#FF6B6B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+          </div>
+          <span class="proof-pill-text">Real-time Performance</span>
+        </div>
+        <div class="proof-pill">
+          <div class="proof-pill-icon" style="background:linear-gradient(135deg,rgba(35,60,120,0.75),rgba(22,35,95,0.8));box-shadow:0 0 12px rgba(130,170,255,0.22);">
+            <svg viewBox="0 0 24 24" fill="none" stroke="#82aaff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+          </div>
+          <span class="proof-pill-text">Privacy Focused</span>
+        </div>
+        <div class="proof-pill">
+          <div class="proof-pill-icon" style="background:linear-gradient(135deg,rgba(140,70,200,0.3),rgba(100,40,160,0.35));box-shadow:0 0 12px rgba(199,146,234,0.25);">
+            <svg viewBox="0 0 24 24" fill="none" stroke="#c792ea" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="13.5" cy="6.5" r="1" fill="#c792ea" stroke="none"/><circle cx="17.5" cy="10.5" r="1" fill="#c792ea" stroke="none"/><circle cx="8.5" cy="7.5" r="1" fill="#c792ea" stroke="none"/><circle cx="6.5" cy="12.5" r="1" fill="#c792ea" stroke="none"/><path d="M12 2C6.5 2 2 6.5 2 12a10 10 0 0 0 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125A1.64 1.64 0 0 1 14.441 18h1.996c3.051 0 5.555-2.503 5.555-5.554C21.992 6.012 17.461 2 12 2z"/></svg>
+          </div>
+          <span class="proof-pill-text">Beautiful Tools</span>
+        </div>
+      </div>
+
+      <!-- Social proof -->
+      <div class="hero-right-proof">
+        <div class="proof-stars-block">
+          <div class="proof-stars">★★★★★</div>
+          <div class="proof-stars-text">Loved by presenters, teachers,<br>and professionals worldwide.</div>
+        </div>
+        <div class="proof-divider"></div>
+        <div class="proof-count-block">
+          <img src="leaf.png" class="proof-laurel-half" style="transform:scaleX(-1) rotate(22deg)" alt=""/>
+          <div class="proof-count-inner">
+            <span class="proof-count-label">Trusted by</span>
+            <span class="proof-count-num">10,000+</span>
+            <span class="proof-count-sub">users globally</span>
+          </div>
+          <img src="leaf.png" class="proof-laurel-half" style="transform:rotate(22deg)" alt=""/>
+        </div>
+      </div>
+    </div>
+
+    <!-- Dashes top-right -->
+    <svg class="hero-deco-dashes" viewBox="0 0 90 52" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <line x1="0" y1="7" x2="36" y2="7" stroke="#F4644D" stroke-width="3.5" stroke-linecap="round" opacity="0.82"/>
+      <line x1="42" y1="22" x2="72" y2="22" stroke="#F4644D" stroke-width="3.5" stroke-linecap="round" opacity="0.55"/>
+      <line x1="18" y1="38" x2="46" y2="38" stroke="#F4644D" stroke-width="3.5" stroke-linecap="round" opacity="0.35"/>
+    </svg>
+    <!-- Orbit arc right side -->
+    <svg class="hero-deco-orbit" viewBox="0 0 80 360" fill="none" xmlns="http://www.w3.org/2000/svg" style="width:80px;height:360px;" aria-hidden="true">
+      <path d="M40,0 C80,60 80,140 40,180 C0,220 0,300 40,360" stroke="#F4644D" stroke-width="1.8" stroke-dasharray="5 7" opacity="0.35"/>
+      <circle cx="40" cy="180" r="7" fill="#F4644D" opacity="0.75"/>
+    </svg>
+
     <div class="hero-blob-2"></div>
+    <div class="hero-blob-3"></div>
   </section>
 
-  <div class="section-divider" style="margin-top: 60px;"></div>
+  <!-- Marquee strip -->
+  <div class="marquee-strip">
+    <div class="marquee-track">
+      <span class="marquee-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="2"/><path d="M12 2v3M12 19v3M4.22 4.22l2.12 2.12M17.66 17.66l2.12 2.12M2 12h3M19 12h3"/></svg>Laser Pointer</span>
+      <span class="marquee-dot"></span>
+      <span class="marquee-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="5"/><path d="M12 1v3M12 20v3M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h3M20 12h3"/></svg>Spotlight Mode</span>
+      <span class="marquee-dot"></span>
+      <span class="marquee-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-8.5 8.5A8.5 8.5 0 0 1 3 11.5 8.38 8.38 0 0 1 12.5 3 8.38 8.38 0 0 1 21 11.5Z"/></svg>Callout Box</span>
+      <span class="marquee-dot"></span>
+      <span class="marquee-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M10 9.5 12.5 8v8"/></svg>Step Badges</span>
+      <span class="marquee-dot"></span>
+      <span class="marquee-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2.5M9 2h6"/></svg>Countdown Timer</span>
+      <span class="marquee-dot"></span>
+      <span class="marquee-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3M9 11h4M11 9v4"/></svg>Presenter Zoom</span>
+      <span class="marquee-dot"></span>
+      <span class="marquee-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>Freehand Pen</span>
+      <span class="marquee-dot"></span>
+      <span class="marquee-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11 3 17v3h9l3-3"/><path d="m22 12-4.6 4.6a2 2 0 0 1-2.8 0l-5.2-5.2a2 2 0 0 1 0-2.8L14 4Z"/></svg>Highlighter</span>
+      <span class="marquee-dot"></span>
+      <span class="marquee-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="20" rx="3"/><path d="M2 8h20M8 2v20M14 2v20M2 14h20"/></svg>Whiteboard Canvas</span>
+      <span class="marquee-dot"></span>
+      <span class="marquee-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6" r="2.5"/><circle cx="6" cy="18" r="2.5"/><path d="M5.69 5.1 20 12 5.69 18.9"/></svg>Cut &amp; Move</span>
+      <span class="marquee-dot"></span>
+      <!-- duplicate for seamless loop -->
+      <span class="marquee-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="2"/><path d="M12 2v3M12 19v3M4.22 4.22l2.12 2.12M17.66 17.66l2.12 2.12M2 12h3M19 12h3"/></svg>Laser Pointer</span>
+      <span class="marquee-dot"></span>
+      <span class="marquee-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="5"/><path d="M12 1v3M12 20v3M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h3M20 12h3"/></svg>Spotlight Mode</span>
+      <span class="marquee-dot"></span>
+      <span class="marquee-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-8.5 8.5A8.5 8.5 0 0 1 3 11.5 8.38 8.38 0 0 1 12.5 3 8.38 8.38 0 0 1 21 11.5Z"/></svg>Callout Box</span>
+      <span class="marquee-dot"></span>
+      <span class="marquee-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M10 9.5 12.5 8v8"/></svg>Step Badges</span>
+      <span class="marquee-dot"></span>
+      <span class="marquee-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2.5M9 2h6"/></svg>Countdown Timer</span>
+      <span class="marquee-dot"></span>
+      <span class="marquee-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3M9 11h4M11 9v4"/></svg>Presenter Zoom</span>
+      <span class="marquee-dot"></span>
+      <span class="marquee-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>Freehand Pen</span>
+      <span class="marquee-dot"></span>
+      <span class="marquee-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11 3 17v3h9l3-3"/><path d="m22 12-4.6 4.6a2 2 0 0 1-2.8 0l-5.2-5.2a2 2 0 0 1 0-2.8L14 4Z"/></svg>Highlighter</span>
+      <span class="marquee-dot"></span>
+      <span class="marquee-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="20" rx="3"/><path d="M2 8h20M8 2v20M14 2v20M2 14h20"/></svg>Whiteboard Canvas</span>
+      <span class="marquee-dot"></span>
+      <span class="marquee-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6" r="2.5"/><circle cx="6" cy="18" r="2.5"/><path d="M5.69 5.1 20 12 5.69 18.9"/></svg>Cut &amp; Move</span>
+    </div>
+  </div>
+
+  <div class="section-divider" style="margin-top: 0;"></div>
 
   <!-- Features -->
   <section class="features" id="features">
@@ -1197,6 +1702,7 @@
 
     <div class="features-grid">
 
+      <!-- Row 1: Core drawing -->
       <div class="feature-card reveal">
         <div class="fc-icon-wrap">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
@@ -1207,67 +1713,18 @@
 
       <div class="feature-card reveal" style="transition-delay:0.04s">
         <div class="fc-icon-wrap">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a8 8 0 1 0 5.66 13.66"/><path d="M17.66 16.66 L21 21"/></svg>
-        </div>
-        <h3>Lasso</h3>
-        <p>Select any group of annotations, then move or resize them together as one.</p>
-      </div>
-
-      <div class="feature-card reveal" style="transition-delay:0.08s">
-        <div class="fc-icon-wrap">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11 3 17v3h9l3-3"/><path d="m22 12-4.6 4.6a2 2 0 0 1-2.8 0l-5.2-5.2a2 2 0 0 1 0-2.8L14 4Z"/></svg>
         </div>
         <h3>Highlighter</h3>
         <p>Semi-transparent color marks to highlight key areas without hiding what's underneath.</p>
       </div>
 
-      <div class="feature-card reveal" style="transition-delay:0.12s">
-        <div class="fc-icon-wrap">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75Z"/><path d="M20.71 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75Z"/></svg>
-        </div>
-        <h3>Marker</h3>
-        <p>Bold, fully opaque strokes for strong, visible emphasis on any part of your screen.</p>
-      </div>
-
-      <div class="feature-card reveal" style="transition-delay:0.04s">
-        <div class="fc-icon-wrap">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 20H7L3 16l10-10 7 7-3.5 3.5"/><path d="m6 11 7 7"/></svg>
-        </div>
-        <h3>Eraser</h3>
-        <p>Remove any part of your annotations cleanly — stroke by stroke or down to bare pixels.</p>
-      </div>
-
       <div class="feature-card reveal" style="transition-delay:0.08s">
-        <div class="fc-icon-wrap">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 7 4 4 20 4 20 7"/><line x1="9" y1="20" x2="15" y2="20"/><line x1="12" y1="4" x2="12" y2="20"/></svg>
-        </div>
-        <h3>Text</h3>
-        <p>Add crisp text labels and callouts anywhere on your screen in any size.</p>
-      </div>
-
-      <div class="feature-card reveal" style="transition-delay:0.12s">
         <div class="fc-icon-wrap">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="19" x2="19" y2="5"/><polyline points="13 5 19 5 19 11"/></svg>
         </div>
         <h3>Arrow</h3>
         <p>Draw arrows to direct your audience's attention to exactly the right spot.</p>
-      </div>
-
-      <div class="feature-card reveal" style="transition-delay:0.16s">
-        <div class="fc-icon-wrap">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/></svg>
-        </div>
-        <h3>Shapes</h3>
-        <p>Rectangles, circles and more — for structured, clean visual diagrams.</p>
-      </div>
-
-      <div class="feature-card reveal" style="transition-delay:0.08s">
-        <div class="fc-icon-wrap">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="2"/><path d="M12 2v3M12 19v3M4.22 4.22l2.12 2.12M17.66 17.66l2.12 2.12M2 12h3M19 12h3M4.22 19.78l2.12-2.12M17.66 6.34l2.12-2.12"/></svg>
-        </div>
-        <h3>Laser Pointer</h3>
-        <p>A glowing dot with a fading trail that sweeps freely across your screen — like a real pointer.</p>
-        <span class="feature-tag">Pro</span>
       </div>
 
       <div class="feature-card reveal" style="transition-delay:0.12s">
@@ -1279,16 +1736,17 @@
         <span class="feature-tag">Pro</span>
       </div>
 
-      <div class="feature-card reveal" style="transition-delay:0.16s">
+      <!-- Row 2: Unique attention tools -->
+      <div class="feature-card reveal" style="transition-delay:0.04s">
         <div class="fc-icon-wrap">
-          <svg viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="2"/><path d="M12 2v3M12 19v3M4.22 4.22l2.12 2.12M17.66 17.66l2.12 2.12M2 12h3M19 12h3M4.22 19.78l2.12-2.12M17.66 6.34l2.12-2.12"/></svg>
         </div>
-        <h3>Dot Pen</h3>
-        <p>Leave a dotted trail as you draw — subtle annotations that don't overpower your content.</p>
+        <h3>Laser Pointer</h3>
+        <p>A glowing dot with a fading trail that sweeps freely across your screen — like a real pointer.</p>
         <span class="feature-tag">Pro</span>
       </div>
 
-      <div class="feature-card reveal" style="transition-delay:0.20s">
+      <div class="feature-card reveal" style="transition-delay:0.08s">
         <div class="fc-icon-wrap">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6" r="2.5"/><circle cx="6" cy="18" r="2.5"/><path d="M5.69 5.1 20 12 5.69 18.9"/></svg>
         </div>
@@ -1297,16 +1755,16 @@
         <span class="feature-tag">Pro</span>
       </div>
 
-      <div class="feature-card reveal" style="transition-delay:0.24s">
+      <div class="feature-card reveal" style="transition-delay:0.12s">
         <div class="fc-icon-wrap">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="20" rx="3"/><path d="M2 8h20M8 2v20M14 2v20M2 14h20"/></svg>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 15 Q6.5 9 10 15 Q13.5 21 17 15 Q19 12 21 15"/><circle cx="3" cy="15" r="1.5" fill="currentColor" opacity="0.4"/></svg>
         </div>
-        <h3>Whiteboard Canvas</h3>
-        <p>Summon a full-screen dark grid canvas with ⌘W and draw freely — no desktop distractions.</p>
+        <h3>Fading Ink</h3>
+        <p>Draw strokes that automatically vanish after a few seconds — ephemeral emphasis with zero cleanup.</p>
         <span class="feature-tag">Pro</span>
       </div>
 
-      <div class="feature-card reveal" style="transition-delay:0.08s">
+      <div class="feature-card reveal" style="transition-delay:0.16s">
         <div class="fc-icon-wrap">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-8.5 8.5 8.5 8.5 0 0 1-3.6-.8L3 21l1.9-5.7A8.38 8.38 0 0 1 4 11.5 8.5 8.5 0 0 1 12.5 3 8.38 8.38 0 0 1 21 11.5Z"/></svg>
         </div>
@@ -1315,7 +1773,8 @@
         <span class="feature-tag">Pro</span>
       </div>
 
-      <div class="feature-card reveal" style="transition-delay:0.12s">
+      <!-- Row 3: Presenter-specific -->
+      <div class="feature-card reveal" style="transition-delay:0.08s">
         <div class="fc-icon-wrap">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M10 9.5 12.5 8v8"/></svg>
         </div>
@@ -1324,7 +1783,7 @@
         <span class="feature-tag">Pro</span>
       </div>
 
-      <div class="feature-card reveal" style="transition-delay:0.16s">
+      <div class="feature-card reveal" style="transition-delay:0.12s">
         <div class="fc-icon-wrap">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2.5M9 2h6"/></svg>
         </div>
@@ -1333,7 +1792,7 @@
         <span class="feature-tag">Pro</span>
       </div>
 
-      <div class="feature-card reveal" style="transition-delay:0.20s">
+      <div class="feature-card reveal" style="transition-delay:0.16s">
         <div class="fc-icon-wrap">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/><path d="M4.9 4.9l2.1 2.1M17 17l2.1 2.1"/></svg>
         </div>
@@ -1342,7 +1801,7 @@
         <span class="feature-tag">Pro</span>
       </div>
 
-      <div class="feature-card reveal" style="transition-delay:0.24s">
+      <div class="feature-card reveal" style="transition-delay:0.20s">
         <div class="fc-icon-wrap">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3M9 11h4M11 9v4"/></svg>
         </div>
@@ -1352,6 +1811,9 @@
       </div>
 
     </div>
+
+    <p class="features-more">Plus Lasso, Marker, Text, Eraser, Shapes, Dot Pen &amp; Whiteboard — <a href="#tools">explore all 19 tools ↓</a></p>
+
   </section>
 
   <div class="section-divider"></div>
@@ -1430,6 +1892,48 @@
             <span class="tool-chip-pro">PRO</span>
           </div>
 
+          <div class="tool-chip" data-tool="whiteboard">
+            <span class="tool-chip-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="20" rx="3"/><path d="M2 8h20M8 2v20M14 2v20M2 14h20"/></svg></span>
+            Whiteboard
+            <span class="tool-chip-pro">PRO</span>
+          </div>
+
+          <div class="tool-chip" data-tool="callout">
+            <span class="tool-chip-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-8.5 8.5 8.5 8.5 0 0 1-3.6-.8L3 21l1.9-5.7A8.38 8.38 0 0 1 4 11.5 8.5 8.5 0 0 1 12.5 3 8.38 8.38 0 0 1 21 11.5Z"/></svg></span>
+            Callout
+            <span class="tool-chip-pro">PRO</span>
+          </div>
+
+          <div class="tool-chip" data-tool="stepbadge">
+            <span class="tool-chip-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M10 9.5 12.5 8v8"/></svg></span>
+            Step Badges
+            <span class="tool-chip-pro">PRO</span>
+          </div>
+
+          <div class="tool-chip" data-tool="fadinink">
+            <span class="tool-chip-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 15 Q6.5 9 10 15 Q13.5 21 17 15 Q19 12 21 15"/></svg></span>
+            Fading Ink
+            <span class="tool-chip-pro">PRO</span>
+          </div>
+
+          <div class="tool-chip" data-tool="timer">
+            <span class="tool-chip-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2.5M9 2h6"/></svg></span>
+            Timer
+            <span class="tool-chip-pro">PRO</span>
+          </div>
+
+          <div class="tool-chip" data-tool="cues">
+            <span class="tool-chip-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/><path d="M4.9 4.9l2.1 2.1M17 17l2.1 2.1"/></svg></span>
+            Cues
+            <span class="tool-chip-pro">PRO</span>
+          </div>
+
+          <div class="tool-chip" data-tool="zoom">
+            <span class="tool-chip-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3M9 11h4M11 9v4"/></svg></span>
+            P. Zoom
+            <span class="tool-chip-pro">PRO</span>
+          </div>
+
         </div>
       </div>
 
@@ -1498,11 +2002,11 @@
         <div class="price-period">per year · billed annually</div>
         <ul class="price-features">
           <li><span class="check">✦</span> Everything in Free</li>
-          <li><span class="check">✦</span> Laser Pointer</li>
-          <li><span class="check">✦</span> Spotlight Mode</li>
-          <li><span class="check">✦</span> Dot Pen</li>
-          <li><span class="check">✦</span> Cut & Move</li>
-          <li><span class="check">✦</span> Whiteboard Canvas</li>
+          <li><span class="check">✦</span> Laser · Spotlight · Dot Pen</li>
+          <li><span class="check">✦</span> Cut &amp; Move · Whiteboard</li>
+          <li><span class="check">✦</span> Callout · Step Badges</li>
+          <li><span class="check">✦</span> Fading Ink · Countdown Timer</li>
+          <li><span class="check">✦</span> Presenter Cues &amp; Zoom</li>
           <li><span class="check">✦</span> Priority support</li>
         </ul>
         <a href="https://apps.apple.com/app/pointly-annotate/id6785933008" class="price-btn outline-btn">Get Pro — €12.99/yr</a>
@@ -1540,13 +2044,13 @@
         <p>Install Pointly, press the global hotkey (⌘⇧P), and your whole screen becomes a canvas — draw with the pen, highlighter, arrows, or shapes directly on top of any app, window, or presentation. Press the hotkey again to hide it.</p>
       </details>
       <details class="faq-item"><summary>Is Pointly free?</summary>
-        <p>Yes — the core tools (pen, highlighter, marker, text, arrows, shapes, export) are free forever, no account needed. Pro tools like Laser Pointer, Spotlight, Blur Brush, Cut &amp; Move, and the Whiteboard Canvas are a €12.99/year subscription or a €39.99 one-time lifetime purchase (via In-App Purchase; prices include VAT).</p>
+        <p>Yes — the core tools (pen, highlighter, marker, text, arrows, shapes, export) are free forever, no account needed. Pro tools like Laser Pointer, Spotlight, Callout, Step Badges, Fading Ink, Cut &amp; Move, Countdown Timer, Presenter Cues &amp; Zoom, and more are a €12.99/year subscription or a €39.99 one-time lifetime purchase (via In-App Purchase; prices include VAT).</p>
       </details>
       <details class="faq-item"><summary>Does it work over any app — Keynote, browsers, video calls?</summary>
         <p>Yes. Pointly is a transparent overlay, so you can annotate over Keynote, PowerPoint, browsers, code editors, PDFs — anything on screen. On video calls, just share your screen and your annotations are visible to everyone.</p>
       </details>
       <details class="faq-item"><summary>Can I use it for presentations and screen recordings?</summary>
-        <p>That's what it's built for. The Laser Pointer and Spotlight guide your audience's eyes, the Blur Brush hides sensitive info before you share, and everything you draw shows up in screen recordings and screen shares.</p>
+        <p>That's what it's built for. The Laser Pointer and Spotlight guide your audience's eyes, Presenter Cues shows your clicks and keystrokes on screen, Presenter Zoom highlights fine details, and everything you draw shows up in screen recordings and screen shares.</p>
       </details>
       <details class="faq-item"><summary>Which Macs does Pointly support?</summary>
         <p>Any Mac running macOS 14 Sonoma or later. Download it free from the Mac App Store.</p>
@@ -1562,11 +2066,11 @@
       { "@type": "Question", "name": "How do I draw on my Mac screen?",
         "acceptedAnswer": { "@type": "Answer", "text": "Install Pointly, press the global hotkey (Cmd+Shift+P), and your whole screen becomes a canvas — draw with the pen, highlighter, arrows, or shapes directly on top of any app, window, or presentation." } },
       { "@type": "Question", "name": "Is Pointly free?",
-        "acceptedAnswer": { "@type": "Answer", "text": "Yes — the core tools (pen, highlighter, marker, text, arrows, shapes, export) are free forever. Pro tools like Laser Pointer, Spotlight, Blur Brush, Cut & Move, and the Whiteboard Canvas are €12.99/year or a €39.99 one-time lifetime purchase." } },
+        "acceptedAnswer": { "@type": "Answer", "text": "Yes — the core tools (pen, highlighter, marker, text, arrows, shapes, export) are free forever. Pro tools like Laser Pointer, Spotlight, Callout, Step Badges, Fading Ink, Cut & Move, Countdown Timer, and Presenter Cues & Zoom are €12.99/year or a €39.99 one-time lifetime purchase." } },
       { "@type": "Question", "name": "Does Pointly work over any app, like Keynote, browsers, or video calls?",
         "acceptedAnswer": { "@type": "Answer", "text": "Yes. Pointly is a transparent overlay, so you can annotate over Keynote, PowerPoint, browsers, code editors, or PDFs. On video calls, share your screen and your annotations are visible to everyone." } },
       { "@type": "Question", "name": "Can I use Pointly for presentations and screen recordings?",
-        "acceptedAnswer": { "@type": "Answer", "text": "Yes — the Laser Pointer and Spotlight guide your audience's eyes, the Blur Brush hides sensitive info, and everything you draw shows up in screen recordings and screen shares." } },
+        "acceptedAnswer": { "@type": "Answer", "text": "Yes — the Laser Pointer and Spotlight guide your audience's eyes, Presenter Cues shows your clicks and keystrokes on screen, Presenter Zoom highlights fine details, and everything you draw shows up in screen recordings and screen shares." } },
       { "@type": "Question", "name": "Which Macs does Pointly support?",
         "acceptedAnswer": { "@type": "Answer", "text": "Any Mac running macOS 14 Sonoma or later. Pointly is a free download on the Mac App Store." } }
     ]
@@ -1934,11 +2438,153 @@
         if(t>0.95){ctx.fillStyle=`rgba(9,9,28,${(t-0.95)/0.05})`;ctx.fillRect(0,0,W,H);}
       }
 
-      const animations={select:drawSelect,pen:drawPen,highlighter:drawHighlighter,marker:drawMarker,eraser:drawEraser,text:drawText,arrow:drawArrow,shapes:drawShapes,laser:drawLaser,spotlight:drawSpotlight,dotpen:drawDotpen,cutmove:drawCutMove};
+      /* WHITEBOARD – dark grid with freehand strokes */
+      function drawWhiteboard(t){
+        ctx.fillStyle='#07070f';ctx.fillRect(0,0,W,H);
+        ctx.strokeStyle='rgba(255,255,255,0.06)';ctx.lineWidth=1;
+        for(let x=0;x<=W;x+=24){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,H);ctx.stroke();}
+        for(let y=0;y<=H;y+=24){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(W,y);ctx.stroke();}
+        const strokes=[
+          {pts:[[50,110],[110,75],[180,125],[255,85],[320,115]],col:'#F4644D',d:0,dur:0.35},
+          {pts:[[60,160],[135,195],[205,148],[278,182],[340,152]],col:'#82aaff',d:0.22,dur:0.35},
+          {pts:[[70,215],[150,240],[228,205],[300,232],[358,198]],col:'#E9458C',d:0.44,dur:0.35},
+        ];
+        strokes.forEach(s=>{
+          const p=ease(Math.max(0,Math.min(1,(t-s.d)/s.dur)));
+          if(p<=0)return;
+          ctx.strokeStyle=s.col;ctx.lineWidth=2.5;ctx.lineCap='round';ctx.lineJoin='round';
+          const total=s.pts.length-1,ip=p*total,idx=Math.floor(ip),frac=ip-idx;
+          ctx.beginPath();ctx.moveTo(s.pts[0][0],s.pts[0][1]);
+          for(let i=1;i<=idx;i++)ctx.lineTo(s.pts[i][0],s.pts[i][1]);
+          if(idx<total){const a=s.pts[idx],b=s.pts[idx+1];ctx.lineTo(a[0]+(b[0]-a[0])*frac,a[1]+(b[1]-a[1])*frac);}
+          ctx.stroke();
+          if(p<1){const a=s.pts[Math.min(idx,total-1)],b=s.pts[Math.min(idx+1,total)];ctx.fillStyle='rgba(255,255,255,0.9)';ctx.beginPath();ctx.arc(a[0]+(b[0]-a[0])*frac,a[1]+(b[1]-a[1])*frac,3.5,0,Math.PI*2);ctx.fill();}
+        });
+        fadeOut(t,0.88);
+      }
 
-      const toolNames={select:'Lasso',pen:'Pen',highlighter:'Highlighter',marker:'Marker',eraser:'Eraser',text:'Text',arrow:'Arrow',shapes:'Shapes',laser:'Laser Pointer',spotlight:'Spotlight',dotpen:'Dot Pen',cutmove:'Cut & Move'};
+      /* CALLOUT – bubble with leader line */
+      function drawCallout(t){
+        drawContent();
+        const tx=L+96,ty=LY[3]+3,bx=W-168,by=28,bw=142,bh=54;
+        if(t<0.2){const rp=t/0.18;ctx.strokeStyle=`rgba(244,100,77,${0.7*(1-rp)})`;ctx.lineWidth=1.5;ctx.beginPath();ctx.arc(tx,ty,rp*18,0,Math.PI*2);ctx.stroke();}
+        if(t>0.18){
+          const p=ease(Math.min(1,(t-0.18)/0.5));
+          ctx.setLineDash([5,3]);ctx.strokeStyle=brandGrad(tx,ty,bx,by+bh/2);ctx.lineWidth=1.5;
+          ctx.beginPath();ctx.moveTo(tx,ty);ctx.lineTo(tx+(bx-tx)*p,ty+(by+bh/2-ty)*p);ctx.stroke();ctx.setLineDash([]);
+          ctx.globalAlpha=p;
+          ctx.fillStyle='rgba(12,12,28,0.96)';ctx.beginPath();ctx.roundRect(bx,by,bw*p,bh,7);ctx.fill();
+          ctx.strokeStyle=brandGrad(bx,by,bx+bw,by+bh);ctx.lineWidth=1.5;ctx.beginPath();ctx.roundRect(bx,by,bw*p,bh,7);ctx.stroke();
+          if(p>0.65){const tp=(p-0.65)/0.35;ctx.globalAlpha=tp;ctx.fillStyle='rgba(255,255,255,0.9)';ctx.font='bold 10.5px monospace';ctx.textBaseline='top';ctx.fillText('important here',bx+10,by+12);ctx.fillStyle='rgba(255,140,66,0.8)';ctx.font='9.5px monospace';ctx.fillText('check return type',bx+10,by+30);}
+          ctx.globalAlpha=1;
+        }
+        fadeOut(t,0.9);
+      }
+
+      /* STEP BADGES – numbered circles appear */
+      function drawStepBadge(t){
+        drawContent();
+        [{x:82,y:92},{x:195,y:155},{x:308,y:95}].forEach((b,i)=>{
+          const p=ease(Math.max(0,Math.min(1,(t-i*0.22)/0.28)));
+          if(p<=0)return;
+          const r=16*p;
+          ctx.globalAlpha=0.3*p;
+          const grd=ctx.createRadialGradient(b.x,b.y,0,b.x,b.y,r+10);
+          grd.addColorStop(0,'#F4644D');grd.addColorStop(1,'rgba(244,100,77,0)');
+          ctx.fillStyle=grd;ctx.beginPath();ctx.arc(b.x,b.y,r+10,0,Math.PI*2);ctx.fill();
+          ctx.globalAlpha=p;
+          const bg=ctx.createLinearGradient(b.x-r,b.y,b.x+r,b.y);
+          bg.addColorStop(0,'#F4644D');bg.addColorStop(1,'#E9458C');
+          ctx.fillStyle=bg;ctx.beginPath();ctx.arc(b.x,b.y,r,0,Math.PI*2);ctx.fill();
+          ctx.fillStyle='#fff';ctx.font=`bold ${Math.round(13*p)}px system-ui,sans-serif`;ctx.textAlign='center';ctx.textBaseline='middle';
+          ctx.fillText(i+1,b.x,b.y+1);ctx.globalAlpha=1;
+        });
+        ctx.textAlign='left';ctx.textBaseline='alphabetic';
+        fadeOut(t,0.9);
+      }
+
+      /* FADING INK – stroke drawn then vanishes */
+      function drawFadinink(t){
+        drawContent();
+        const pts=[[L,LY[5]-4],[L+44,LY[5]+8],[L+90,LY[5]-5],[L+136,LY[5]+7],[L+182,LY[5]-4],[L+228,LY[5]+7],[L+274,LY[5]-4]];
+        const drawP=ease(Math.min(1,t/0.48));
+        const fadeP=Math.max(0,(t-0.54)/0.4);
+        ctx.globalAlpha=Math.max(0,1-ease(fadeP));
+        ctx.strokeStyle=brandGrad(pts[0][0],pts[0][1],pts[pts.length-1][0],pts[0][1]);
+        ctx.lineWidth=3.5;ctx.lineCap='round';ctx.lineJoin='round';
+        const visible=drawP*(pts.length-1),idx=Math.floor(visible);
+        ctx.beginPath();ctx.moveTo(pts[0][0],pts[0][1]);
+        for(let i=1;i<=Math.min(idx,pts.length-1);i++)ctx.lineTo(pts[i][0],pts[i][1]);
+        if(idx<pts.length-1){const f=visible-idx;ctx.lineTo(pts[idx][0]+(pts[idx+1][0]-pts[idx][0])*f,pts[idx][1]+(pts[idx+1][1]-pts[idx][1])*f);}
+        ctx.stroke();ctx.globalAlpha=1;
+        if(t>0.94){ctx.fillStyle=`rgba(9,9,28,${(t-0.94)/0.06})`;ctx.fillRect(0,0,W,H);}
+      }
+
+      /* TIMER – countdown ring */
+      function drawTimer(t){
+        ctx.fillStyle='#07070f';ctx.fillRect(0,0,W,H);
+        const cx=W/2,cy=H/2,r=72,progress=1-t*0.82;
+        ctx.strokeStyle='rgba(255,255,255,0.07)';ctx.lineWidth=7;ctx.beginPath();ctx.arc(cx,cy,r,0,Math.PI*2);ctx.stroke();
+        const g=ctx.createLinearGradient(cx-r,cy,cx+r,cy);
+        g.addColorStop(0,'#F4644D');g.addColorStop(0.5,'#FF8C42');g.addColorStop(1,'#E9458C');
+        ctx.strokeStyle=g;ctx.lineWidth=7;ctx.lineCap='round';
+        ctx.beginPath();ctx.arc(cx,cy,r,-Math.PI/2,-Math.PI/2+progress*Math.PI*2);ctx.stroke();
+        const rem=Math.ceil(5*60*progress),m=Math.floor(rem/60),s=rem%60;
+        ctx.fillStyle='#fff';ctx.font='bold 36px system-ui,sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';
+        ctx.fillText(`${m}:${String(s).padStart(2,'0')}`,cx,cy-6);
+        ctx.fillStyle='rgba(255,255,255,0.38)';ctx.font='11px system-ui,sans-serif';
+        ctx.fillText('BREAK',cx,cy+26);ctx.textAlign='left';ctx.textBaseline='alphabetic';
+      }
+
+      /* PRESENTER CUES – click ripples + key badge */
+      function drawCues(t){
+        drawContent();
+        [{cx:145,cy:140,t0:0.08},{cx:272,cy:162,t0:0.52}].forEach(c=>{
+          const el=t-c.t0;if(el<0||el>0.38)return;
+          const rp=ease(el/0.38);
+          [1,0.65,0.35].forEach((s,i)=>{
+            const r2=Math.max(0,rp-i*0.12);
+            ctx.globalAlpha=Math.max(0,(1-r2)*0.55);ctx.strokeStyle='#FF8C42';ctx.lineWidth=1.5;
+            ctx.beginPath();ctx.arc(c.cx,c.cy,r2*28*s,0,Math.PI*2);ctx.stroke();
+          });ctx.globalAlpha=1;
+        });
+        if(t>0.28){
+          const kp=ease(Math.min(1,(t-0.28)/0.3));
+          const bx=W-128,by=H-50,bw=104,bh=32;
+          ctx.globalAlpha=kp;ctx.fillStyle='rgba(14,14,32,0.94)';ctx.strokeStyle='rgba(255,255,255,0.14)';ctx.lineWidth=1;
+          ctx.beginPath();ctx.roundRect(bx,by,bw,bh,7);ctx.fill();ctx.stroke();
+          ctx.fillStyle='#fff';ctx.font='bold 12px monospace';ctx.textAlign='center';ctx.textBaseline='middle';
+          ctx.fillText('⌘ Shift P',bx+bw/2,by+bh/2);ctx.globalAlpha=1;ctx.textAlign='left';ctx.textBaseline='alphabetic';
+        }
+        fadeOut(t,0.9);
+      }
+
+      /* PRESENTER ZOOM – magnifier lens */
+      function drawZoom(t){
+        drawContent();
+        const zp=ease(Math.max(0,Math.min(1,(t-0.18)/0.55)));
+        if(zp<=0)return;
+        const cx=W/2+10,cy=H/2-5,r=72,rr=r*Math.sqrt(zp);
+        ctx.fillStyle=`rgba(9,9,28,${0.55*zp})`;ctx.fillRect(0,0,W,H);
+        ctx.save();ctx.beginPath();ctx.arc(cx,cy,rr,0,Math.PI*2);ctx.clip();
+        ctx.clearRect(0,0,W,H);ctx.fillStyle='#09091c';ctx.fillRect(0,0,W,H);
+        ctx.strokeStyle='rgba(255,255,255,0.04)';ctx.lineWidth=1;
+        for(let x=0;x<=W;x+=32){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,H);ctx.stroke();}
+        for(let y=0;y<=H;y+=32){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(W,y);ctx.stroke();}
+        const sc=1+1.5*zp;ctx.save();ctx.translate(cx,cy);ctx.scale(sc,sc);ctx.translate(-cx,-cy);
+        LY.forEach(y=>{ctx.fillStyle='rgba(255,255,255,0.15)';ctx.fillRect(20,y,12,6);});
+        ROWS.forEach((row,ri)=>{row.forEach(([x,w,c])=>{ctx.fillStyle=c;ctx.fillRect(x,LY[ri],w,7);});});
+        ctx.restore();ctx.restore();
+        ctx.globalAlpha=zp;ctx.strokeStyle=brandGrad(cx-r,cy,cx+r,cy);ctx.lineWidth=2;
+        ctx.beginPath();ctx.arc(cx,cy,rr,0,Math.PI*2);ctx.stroke();ctx.globalAlpha=1;
+        fadeOut(t,0.9);
+      }
+
+      const animations={select:drawSelect,pen:drawPen,highlighter:drawHighlighter,marker:drawMarker,eraser:drawEraser,text:drawText,arrow:drawArrow,shapes:drawShapes,laser:drawLaser,spotlight:drawSpotlight,dotpen:drawDotpen,cutmove:drawCutMove,whiteboard:drawWhiteboard,callout:drawCallout,stepbadge:drawStepBadge,fadinink:drawFadinink,timer:drawTimer,cues:drawCues,zoom:drawZoom};
+
+      const toolNames={select:'Lasso',pen:'Pen',highlighter:'Highlighter',marker:'Marker',eraser:'Eraser',text:'Text',arrow:'Arrow',shapes:'Shapes',laser:'Laser Pointer',spotlight:'Spotlight',dotpen:'Dot Pen',cutmove:'Cut & Move',whiteboard:'Whiteboard Canvas',callout:'Callout',stepbadge:'Step Badges',fadinink:'Fading Ink',timer:'Countdown Timer',cues:'Presenter Cues',zoom:'Presenter Zoom'};
       let activeTool='pen', startTime=performance.now(), userPicked=false, cycleIdx=0;
-      const toolOrder=['select','pen','highlighter','marker','eraser','text','arrow','shapes','laser','spotlight','dotpen','cutmove'];
+      const toolOrder=['select','pen','highlighter','marker','eraser','text','arrow','shapes','laser','spotlight','dotpen','cutmove','whiteboard','callout','stepbadge','fadinink','timer','cues','zoom'];
 
       function setTool(key){
         activeTool=key; startTime=performance.now();
