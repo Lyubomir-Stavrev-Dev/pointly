@@ -70,6 +70,8 @@ final class ProManager: ObservableObject {
         #if DEBUG
         // Dev-only unlock for demos/recordings: defaults write com.pointly.macos debugForcePro -bool true
         if UserDefaults.standard.bool(forKey: "debugForcePro") { isPro = true }
+        // Dev-only free-tier simulation: defaults write com.pointly.macos debugForceFree -bool true
+        if UserDefaults.standard.bool(forKey: "debugForceFree") { isPro = false; return }
         #endif
         #if DIRECT_BUILD
         // Website build: a valid license key unlocks Pro (StoreKit is App Store-only).
@@ -267,6 +269,7 @@ final class ProManager: ObservableObject {
         // clobber the other unlock channels.
         #if DEBUG
         if UserDefaults.standard.bool(forKey: "debugForcePro") { entitled = true }
+        if UserDefaults.standard.bool(forKey: "debugForceFree") { entitled = false }
         #endif
         #if DIRECT_BUILD
         if LicenseManager.shared.isLicensed { entitled = true }

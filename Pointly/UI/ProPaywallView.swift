@@ -1,6 +1,7 @@
 import SwiftUI
 import AppKit
 import StoreKit
+import AVKit
 
 // MARK: - Brand (local copy)
 
@@ -295,16 +296,11 @@ struct ProPaywallView: View {
                         }
                         #else
                         HStack(spacing: 12) {
-                            Button("Restore Purchase") {
+                            PaywallFooterLink("Restore Purchase") {
                                 Task { await proManager.restorePurchases() }
                             }
-                            .font(.system(size: 10))
-                            .foregroundColor(.white.opacity(0.28))
-                            .buttonStyle(.plain)
-
                             Text("·").foregroundColor(.white.opacity(0.15))
-
-                            Button("Redeem Code") {
+                            PaywallFooterLink("Redeem Code") {
                                 Task {
                                     if #available(macOS 15.0, *),
                                        let vc = NSApplication.shared.keyWindow?.contentViewController {
@@ -312,39 +308,26 @@ struct ProPaywallView: View {
                                     } else {
                                         NSWorkspace.shared.open(URL(string: "https://apps.apple.com/redeem")!)
                                     }
-                                    // Sheet closed — re-check entitlements whether the code was
-                                    // just redeemed now or was already redeemed in the App Store app.
                                     await proManager.refreshEntitlements()
                                 }
                             }
-                            .font(.system(size: 10))
-                            .foregroundColor(.white.opacity(0.28))
-                            .buttonStyle(.plain)
-
                             Text("·").foregroundColor(.white.opacity(0.15))
-
-                            Button("Maybe Later") { onDismiss() }
-                                .font(.system(size: 10))
-                                .foregroundColor(.white.opacity(0.28))
-                                .buttonStyle(.plain)
+                            PaywallFooterLink("Maybe Later") { onDismiss() }
                         }
                         #endif
 
                         // Required by App Review (3.1.2) for auto-renewable subscriptions.
                         HStack(spacing: 8) {
-                            Button("Terms of Use") {
+                            PaywallFooterLink("Terms of Use", baseOpacity: 0.38) {
                                 NSWorkspace.shared.open(
                                     URL(string: "https://www.apple.com/legal/internet-services/itunes/dev/stdeula/")!)
                             }
                             Text("·").foregroundColor(.white.opacity(0.12))
-                            Button("Privacy Policy") {
+                            PaywallFooterLink("Privacy Policy", baseOpacity: 0.38) {
                                 NSWorkspace.shared.open(
                                     URL(string: "https://trypointly.com/privacy")!)
                             }
                         }
-                        .font(.system(size: 10))
-                        .foregroundColor(.white.opacity(0.38))
-                        .buttonStyle(.plain)
                     }
                     .padding(.horizontal, 28)
                 }
@@ -511,116 +494,69 @@ private struct PaywallPlanCard: View {
     }
 }
 
-// MARK: - Blur Brush Preview
-// The blur brush paints a soft, feathered stroke of colour — like an airbrush.
-// Shows: brush cursor draws strokes on a canvas; each stroke has blurry/soft edges.
+// MARK: - Footer link with hover
 
-private struct BlurBrushPreview: View {
+private struct PaywallFooterLink: View {
+    let title: String
+    var baseOpacity: Double = 0.28
+    let action: () -> Void
+    @State private var hover = false
 
-    private struct Stroke {
-        var points: [CGPoint]
-        var color: Color
-        var width: CGFloat
+    init(_ title: String, baseOpacity: Double = 0.28, action: @escaping () -> Void) {
+        self.title = title
+        self.baseOpacity = baseOpacity
+        self.action = action
     }
-
-    @State private var finishedStrokes: [Stroke] = []
-    @State private var livePoints:      [CGPoint] = []
-    @State private var cursorPos = CGPoint(x: 20, y: 95)
-
-    // Three overlapping brush strokes
-    private let paths: [([CGPoint], Color, CGFloat)] = [
-        (
-            stride(from: 30.0, through: 330.0, by: 14).map { x in
-                CGPoint(x: x, y: 80 + sin(x / 30) * 12)
-            },
-            Color(hex: "#F4644D") ?? .orange, 28
-        ),
-        (
-            stride(from: 330.0, through: 30.0, by: -14).map { x in
-                CGPoint(x: x, y: 115 + sin(x / 28) * 10)
-            },
-            Color(hex: "#E9458C") ?? .pink, 22
-        ),
-        (
-            stride(from: 60.0, through: 300.0, by: 14).map { x in
-                CGPoint(x: x, y: 148 + sin(x / 32) * 8)
-            },
-            Color(hex: "#FF8C42") ?? .orange, 18
-        ),
-    ]
 
     var body: some View {
-        ZStack {
-            // Dark canvas
-            Color(red: 0.06, green: 0.06, blue: 0.12)
+        Button(title, action: action)
+            .font(.system(size: 10))
+            .foregroundColor(.white.opacity(hover ? min(baseOpacity + 0.42, 1) : baseOpacity))
+            .buttonStyle(.plain)
+            .onHover { hover = $0 }
+            .animation(.easeInOut(duration: 0.12), value: hover)
+    }
+}
 
-            // Finished strokes
-            ForEach(finishedStrokes.indices, id: \.self) { i in
-                softStroke(points: finishedStrokes[i].points,
-                           color: finishedStrokes[i].color,
-                           width: finishedStrokes[i].width)
-            }
+// MARK: - Blur Brush Preview
 
-            // Live stroke being drawn
-            if livePoints.count > 1 {
-                let (_, color, width) = paths[finishedStrokes.count % paths.count]
-                softStroke(points: livePoints, color: color, width: width)
-            }
+private final class BlurPreviewPlayer: ObservableObject {
+    let player: AVPlayer
 
-            // Brush cursor — soft circle outline like a real brush tip
-            ZStack {
-                Circle()
-                    .stroke(Color.white.opacity(0.55), lineWidth: 1)
-                    .frame(width: 30, height: 30)
-                Circle()
-                    .fill(Color.white.opacity(0.08))
-                    .frame(width: 30, height: 30)
-            }
-            .position(cursorPos)
+    init() {
+        guard let url = Bundle.main.url(forResource: "blur_brush_preview", withExtension: "mp4") else {
+            player = AVPlayer(); return
         }
-        .task {
-            while !Task.isCancelled {
-                finishedStrokes = []
-                livePoints      = []
-
-                for (pts, color, width) in paths {
-                    cursorPos  = pts[0]
-                    livePoints = []
-                    try? await Task.sleep(nanoseconds: 200_000_000)
-
-                    for pt in pts {
-                        withAnimation(.linear(duration: 0.05)) { cursorPos = pt }
-                        livePoints.append(pt)
-                        try? await Task.sleep(nanoseconds: 50_000_000)
-                    }
-                    finishedStrokes.append(Stroke(points: livePoints, color: color, width: width))
-                    livePoints = []
-                    try? await Task.sleep(nanoseconds: 180_000_000)
-                }
-
-                try? await Task.sleep(nanoseconds: 700_000_000)
-                withAnimation(.easeOut(duration: 0.5)) { finishedStrokes = [] }
-                try? await Task.sleep(nanoseconds: 600_000_000)
-            }
+        let item = AVPlayerItem(url: url)
+        player = AVPlayer(playerItem: item)
+        player.isMuted = true
+        NotificationCenter.default.addObserver(forName: .AVPlayerItemDidPlayToEndTime,
+                                               object: item, queue: .main) { [weak player] _ in
+            player?.seek(to: .zero)
+            player?.play()
         }
     }
+}
 
-    @ViewBuilder
-    private func softStroke(points: [CGPoint], color: Color, width: CGFloat) -> some View {
-        let path = Path { p in
-            p.move(to: points[0])
-            for pt in points.dropFirst() { p.addLine(to: pt) }
-        }
-        ZStack {
-            // Soft outer halo — gives the feathered airbrush look
-            path
-                .stroke(color.opacity(0.25), style: StrokeStyle(lineWidth: width + 14, lineCap: .round, lineJoin: .round))
-                .blur(radius: 9)
-            // Core stroke
-            path
-                .stroke(color.opacity(0.7), style: StrokeStyle(lineWidth: width, lineCap: .round, lineJoin: .round))
-                .blur(radius: 3)
-        }
+private struct BlurPreviewPlayerView: NSViewRepresentable {
+    let player: AVPlayer
+    func makeNSView(context: Context) -> AVPlayerView {
+        let v = AVPlayerView()
+        v.player = player
+        v.controlsStyle = .none
+        v.videoGravity = .resizeAspectFill
+        return v
+    }
+    func updateNSView(_ v: AVPlayerView, context: Context) {}
+}
+
+private struct BlurBrushPreview: View {
+    @StateObject private var model = BlurPreviewPlayer()
+
+    var body: some View {
+        BlurPreviewPlayerView(player: model.player)
+            .onAppear  { model.player.play() }
+            .onDisappear { model.player.pause() }
     }
 }
 

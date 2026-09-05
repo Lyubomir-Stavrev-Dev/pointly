@@ -69,6 +69,22 @@ final class CountdownTimerController: ObservableObject {
     deinit { timer?.invalidate() }
 }
 
+// MARK: - HoverButton
+
+private struct HoverButton<Content: View>: View {
+    let action: () -> Void
+    @ViewBuilder let content: (Bool) -> Content
+    @State private var hover = false
+
+    var body: some View {
+        Button(action: action) {
+            content(hover)
+        }
+        .buttonStyle(.plain)
+        .onHover { hover = $0 }
+    }
+}
+
 // MARK: - Panel view
 
 struct TimerPanelView: View {
@@ -86,12 +102,14 @@ struct TimerPanelView: View {
                     .tracking(1.4)
                     .foregroundColor(.white.opacity(0.35))
                 Spacer()
-                Button(action: onClose) {
+                HoverButton(action: onClose) { hover in
                     Image(systemName: "xmark")
                         .font(.system(size: 9, weight: .bold))
-                        .foregroundColor(.white.opacity(0.45))
+                        .foregroundColor(.white.opacity(hover ? 0.80 : 0.45))
+                        .padding(4)
+                        .background(Circle().fill(Color.white.opacity(hover ? 0.12 : 0)))
+                        .animation(.easeInOut(duration: 0.12), value: hover)
                 }
-                .buttonStyle(.plain)
             }
 
             Text(controller.display)
@@ -115,9 +133,7 @@ struct TimerPanelView: View {
             }
 
             HStack(spacing: 8) {
-                Button {
-                    controller.isRunning ? controller.pause() : controller.start()
-                } label: {
+                HoverButton(action: { controller.isRunning ? controller.pause() : controller.start() }) { hover in
                     HStack(spacing: 5) {
                         Image(systemName: controller.isRunning ? "pause.fill" : "play.fill")
                             .font(.system(size: 11, weight: .bold))
@@ -131,24 +147,28 @@ struct TimerPanelView: View {
                         RoundedRectangle(cornerRadius: 8)
                             .fill(LinearGradient(colors: [brand, Color(red: 1, green: 0.55, blue: 0.26)],
                                                  startPoint: .leading, endPoint: .trailing))
+                            .brightness(hover ? 0.08 : 0)
                     )
+                    .scaleEffect(hover ? 1.02 : 1.0)
+                    .animation(.easeInOut(duration: 0.12), value: hover)
                 }
-                .buttonStyle(.plain)
 
-                Button {
-                    controller.reset()
-                } label: {
+                HoverButton(action: { controller.reset() }) { hover in
                     Image(systemName: "arrow.counterclockwise")
                         .font(.system(size: 12, weight: .semibold))
-                        .foregroundColor(.white.opacity(0.75))
+                        .foregroundColor(.white.opacity(hover ? 1.0 : 0.75))
                         .padding(.vertical, 7)
                         .padding(.horizontal, 12)
                         .background(
                             RoundedRectangle(cornerRadius: 8)
-                                .strokeBorder(Color.white.opacity(0.2), lineWidth: 1)
+                                .fill(Color.white.opacity(hover ? 0.12 : 0))
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 8)
+                                        .strokeBorder(Color.white.opacity(hover ? 0.35 : 0.2), lineWidth: 1)
+                                )
                         )
+                        .animation(.easeInOut(duration: 0.12), value: hover)
                 }
-                .buttonStyle(.plain)
             }
         }
         .padding(14)
@@ -167,14 +187,15 @@ struct TimerPanelView: View {
 
     @ViewBuilder
     private func presetButton(_ label: String, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
+        HoverButton(action: action) { hover in
             Text(label)
                 .font(.system(size: 11, weight: .semibold, design: .rounded))
-                .foregroundColor(.white.opacity(0.8))
+                .foregroundColor(.white.opacity(hover ? 1.0 : 0.8))
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 5)
-                .background(RoundedRectangle(cornerRadius: 6).fill(Color.white.opacity(0.09)))
+                .background(RoundedRectangle(cornerRadius: 6)
+                    .fill(Color.white.opacity(hover ? 0.18 : 0.09)))
+                .animation(.easeInOut(duration: 0.12), value: hover)
         }
-        .buttonStyle(.plain)
     }
 }

@@ -99,12 +99,22 @@ struct SpinWheelView: View {
 
                 // Wheel
                 ZStack {
+                    // Outer pulsing ring — draws attention before first spin
+                    if !spinning && !landed {
+                        Circle()
+                            .strokeBorder(wheelGradient, lineWidth: glowPulse ? 2.5 : 1.2)
+                            .frame(width: wheelSize + 14, height: wheelSize + 14)
+                            .opacity(glowPulse ? 0.55 : 0.18)
+                            .animation(.easeInOut(duration: 1.3).repeatForever(autoreverses: true),
+                                       value: glowPulse)
+                    }
+
                     // Glow behind the wheel — brightens on hover, pulses on win
                     Circle()
                         .fill(wheelGradient)
                         .frame(width: wheelSize - 16, height: wheelSize - 16)
                         .blur(radius: 46)
-                        .opacity(landed ? (glowPulse ? 0.55 : 0.3) : (hoverWheel ? 0.3 : 0.14))
+                        .opacity(landed ? (glowPulse ? 0.65 : 0.35) : (hoverWheel ? 0.38 : 0.18))
                         .animation(.easeInOut(duration: 1.1).repeatForever(autoreverses: true),
                                    value: glowPulse)
                         .animation(.easeInOut(duration: 0.2), value: hoverWheel)
@@ -118,8 +128,13 @@ struct SpinWheelView: View {
                         Circle()
                             .fill(Color(red: 0.05, green: 0.05, blue: 0.11))
                             .frame(width: 74, height: 74)
-                            .overlay(Circle().strokeBorder(wheelGradient, lineWidth: 2))
-                            .shadow(color: .black.opacity(0.5), radius: 8, x: 0, y: 3)
+                            .overlay(Circle().strokeBorder(wheelGradient, lineWidth: 2.5))
+                            .shadow(color: (Color(hex: "#F4644D") ?? .orange)
+                                .opacity(hoverWheel && !spinning && !landed ? 0.7 : 0.3),
+                                    radius: hoverWheel && !spinning && !landed ? 16 : 8, x: 0, y: 3)
+                            .scaleEffect(hoverWheel && !spinning && !landed ? 1.08 : (glowPulse && !spinning && !landed ? 1.03 : 1.0))
+                            .animation(.easeInOut(duration: 0.9).repeatForever(autoreverses: true), value: glowPulse)
+                            .animation(.easeInOut(duration: 0.16), value: hoverWheel)
                         if landed {
                             Text("60%")
                                 .font(.system(size: 21, weight: .heavy, design: .rounded))
@@ -156,11 +171,11 @@ struct SpinWheelView: View {
                             .transition(.opacity)
                     }
                 }
-                .frame(height: wheelSize + 34)
+                .frame(height: wheelSize + 48)
                 .padding(.top, 8)
                 .contentShape(Circle())
-                .scaleEffect(hoverWheel && !spinning && !landed ? 1.02 : 1.0)
-                .animation(.easeInOut(duration: 0.18), value: hoverWheel)
+                .scaleEffect(hoverWheel && !spinning && !landed ? 1.04 : 1.0)
+                .animation(.spring(response: 0.28, dampingFraction: 0.65), value: hoverWheel)
                 .onHover { hovering in
                     hoverWheel = hovering
                     setHandCursor(hovering && !spinning && !landed)
@@ -226,21 +241,22 @@ struct SpinWheelView: View {
 
                     Button("no thanks") { onDismiss() }
                         .font(.system(size: 9))
-                        .foregroundColor(.white.opacity(0.15))
+                        .foregroundColor(.white.opacity(spinning ? 0.08 : 0.28))
                         .buttonStyle(.plain)
                         .disabled(spinning)
+                        .animation(.easeInOut(duration: 0.15), value: spinning)
                 }
                 .padding(.horizontal, 30)
-
-                Spacer(minLength: 16)
+                .padding(.bottom, 20)
             }
         }
-        .frame(width: 400, height: 620)
+        .frame(width: 400, height: 558)
         .preferredColorScheme(.dark)
         .onAppear {
             proManager.clearError()
             proManager.markSpinOfferShown()
             hintBob = true
+            glowPulse = true
         }
         .onChange(of: proManager.isPro) { _, isPro in
             if isPro { onDismiss() }

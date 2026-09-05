@@ -6,6 +6,9 @@ import AppKit
 final class MenuBarState: ObservableObject {
     static let shared = MenuBarState()
     @Published var isOverlayActive = false
+    @Published var isCuesActive    = false
+    @Published var isZoomActive    = false
+    @Published var isTimerActive   = false
     private init() {}
 }
 
@@ -137,11 +140,12 @@ struct MenuBarWidgetView: View {
     // MARK: Tiles
 
     private var tilesGrid: some View {
-        LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 8) {
-            WidgetTile(icon: "rectangle.on.rectangle", label: "Canvas", action: onCanvas)
-            WidgetTile(icon: "timer",                   label: "Timer",  action: onTimer)
-            WidgetTile(icon: "hand.raised",             label: "Cues",   action: onCues)
-            WidgetTile(icon: "magnifyingglass",         label: "Zoom",   action: onZoom)
+        let locked = !pro.isPro
+        return LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 8) {
+            WidgetTile(icon: "rectangle.on.rectangle", label: "Canvas", isActive: false,               isLocked: false, action: onCanvas)
+            WidgetTile(icon: "timer",                   label: "Timer",  isActive: state.isTimerActive, isLocked: locked, action: onTimer)
+            WidgetTile(icon: "hand.raised",             label: "Cues",   isActive: state.isCuesActive,  isLocked: locked, action: onCues)
+            WidgetTile(icon: "magnifyingglass",         label: "Zoom",   isActive: state.isZoomActive,  isLocked: locked, action: onZoom)
         }
     }
 
@@ -206,32 +210,68 @@ private struct FooterButton: View {
 private struct WidgetTile: View {
     let icon: String
     let label: String
+    var isActive: Bool = false
+    var isLocked: Bool = false
     let action: () -> Void
     @State private var hover = false
 
+    private let gradient = LinearGradient(
+        colors: [Color(hex: "#F4644D") ?? .orange, Color(hex: "#E9458C") ?? .pink],
+        startPoint: .topLeading, endPoint: .bottomTrailing
+    )
+
     var body: some View {
         Button(action: action) {
-            VStack(spacing: 6) {
-                Image(systemName: icon)
-                    .font(.system(size: 18, weight: .medium))
-                    .foregroundColor(hover ? .white : .white.opacity(0.58))
-                Text(label)
-                    .font(.system(size: 11))
-                    .foregroundColor(hover ? .white.opacity(0.80) : .white.opacity(0.36))
+            ZStack(alignment: .topTrailing) {
+                VStack(spacing: 6) {
+                    Image(systemName: icon)
+                        .font(.system(size: 18, weight: .medium))
+                        .foregroundStyle(isActive
+                            ? AnyShapeStyle(gradient)
+                            : AnyShapeStyle(Color.white.opacity(isLocked ? 0.28 : (hover ? 1 : 0.58))))
+                    Text(label)
+                        .font(.system(size: 11))
+                        .foregroundColor(isActive
+                            ? .white.opacity(0.90)
+                            : .white.opacity(isLocked ? 0.22 : (hover ? 0.80 : 0.36)))
+                }
+                .frame(maxWidth: .infinity)
+                .frame(height: 60)
+                .background(tileBackground)
+
+                // Active dot OR lock badge
+                if isActive {
+                    Circle()
+                        .fill(gradient)
+                        .frame(width: 6, height: 6)
+                        .shadow(color: (Color(hex: "#F4644D") ?? .orange).opacity(0.8), radius: 4)
+                        .padding(8)
+                } else if isLocked {
+                    Image(systemName: "lock.fill")
+                        .font(.system(size: 8, weight: .bold))
+                        .foregroundStyle(.white.opacity(0.40))
+                        .padding(7)
+                }
             }
-            .frame(maxWidth: .infinity)
-            .frame(height: 60)
-            .background(
-                RoundedRectangle(cornerRadius: 10)
-                    .fill(hover ? Color.white.opacity(0.10) : Color.white.opacity(0.05))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 10)
-                            .strokeBorder(Color.white.opacity(hover ? 0.15 : 0.07), lineWidth: 0.5)
-                    )
-            )
+            .animation(.easeInOut(duration: 0.14), value: isActive)
             .animation(.easeInOut(duration: 0.12), value: hover)
         }
         .buttonStyle(.plain)
         .onHover { hover = $0 }
+    }
+
+    private var tileBackground: some View {
+        RoundedRectangle(cornerRadius: 10)
+            .fill(isActive
+                ? Color(hex: "#F4644D")!.opacity(0.10)
+                : Color.white.opacity(isLocked ? 0.03 : (hover ? 0.10 : 0.05)))
+            .overlay(
+                RoundedRectangle(cornerRadius: 10)
+                    .strokeBorder(Color.white.opacity(isActive ? 0 : (hover && !isLocked ? 0.15 : 0.07)), lineWidth: 0.5)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 10)
+                    .strokeBorder(gradient.opacity(isActive ? 0.50 : 0), lineWidth: 1)
+            )
     }
 }

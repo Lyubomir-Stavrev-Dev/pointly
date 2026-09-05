@@ -293,10 +293,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                 self.showMenuBarHint()
             }
         }, onContinueFree: {
-            // User skipped purchasing — show spin-wheel welcome offer if eligible.
-            // Small delay so the onboarding window has time to order out first.
+            // User skipped purchasing — always show spin wheel (same as Maybe Later).
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                self.overlayWindowManager?.maybeShowSpinWheel()
+                self.overlayWindowManager?.maybeShowSpinWheel(force: true)
             }
         }))
         window.center()

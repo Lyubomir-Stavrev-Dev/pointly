@@ -4,10 +4,18 @@ import CoreGraphics
 import Combine
 import ScreenCaptureKit
 
+// Intercepts the native close button on titled panels so onDismiss still fires.
+private final class PanelCloseDelegate: NSObject, NSWindowDelegate {
+    let onClose: () -> Void
+    init(_ onClose: @escaping () -> Void) { self.onClose = onClose }
+    func windowWillClose(_ notification: Notification) { onClose() }
+}
+
 class OverlayWindowManager: ObservableObject {
     private var canvasWindows: [CGDirectDisplayID: NSWindow] = [:]
     private var toolbarPanel: NSPanel?
     private var paywallPanel: NSPanel?
+    private var paywallCloseDelegate: PanelCloseDelegate?
     private var spinWheelPanel: NSPanel?
     private var liftedCaptures: [(panel: NSPanel, coverID: UUID, state: LiftedCaptureState)] = []
     private var isOverlayActive = false
@@ -67,6 +75,8 @@ class OverlayWindowManager: ObservableObject {
         sharedDrawingState.onWillUndo     = { [weak self] in self?.dismissAllLiftedCaptures() }
         sharedDrawingState.onWillRedo     = { [weak self] in self?.dismissAllLiftedCaptures() }
         sharedDrawingState.onWillClearAll = { [weak self] in self?.dismissAllLiftedCaptures() }
+
+        observeFeatureStates()
     }
 
     // MARK: - Canvas windows (one per screen, drawing surface only)
@@ -938,6 +948,18 @@ class OverlayWindowManager: ObservableObject {
             }, initialPlan: initialPlan)
         )
         panel.contentViewController = paywallVC
+        // Intercept the native X button so it also triggers the spin wheel.
+        let closeDelegate = PanelCloseDelegate { [weak self, weak panel] in
+            panel?.orderOut(nil)
+            self?.paywallPanel = nil
+            self?.paywallCloseDelegate = nil
+            if self?.isOverlayActive == true, let mainID = self?.mainDisplayID {
+                self?.canvasWindows[mainID]?.makeKey()
+            }
+            self?.maybeShowSpinWheel(force: true)
+        }
+        panel.delegate = closeDelegate
+        paywallCloseDelegate = closeDelegate
         panel.center()
         paywallPanel = panel
         panel.makeKeyAndOrderFront(nil)
@@ -952,7 +974,7 @@ class OverlayWindowManager: ObservableObject {
         guard !ProManager.shared.isPro, spinWheelPanel == nil else { return }
         if !force { guard ProManager.shared.spinOfferAvailable else { return } }
 
-        let size = CGSize(width: 400, height: 620)   // must match SpinWheelView's fixed frame
+        let size = CGSize(width: 400, height: 558)   // must match SpinWheelView's fixed frame
         let panel = NSPanel(
             contentRect: NSRect(origin: .zero, size: size),
             styleMask: [.titled, .closable, .fullSizeContentView],
@@ -1025,10 +1047,24 @@ class OverlayWindowManager: ObservableObject {
 
     // MARK: - Countdown timer (Pro)
 
-    private var timerPanel: NSPanel?
+    private var timerPanel: NSPanel? {
+        didSet { MenuBarState.shared.isTimerActive = timerPanel != nil }
+    }
     private let timerController = CountdownTimerController()
     private let presenterCues = PresenterCuesController()
     private let presenterZoom = PresenterZoomController()
+    private var featureStateCancellables: Set<AnyCancellable> = []
+
+    private func observeFeatureStates() {
+        presenterCues.$isActive
+            .receive(on: DispatchQueue.main)
+            .sink { MenuBarState.shared.isCuesActive = $0 }
+            .store(in: &featureStateCancellables)
+        presenterZoom.$isActive
+            .receive(on: DispatchQueue.main)
+            .sink { MenuBarState.shared.isZoomActive = $0 }
+            .store(in: &featureStateCancellables)
+    }
 
     func togglePresenterCues() {
         guard ProManager.shared.isPro else {
