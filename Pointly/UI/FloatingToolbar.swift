@@ -15,6 +15,21 @@ private let brandGradient = LinearGradient(
 
 private let panelTint = Color(red: 0.06, green: 0.06, blue: 0.14)
 
+private let shapePaletteColors: [Color] = [
+    .white,
+    Color(hex: "#9CA3AF") ?? .gray,
+    Color(hex: "#F4644D") ?? .orange,
+    Color(hex: "#FF8C42") ?? .orange,
+    Color(hex: "#E9458C") ?? .pink,
+    Color(hex: "#FFD166") ?? .yellow,
+    Color(hex: "#4FACFE") ?? .blue,
+    Color(hex: "#A78BFA") ?? .purple,
+    Color(hex: "#34D399") ?? .green,
+    Color(hex: "#F472B6") ?? .pink,
+    Color(hex: "#1E1B4B") ?? .indigo,
+    Color(hex: "#111827") ?? .black,
+]
+
 /// Lays content in an HStack when `horizontal`, otherwise a VStack — lets the
 /// toolbar flip orientation without duplicating every section's layout.
 private struct AdaptiveStack<Content: View>: View {
@@ -50,29 +65,30 @@ private struct VisualEffectBackground: NSViewRepresentable {
 struct FloatingToolbar: View {
     @ObservedObject var drawingState: DrawingState
     @ObservedObject var interactionMode: InteractionModeManager
-    @ObservedObject private var pro = ProManager.shared
 
-    @State private var isExpanded = false
+    private enum ChipSide { case none, shape, color }
+    @State private var chipHoverSide     = ChipSide.none
     @State private var isHoveringModeButton = false
     @State private var hoverMinimize = false
     @State private var hoverExport   = false
     @State private var hoverOrient   = false
     @AppStorage("toolbarHorizontal") private var horizontal = false
     @StateObject private var exportManager = ExportManager()
+    @StateObject private var shapesHover   = ShapesHoverManager()
 
     var body: some View {
         AdaptiveStack(horizontal: horizontal, spacing: 0, hAlign: .top) {
             dragHandle
+                .shapesKeepAlive(shapesHover)
             // Mode button is vertical-only; the horizontal bar saves the space
             // (minimize in the handle still switches to interact mode).
             if !horizontal {
                 modeButton.padding(.top, 6)
+                    .shapesKeepAlive(shapesHover)
             }
 
             divider()
 
-            // DRAW — select/cursor lead the grid so the section is one
-            // uniform block (2 cols vertical / 2 rows horizontal).
             section("DRAW") {
                 toolGrid([
                     (.select,      false), (.cursor,      false),
@@ -84,32 +100,19 @@ struct FloatingToolbar: View {
                     (.textCallout, false), (.stepBadge,   false),
                 ])
             }
+            .shapesKeepAlive(shapesHover)
 
             divider()
 
-            // LINES
             section("LINES") {
                 toolGrid([(.arrow, false), (.line, false)])
             }
+            .shapesKeepAlive(shapesHover)
 
             divider()
 
-            // SHAPES
-            section("SHAPES") {
-                shapePairGrid([
-                    (.rectangle, .rectangle),
-                    (.ellipse,   .ellipse),
-                    (.triangle,  .triangle),
-                    (.diamond,   .diamond),
-                ])
-            }
-
-            divider()
-
-            // Color palette
-            colorPaletteView
-                .disabled(!drawingState.selectedTool.supportsColor)
-                .opacity(drawingState.selectedTool.supportsColor ? 1 : 0.25)
+            // SHAPES & COLOR — collapsed into hover dropdown
+            shapesColorsSection
 
             divider()
 
@@ -135,6 +138,7 @@ struct FloatingToolbar: View {
                     .disabled(!redoActive)
                 }
             )
+            .shapesKeepAlive(shapesHover)
 
             // Export / Clear
             toolGrid2(
@@ -146,6 +150,7 @@ struct FloatingToolbar: View {
                     }
                 }
             )
+            .shapesKeepAlive(shapesHover)
         }
         .padding(.horizontal, 8)
         .padding(.vertical, 10)
@@ -153,6 +158,9 @@ struct FloatingToolbar: View {
             ZStack {
                 VisualEffectBackground()
                 panelTint.opacity(0.28)
+                // Full-coverage drag layer — sits behind all buttons so empty
+                // gaps in the toolbar body also move the window on drag.
+                WindowDragHandle()
             }
             .clipShape(RoundedRectangle(cornerRadius: 22))
             .overlay(
@@ -300,32 +308,200 @@ struct FloatingToolbar: View {
         .toolTooltip("Switch to \(isDrawMode ? "Interact" : "Draw") mode", keys: "⌘⎋")
     }
 
-    // MARK: - Color Palette
+    // MARK: - Shapes & Colors chip
 
-    private static let paletteColors: [Color] = [
-        // Neutrals
-        .white,
-        Color(hex: "#9CA3AF") ?? .gray,
-        // Brand gradient range
-        Color(hex: "#F4644D") ?? .orange,
-        Color(hex: "#FF8C42") ?? .orange,
-        Color(hex: "#E9458C") ?? .pink,
-        Color(hex: "#FFD166") ?? .yellow,
-        // Cool & vibrant
-        Color(hex: "#4FACFE") ?? .blue,
-        Color(hex: "#A78BFA") ?? .purple,
-        Color(hex: "#34D399") ?? .green,
-        Color(hex: "#F472B6") ?? .pink,
-        // Dark
-        Color(hex: "#1E1B4B") ?? .indigo,
-        Color(hex: "#111827") ?? .black,
-    ]
+    // Vertical only — horizontal mode expands rightward (uses shapesExpandedWidth instead).
+    // divider×2 (~9px each) + shapePairGrid (140px) + colorPaletteView (62px) = 220px
+    private let shapesExpandedHeight: CGFloat = 220
+    // Horizontal mode: divider×2 (~9px) + shapePairGrid (140px) + colorPaletteView (109px) = 267px
+    private let shapesExpandedWidth:  CGFloat = 267
+
+    private var shapesColorsSection: some View {
+        let shapeTool: DrawingTool = drawingState.selectedTool.isShape ? drawingState.selectedTool : .rectangle
+        let shapeSelected = drawingState.selectedTool.isShape
+        let shapeIcon = (shapeSelected && drawingState.isFilled)
+            ? shapeTool.systemImage + ".fill"
+            : shapeTool.systemImage
+        let expanded    = shapesHover.isHeightExpanded
+        let accentColor = drawingState.selectedColor
+
+        // Shared shape/color content for the expanded panel
+        let shapeList: [(DrawingTool, DrawingTool)] = [
+            (.rectangle, .rectangle), (.ellipse, .ellipse),
+            (.triangle,  .triangle),  (.diamond, .diamond),
+        ]
+        let supportsColor = drawingState.selectedTool.supportsColor
+
+        // ── Chip background layers (reused for both orientations) ────────
+        // The gradient directions differ: horizontal chip glows left↔right,
+        // vertical chip glows top↔bottom.
+        func chipBg(horizontal isH: Bool) -> some View {
+            ZStack {
+                RoundedRectangle(cornerRadius: 10)
+                    .fill(shapeSelected
+                          ? AnyShapeStyle(brandGradient.opacity(0.18))
+                          : AnyShapeStyle(Color.white.opacity(expanded ? 0.10 : 0.07)))
+                // Permanent bloom toward the color-swatch side
+                RoundedRectangle(cornerRadius: 10)
+                    .fill(LinearGradient(
+                        colors: [.clear, accentColor.opacity(0.14)],
+                        startPoint: isH ? UnitPoint(x: 0.4, y: 0.5) : UnitPoint(x: 0.5, y: 0.4),
+                        endPoint:   isH ? .trailing                  : .bottom
+                    ))
+                // Shape-side hover glow
+                RoundedRectangle(cornerRadius: 10)
+                    .fill(LinearGradient(
+                        colors: [Color.white.opacity(0.18), .clear],
+                        startPoint: isH ? .leading : .top,
+                        endPoint:   isH ? .trailing : .bottom
+                    ))
+                    .opacity(chipHoverSide == .shape ? 1 : 0)
+                    .animation(.easeOut(duration: 0.14), value: chipHoverSide == .shape)
+                // Color-side hover glow
+                RoundedRectangle(cornerRadius: 10)
+                    .fill(LinearGradient(
+                        colors: [.clear, accentColor.opacity(0.28)],
+                        startPoint: isH ? UnitPoint(x: 0.3, y: 0.5) : UnitPoint(x: 0.5, y: 0.4),
+                        endPoint:   isH ? .trailing                  : .bottom
+                    ))
+                    .opacity(chipHoverSide == .color ? 1 : 0)
+                    .animation(.easeOut(duration: 0.14), value: chipHoverSide == .color)
+                // Gradient border
+                RoundedRectangle(cornerRadius: 10)
+                    .strokeBorder(
+                        LinearGradient(
+                            colors: [
+                                Color.white.opacity(expanded ? 0.30 : 0.18),
+                                accentColor.opacity(0.30)
+                            ],
+                            startPoint: .topLeading, endPoint: .bottomTrailing
+                        ),
+                        lineWidth: 0.8
+                    )
+            }
+            .animation(.easeInOut(duration: 0.09), value: expanded)
+            .animation(.easeInOut(duration: 0.22), value: accentColor)
+        }
+
+        return Group {
+            if horizontal {
+                // ── HORIZONTAL TOOLBAR: narrow vertical strip + rightward expansion ──
+                HStack(spacing: 0) {
+
+                    // Vertical trigger: shape icon on top, color dot on bottom
+                    VStack(spacing: 0) {
+                        Image(systemName: shapeIcon)
+                            .font(.system(size: 14, weight: shapeSelected ? .semibold : .regular))
+                            .foregroundStyle(shapeSelected
+                                             ? AnyShapeStyle(brandGradient)
+                                             : AnyShapeStyle(Color.white.opacity(0.5)))
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                            .onHover { h in chipHoverSide = h ? .shape : (chipHoverSide == .shape ? .none : chipHoverSide) }
+
+                        Circle()
+                            .fill(accentColor)
+                            .frame(width: 14, height: 14)
+                            .overlay(Circle().strokeBorder(
+                                LinearGradient(colors: [.white.opacity(0.55), .white.opacity(0.08)],
+                                               startPoint: .topLeading, endPoint: .bottomTrailing),
+                                lineWidth: 1.0))
+                            .shadow(color: accentColor.opacity(0.9), radius: 4)
+                            .shadow(color: accentColor.opacity(0.45), radius: 9)
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                            .onHover { h in chipHoverSide = h ? .color : (chipHoverSide == .color ? .none : chipHoverSide) }
+                    }
+                    .frame(width: 34)
+                    .background(chipBg(horizontal: false))  // top↔bottom gradients
+                    .onHover { hovering in
+                        if hovering { shapesHover.enter() }
+                        else        { shapesHover.scheduleExit() }
+                    }
+
+                    // Rightward expansion — slides in from the left
+                    ShapesExpandedSection(isVisible: shapesHover.isVisible, isHorizontal: true) {
+                        HStack(spacing: 0) {
+                            divider()
+                            shapePairGrid(shapeList)
+                            divider()
+                            colorPaletteView
+                                .disabled(!supportsColor)
+                                .opacity(supportsColor ? 1 : 0.25)
+                        }
+                    }
+                    .frame(width: expanded ? shapesExpandedWidth : 0, alignment: .leading)
+                    .clipped()
+                    .onHover { hovering in
+                        guard shapesHover.isVisible else { return }
+                        if hovering { shapesHover.enter() }
+                        else        { shapesHover.scheduleExit() }
+                    }
+                }
+
+            } else {
+                // ── VERTICAL TOOLBAR: horizontal chip + downward expansion ──
+                VStack(spacing: 0) {
+
+                    // Horizontal chip: shape icon left, color dot right
+                    HStack(spacing: 0) {
+                        Image(systemName: shapeIcon)
+                            .font(.system(size: 15, weight: shapeSelected ? .semibold : .regular))
+                            .foregroundStyle(shapeSelected
+                                             ? AnyShapeStyle(brandGradient)
+                                             : AnyShapeStyle(Color.white.opacity(0.5)))
+                            .frame(maxWidth: .infinity)
+                            .onHover { h in chipHoverSide = h ? .shape : (chipHoverSide == .shape ? .none : chipHoverSide) }
+
+                        ZStack {
+                            Circle()
+                                .fill(accentColor)
+                                .frame(width: 17, height: 17)
+                                .overlay(Circle().strokeBorder(
+                                    LinearGradient(colors: [.white.opacity(0.55), .white.opacity(0.08)],
+                                                   startPoint: .topLeading, endPoint: .bottomTrailing),
+                                    lineWidth: 1.0))
+                                .shadow(color: accentColor.opacity(0.9), radius: 4)
+                                .shadow(color: accentColor.opacity(0.45), radius: 10)
+                        }
+                        .frame(maxWidth: .infinity)
+                        .onHover { h in chipHoverSide = h ? .color : (chipHoverSide == .color ? .none : chipHoverSide) }
+                    }
+                    .frame(height: 34)
+                    .background(chipBg(horizontal: true))   // left↔right gradients
+                    .onHover { hovering in
+                        if hovering { shapesHover.enter() }
+                        else        { shapesHover.scheduleExit() }
+                    }
+
+                    // Downward expansion
+                    ShapesExpandedSection(isVisible: shapesHover.isVisible) {
+                        VStack(spacing: 0) {
+                            hRule
+                            shapePairGrid(shapeList)
+                            hRule
+                            colorPaletteView
+                                .disabled(!supportsColor)
+                                .opacity(supportsColor ? 1 : 0.25)
+                        }
+                    }
+                    .frame(height: expanded ? shapesExpandedHeight : 0, alignment: .top)
+                    .clipped()
+                    .onHover { hovering in
+                        guard shapesHover.isVisible else { return }
+                        if hovering { shapesHover.enter() }
+                        else        { shapesHover.scheduleExit() }
+                    }
+                }
+            }
+        }
+    }
+
+    // MARK: - Color Palette
 
     private var colorPaletteView: some View {
         VStack(spacing: 5) {
             // 4×3 vertically; 6×2 horizontally so the section stays ~2 rows tall
             let cols = horizontal ? 6 : 4
-            let colors = Self.paletteColors
+            let colors = shapePaletteColors
             let rows = stride(from: 0, to: colors.count, by: cols).map {
                 Array(colors[$0 ..< min($0 + cols, colors.count)])
             }
@@ -335,20 +511,6 @@ struct FloatingToolbar: View {
                         colorSwatch(rows[ri][ci])
                     }
                 }
-            }
-
-            // Custom picker as last row (omitted in horizontal to keep 2 rows)
-            if !horizontal {
-                HStack(spacing: 5) {
-                    Spacer()
-                    ColorPicker("", selection: $drawingState.selectedColor)
-                        .labelsHidden()
-                        .frame(width: 16, height: 16)
-                        .clipShape(Circle())
-                        .help("Custom color")
-                    Spacer()
-                }
-                .padding(.top, 1)
             }
         }
         .padding(.vertical, 5)
@@ -424,7 +586,7 @@ struct FloatingToolbar: View {
 
     @ViewBuilder
     private func regularToolButton(_ tool: DrawingTool) -> some View {
-        RegularToolButton(tool: tool, drawingState: drawingState, pro: pro)
+        RegularToolButton(tool: tool, drawingState: drawingState, pro: ProManager.shared)
     }
 
     // MARK: - Shape tool button (outline or filled)
@@ -456,7 +618,16 @@ struct FloatingToolbar: View {
         }
     }
 
-    // MARK: - Divider (perpendicular to the main axis)
+    // MARK: - Dividers
+
+    // Fixed horizontal rule — always a thin horizontal line regardless of toolbar orientation.
+    // Used inside shapesColorsSection where the layout is always a VStack.
+    private var hRule: some View {
+        Rectangle()
+            .fill(Color.white.opacity(0.08))
+            .frame(height: 0.8)
+            .padding(.vertical, 4)
+    }
 
     @ViewBuilder
     private func divider() -> some View {
@@ -531,13 +702,19 @@ final class ToolTooltipController {
     }
 
     func hide() {
+        // Delay matches the HoverDebouncer window so a rapid exit+enter pair
+        // (from updateTrackingAreas after panel.setFrame) cancels before the
+        // fade-out starts, preventing tooltip flicker.
         pending?.cancel()
-        pending = nil
-        guard let panel, panel.isVisible else { return }
-        NSAnimationContext.runAnimationGroup({ ctx in
-            ctx.duration = 0.12
-            panel.animator().alphaValue = 0
-        }, completionHandler: { [weak panel] in panel?.orderOut(nil) })
+        let item = DispatchWorkItem { [weak self] in
+            guard let self, let panel = self.panel, panel.isVisible else { return }
+            NSAnimationContext.runAnimationGroup({ ctx in
+                ctx.duration = 0.12
+                panel.animator().alphaValue = 0
+            }, completionHandler: { [weak panel] in panel?.orderOut(nil) })
+        }
+        pending = item
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.025, execute: item)
     }
 
     private func show(title: String, keys: String?, isPro: Bool, anchor view: NSView) {
@@ -700,6 +877,20 @@ extension View {
     }
 }
 
+// MARK: - Shapes keep-alive modifier
+// Applied to every toolbar section above/below the chip. While the accordion
+// is open, hovering any section resets the close timer — preventing the
+// accordion from closing as the user moves between tools and the chip area.
+
+private extension View {
+    func shapesKeepAlive(_ manager: ShapesHoverManager) -> some View {
+        onHover { hovering in
+            guard manager.isHeightExpanded else { return }
+            if hovering { manager.enter() } else { manager.scheduleExit() }
+        }
+    }
+}
+
 // MARK: - WindowDragHandle
 
 private struct WindowDragHandle: NSViewRepresentable {
@@ -714,6 +905,20 @@ private struct WindowDragHandle: NSViewRepresentable {
     }
 }
 
+// MARK: - HoverDebouncer
+// Cancels rapid exit+enter pairs from NSTrackingArea reinstalls (fired by panel.setFrame).
+// Stored as @State reference type so it persists across parent re-renders without publishing.
+
+private final class HoverDebouncer {
+    private var work: DispatchWorkItem?
+    func update(_ hovered: Bool, delay: Double = 0.025, action: @escaping (Bool) -> Void) {
+        work?.cancel()
+        let w = DispatchWorkItem { action(hovered) }
+        work = w
+        DispatchQueue.main.asyncAfter(deadline: .now() + delay, execute: w)
+    }
+}
+
 // MARK: - RegularToolButton
 
 private struct RegularToolButton: View {
@@ -723,11 +928,7 @@ private struct RegularToolButton: View {
     @ObservedObject private var bindings = ToolBindingsStore.shared
 
     @State private var isHovered = false
-
-    private let gradient = LinearGradient(
-        colors: [Color(hex: "#F4644D") ?? .orange, Color(hex: "#FF8C42") ?? .orange, Color(hex: "#E9458C") ?? .pink],
-        startPoint: .topLeading, endPoint: .bottomTrailing
-    )
+    @State private var debouncer = HoverDebouncer()
 
     var body: some View {
         let locked   = pro.isLocked(tool)
@@ -741,7 +942,7 @@ private struct RegularToolButton: View {
             }
         } label: {
             ZStack(alignment: .topTrailing) {
-                Image(systemName: tool.systemImage)
+                ToolIconView(tool: tool, size: 15)
                     .font(.system(size: 14, weight: selected ? .semibold : .regular))
                     .foregroundColor(locked
                                      ? .white.opacity(0.28)
@@ -750,7 +951,7 @@ private struct RegularToolButton: View {
                     .background(
                         RoundedRectangle(cornerRadius: 8)
                             .fill(selected
-                                  ? AnyShapeStyle(gradient)
+                                  ? AnyShapeStyle(brandGradient)
                                   : AnyShapeStyle(Color.white.opacity(isHovered ? 0.12 : 0.0)))
                             .shadow(
                                 color: selected ? (Color(hex: "#F4644D") ?? .orange).opacity(0.5) : .clear,
@@ -770,7 +971,7 @@ private struct RegularToolButton: View {
             }
         }
         .buttonStyle(.plain)
-        .onHover { isHovered = $0 }
+        .onHover { [debouncer] hovered in debouncer.update(hovered) { isHovered = $0 } }
         .animation(.easeInOut(duration: 0.12), value: isHovered)
         .toolTooltip(tool.displayName,
                      keys: locked ? nil : bindings.bindings[tool],
@@ -786,11 +987,7 @@ private struct ShapeToolButton: View {
     @ObservedObject var drawingState: DrawingState
 
     @State private var isHovered = false
-
-    private let gradient = LinearGradient(
-        colors: [Color(hex: "#F4644D") ?? .orange, Color(hex: "#FF8C42") ?? .orange, Color(hex: "#E9458C") ?? .pink],
-        startPoint: .topLeading, endPoint: .bottomTrailing
-    )
+    @State private var debouncer = HoverDebouncer()
 
     var body: some View {
         let selected = drawingState.selectedTool == tool && drawingState.isFilled == filled
@@ -807,7 +1004,7 @@ private struct ShapeToolButton: View {
                 .background(
                     RoundedRectangle(cornerRadius: 8)
                         .fill(selected
-                              ? AnyShapeStyle(gradient)
+                              ? AnyShapeStyle(brandGradient)
                               : AnyShapeStyle(Color.white.opacity(isHovered ? 0.12 : 0.0)))
                         .shadow(
                             color: selected ? (Color(hex: "#F4644D") ?? .orange).opacity(0.5) : .clear,
@@ -817,9 +1014,74 @@ private struct ShapeToolButton: View {
                 .scaleEffect(isHovered && !selected ? 1.06 : 1.0)
         }
         .buttonStyle(.plain)
-        .onHover { isHovered = $0 }
+        .onHover { [debouncer] hovered in debouncer.update(hovered) { isHovered = $0 } }
         .animation(.easeInOut(duration: 0.12), value: isHovered)
         .toolTooltip(tool.displayName + (filled ? " (filled)" : " (outline)"))
+    }
+}
+
+// MARK: - LaserToolIcon
+//
+// Custom replacement for the "laser.burst" SF Symbol, which reads as a
+// sparkle/sun. This one matches the redesigned effect: a small laser dot
+// with a soft bloom and a short trail fading in from the upper-left.
+// Built from plain shapes so it inherits whatever foreground style the
+// call site applies (flat grays and gradients alike), like an SF Symbol.
+
+struct LaserToolIcon: View {
+    /// Point size of the icon's square canvas. Roughly matches the visual
+    /// size of an SF Symbol at the same font point size.
+    var size: CGFloat = 15
+
+    var body: some View {
+        let u = size / 16   // designed on a 16×16 grid
+        ZStack {
+            // Movement trail: fades out toward the upper-left. The gradient
+            // mask gives a smooth dissolve rather than a drawn line.
+            Path { p in
+                p.move(to: CGPoint(x: 2.9 * u, y: 2.9 * u))
+                p.addLine(to: CGPoint(x: 7.1 * u, y: 7.1 * u))
+            }
+            .stroke(style: StrokeStyle(lineWidth: 1.9 * u, lineCap: .round))
+            .mask(LinearGradient(
+                stops: [.init(color: .white.opacity(0.0),  location: 0.0),
+                        .init(color: .white.opacity(0.85), location: 1.0)],
+                startPoint: .topLeading, endPoint: .center))
+
+            // Soft bloom — two faint halos blend into a glow, not rings.
+            Circle()
+                .frame(width: 9.6 * u, height: 9.6 * u)
+                .position(x: 10.9 * u, y: 10.9 * u)
+                .opacity(0.10)
+            Circle()
+                .frame(width: 7.0 * u, height: 7.0 * u)
+                .position(x: 10.9 * u, y: 10.9 * u)
+                .opacity(0.18)
+
+            // The laser dot
+            Circle()
+                .frame(width: 4.9 * u, height: 4.9 * u)
+                .position(x: 10.9 * u, y: 10.9 * u)
+        }
+        .frame(width: size, height: size)
+    }
+}
+
+/// Drop-in for `Image(systemName: tool.systemImage)` — routes tools whose
+/// icon SF Symbols can't express to custom-drawn views.
+struct ToolIconView: View {
+    let tool: DrawingTool
+    var size: CGFloat = 15
+    /// SF Symbol to show for non-custom tools instead of tool.systemImage
+    /// (SizeBar picks context-specific symbols per tool).
+    var systemImageOverride: String? = nil
+
+    var body: some View {
+        if tool == .laserPointer {
+            LaserToolIcon(size: size)
+        } else {
+            Image(systemName: systemImageOverride ?? tool.systemImage)
+        }
     }
 }
 
@@ -829,22 +1091,10 @@ private struct ColorSwatchButton: View {
     let color: Color
     @ObservedObject var drawingState: DrawingState
     @State private var isHovered = false
-
-    private let gradient = LinearGradient(
-        colors: [Color(hex: "#F4644D") ?? .orange, Color(hex: "#FF8C42") ?? .orange, Color(hex: "#E9458C") ?? .pink],
-        startPoint: .topLeading, endPoint: .bottomTrailing
-    )
-
-    private func colorMatches(_ a: Color, _ b: Color) -> Bool {
-        guard let ca = NSColor(a).usingColorSpace(.displayP3),
-              let cb = NSColor(b).usingColorSpace(.displayP3) else { return false }
-        return abs(ca.redComponent   - cb.redComponent)   < 0.025 &&
-               abs(ca.greenComponent - cb.greenComponent) < 0.025 &&
-               abs(ca.blueComponent  - cb.blueComponent)  < 0.025
-    }
+    @State private var debouncer = HoverDebouncer()
 
     var body: some View {
-        let selected = colorMatches(color, drawingState.selectedColor)
+        let selected = color == drawingState.selectedColor
         Circle()
             .fill(color)
             .frame(width: 14, height: 14)
@@ -852,7 +1102,7 @@ private struct ColorSwatchButton: View {
                 Circle()
                     .strokeBorder(
                         selected
-                            ? AnyShapeStyle(gradient)
+                            ? AnyShapeStyle(brandGradient)
                             : AnyShapeStyle(Color.white.opacity(
                                 isHovered ? 0.6 : (color == .white ? 0.5 : 0.15)
                               )),
@@ -860,11 +1110,103 @@ private struct ColorSwatchButton: View {
                     )
             )
             .scaleEffect(selected ? 1.25 : (isHovered ? 1.15 : 1.0))
-            .shadow(color: selected ? color.opacity(0.6) : (isHovered ? color.opacity(0.4) : .clear), radius: selected ? 4 : 6)
+            .shadow(color: selected ? color.opacity(0.6) : (isHovered ? color.opacity(0.4) : .clear),
+                    radius: selected ? 4 : 6)
             .animation(.spring(response: 0.2, dampingFraction: 0.7), value: selected)
             .animation(.easeInOut(duration: 0.12), value: isHovered)
-            .onHover { isHovered = $0 }
+            .onHover { [debouncer] hovered in debouncer.update(hovered) { isHovered = $0 } }
             .onTapGesture { drawingState.selectedColor = color }
+    }
+}
+
+// MARK: - Shapes hover manager
+// Two separate booleans so the toolbar only re-renders TWICE total per expand/collapse
+// (once for height, once for the animation trigger), never during the animation itself.
+
+private final class ShapesHoverManager: ObservableObject {
+    @Published var isHeightExpanded = false   // controls .frame(height:) instantly
+    @Published var isVisible        = false   // animation trigger passed to ShapesExpandedSection
+
+    // Both work items must be tracked so enter() can cancel either at any time.
+    // hideWork  = the outer 220ms delay before starting the fade
+    // collapseWork = the inner 220ms delay before collapsing height (fires after fade)
+    private var hideWork:     DispatchWorkItem?
+    private var collapseWork: DispatchWorkItem?
+
+    func enter() {
+        // Cancel the entire pending close sequence — both the fade-trigger AND
+        // the height-collapse step, whichever may still be pending.
+        hideWork?.cancel();     hideWork     = nil
+        collapseWork?.cancel(); collapseWork = nil
+
+        // Guard on isVisible, not isHeightExpanded: if the accordion is in the
+        // fade-out window (isVisible=false but isHeightExpanded still=true) and
+        // the cursor comes back, we must re-show content (set isVisible=true).
+        // The old guard on isHeightExpanded would return early here, leaving the
+        // accordion stuck — height expanded, content invisible, no close timer.
+        guard !isVisible else { return }
+
+        isHeightExpanded = true
+        isVisible = true
+    }
+
+    func scheduleExit() {
+        hideWork?.cancel();     hideWork     = nil
+        collapseWork?.cancel(); collapseWork = nil
+
+        // Create the inner item first so it can be stored AND passed into the outer closure.
+        let inner = DispatchWorkItem { [weak self] in
+            self?.isHeightExpanded = false
+        }
+        collapseWork = inner
+
+        let outer = DispatchWorkItem { [weak self] in
+            guard let self else { return }
+            self.isVisible = false
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.08, execute: inner)
+        }
+        hideWork = outer
+        // 80ms exit debounce: fast enough to feel game-like, long enough to absorb
+        // any spurious tracking-area events from the window edge.
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.08, execute: outer)
+    }
+}
+
+// MARK: - Shapes expanded section (isolated re-render scope)
+// @State opacity lives here — changes to it never touch FloatingToolbar.
+// Result: textCallout, stepBadge, and every other toolbar button are completely
+// unaffected during the reveal/hide animation.
+// Note: no blur — blur(radius:) distorts the small color swatches and smears
+// scale animations from freshly-installed tracking areas, causing a flicker.
+
+private struct ShapesExpandedSection<Content: View>: View {
+    let isVisible: Bool
+    var isHorizontal: Bool = false   // true → slide left/right instead of up/down
+    @ViewBuilder var content: () -> Content
+
+    @State private var opacity: Double  = 0
+    @State private var slideOff: CGFloat = -12
+
+    var body: some View {
+        content()
+            .opacity(opacity)
+            .offset(x: isHorizontal ? slideOff : 0,
+                    y: isHorizontal ? 0 : slideOff)
+            .task(id: isVisible) {
+                if isVisible {
+                    opacity  = 0
+                    slideOff = -12
+                    withAnimation(.spring(response: 0.22, dampingFraction: 0.76)) {
+                        opacity  = 1
+                        slideOff = 0
+                    }
+                } else {
+                    withAnimation(.easeIn(duration: 0.07)) {
+                        opacity  = 0
+                        slideOff = -8
+                    }
+                }
+            }
     }
 }
 
@@ -877,7 +1219,8 @@ private struct IconToolButton: View {
     var keys: String? = nil
     let action: () -> Void
 
-    @State private var isHovered = false
+    @State private var isHovered  = false
+    @State private var debouncer  = HoverDebouncer()
 
     var body: some View {
         Button(action: action) {
@@ -892,7 +1235,7 @@ private struct IconToolButton: View {
                 .scaleEffect(isHovered ? 1.06 : 1.0)
         }
         .buttonStyle(.plain)
-        .onHover { isHovered = $0 }
+        .onHover { [debouncer] hovered in debouncer.update(hovered) { isHovered = $0 } }
         .animation(.easeInOut(duration: 0.12), value: isHovered)
         .toolTooltip(helpText, keys: keys)
     }

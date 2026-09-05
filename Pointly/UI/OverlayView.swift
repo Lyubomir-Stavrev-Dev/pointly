@@ -1,4 +1,5 @@
 import SwiftUI
+import AppKit
 
 struct OverlayView: View {
     @ObservedObject var drawingState: DrawingState
@@ -41,6 +42,11 @@ struct OverlayView: View {
     // Spotlight state
     @State private var spotlightPosition: CGPoint? = nil
 
+    /// Tools whose live cursor leaves a fading trail (fed into
+    /// DrawingState.liveLaserTrail; rendered per-tool by DrawingCanvas).
+    static let cursorTrailTools: Set<DrawingTool> =
+        [.laserPointer, .pen, .highlighter, .marker, .blurBrush]
+
     var body: some View {
         ZStack {
             // Whiteboard background — full-screen dark grid canvas
@@ -68,6 +74,14 @@ struct OverlayView: View {
                     if case .active(let loc) = phase {
                         spotlightPosition = loc
                         if calloutTarget != nil { ghostPos = loc }
+                        // Laser gets dot+streak; brush tools get a fading
+                        // ghost-disc trail behind the ring cursor.
+                        if OverlayView.cursorTrailTools.contains(drawingState.selectedTool),
+                           interactionMode.currentMode == .draw {
+                            drawingState.updateLiveLaser(loc, displayID: displayID)
+                        }
+                    } else {
+                        drawingState.clearLiveLaser(ownedBy: displayID)
                     }
                 }
 
@@ -171,10 +185,14 @@ struct OverlayView: View {
         .onContinuousHover { phase in
             guard case .active = phase,
                   interactionMode.currentMode == .draw else { return }
-            ToolCursor.cursor(for: drawingState.selectedTool).set()
+            ToolCursor.cursor(for: drawingState.selectedTool,
+                              thickness: drawingState.strokeThickness).set()
         }
         .onReceive(NotificationCenter.default.publisher(for: .interactionModeChanged)) { handleModeChange($0) }
         .onChange(of: drawingState.selectedTool) { _, tool in
+            if tool == .blurBrush {
+                Task { await drawingState.refreshBlurCapture(displayID: displayID) }
+            }
             if tool != .select && tool != .cutMove { drawingState.clearSelection() }
             // Commit in-progress text instead of leaving the field floating
             // (empty text is dropped by addTextElement's guard).
@@ -194,6 +212,10 @@ struct OverlayView: View {
             resizeInitialBox = nil
             resizeSnapshot = nil
             isDraggingHandle = false
+            updateCursor()
+        }
+        .onChange(of: drawingState.strokeThickness) { _, _ in
+            // Brush ring cursors are sized to the stroke — refit on resize.
             updateCursor()
         }
         .onReceive(NotificationCenter.default.publisher(for: .cancelTextInput)) { _ in
@@ -272,6 +294,19 @@ struct OverlayView: View {
         guard interactionMode.currentMode == .draw else { return }
         drawingState.activeDisplayID = displayID
 
+        // Laser is fully live-rendered (dot + trail) — no stroke element.
+        // Hover events pause during a drag, so feed the trail from here too.
+        if drawingState.selectedTool == .laserPointer {
+            drawingState.updateLiveLaser(value.location, displayID: displayID)
+            return
+        }
+
+        // Ghost ring needs live position during drag (hover events pause when mouse is pressed).
+        let ringTools: Set<DrawingTool> = [.pen, .highlighter, .marker, .blurBrush]
+        if ringTools.contains(drawingState.selectedTool) {
+            drawingState.updateLiveLaser(value.location, displayID: displayID)
+        }
+
         if drawingState.selectedTool == .spotlight {
             spotlightPosition = value.location
             return
@@ -298,6 +333,7 @@ struct OverlayView: View {
 
     private func handleDrawingEnded(_ value: DragGesture.Value) {
         guard interactionMode.currentMode == .draw else { return }
+        if drawingState.selectedTool == .laserPointer { return }
         if drawingState.selectedTool == .eraser {
             isEraserStrokeActive = false
             return
@@ -339,6 +375,9 @@ struct OverlayView: View {
         }
         drawingState.finishStroke()
         isDrawing = false
+        if drawingState.selectedTool == .blurBrush {
+            Task { await drawingState.refreshBlurCapture(displayID: displayID) }
+        }
     }
 
     // MARK: - Selection gesture handlers
@@ -525,8 +564,15 @@ struct OverlayView: View {
 
     private func updateCursor() {
         switch interactionMode.currentMode {
-        case .interact: NSCursor.arrow.set()
-        case .draw:     ToolCursor.cursor(for: drawingState.selectedTool).set()
+        case .interact:
+            drawingState.clearLiveLaser()
+            NSCursor.arrow.set()
+        case .draw:
+            if !OverlayView.cursorTrailTools.contains(drawingState.selectedTool) {
+                drawingState.clearLiveLaser()
+            }
+            ToolCursor.cursor(for: drawingState.selectedTool,
+                              thickness: drawingState.strokeThickness).set()
         }
     }
 
@@ -687,7 +733,7 @@ private struct KeystrokeHintView: View {
 
     var body: some View {
         HStack(spacing: 11) {
-            Image(systemName: tool.systemImage)
+            ToolIconView(tool: tool, size: 18)
                 .font(.system(size: 17, weight: .semibold))
                 .foregroundStyle(LinearGradient(
                     colors: [orange, pink],

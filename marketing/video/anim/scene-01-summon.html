@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="utf-8"><title>Pointly — Summon</title>
+<link rel="stylesheet" href="shared.css">
+<style>
+/* Duration: 4.0s */
+body { background: #f4f5f8; }
+
+.layout { position:absolute; inset:0; display:flex; }
+
+.main {
+  flex: 1; display: flex; flex-direction: column;
+  background: #f4f5f8;
+}
+.topbar {
+  height: 60px; flex-shrink: 0;
+  background: #fff; border-bottom: 1px solid #e8e9ec;
+  display: flex; align-items: center; padding: 0 40px; gap: 14px;
+}
+.topbar-title { font-size: 18px; font-weight: 700; color: #1a1c24; flex: 1; }
+.topbar-badge {
+  padding: 6px 14px; border-radius: 20px;
+  font-size: 13px; font-weight: 600; background: #f0faf4; color: #22a06b;
+}
+.content { flex:1; padding: 30px 40px 30px; display: flex; flex-direction: column; gap: 20px; overflow: hidden; }
+
+/* overlay tint — fades in when Pointly activates */
+.overlay-tint {
+  position: absolute; inset: 0; z-index: 10;
+  background: rgba(7,7,15,0.07);
+  opacity: 0;
+  animation: fade-in 0.7s ease-out 1.8s forwards;
+}
+
+/* hotkey HUD */
+.hud {
+  position: absolute; left: 50%; top: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 100;
+  display: flex; align-items: center; gap: 8px;
+  padding: 18px 28px; border-radius: 16px;
+  background: rgba(12,12,26,0.94);
+  border: 1px solid rgba(255,255,255,0.16);
+  backdrop-filter: blur(24px);
+  box-shadow: 0 30px 80px rgba(0,0,0,0.55);
+  opacity: 0;
+  animation: hud-in 0.35s cubic-bezier(0.34,1.56,0.64,1) 0.5s forwards,
+             hud-out 0.3s ease-in 1.5s forwards;
+}
+.hud-key {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 38px; height: 38px; padding: 0 10px;
+  border-radius: 9px;
+  background: rgba(255,255,255,0.12);
+  border: 1px solid rgba(255,255,255,0.2);
+  font-size: 18px; color: #fff; font-weight: 500;
+}
+.hud-label {
+  font-size: 14px; color: rgba(255,255,255,0.65); font-weight: 500;
+  margin-left: 10px;
+}
+@keyframes hud-in {
+  from { opacity:0; transform:translate(-50%,calc(-50% + 14px)) scale(0.93); }
+  to   { opacity:1; transform:translate(-50%,-50%) scale(1); }
+}
+@keyframes hud-out {
+  to { opacity:0; transform:translate(-50%,calc(-50% - 8px)) scale(0.96); }
+}
+
+/* toolbar: hidden then slides in */
+.toolbar {
+  opacity: 0;
+  animation: slide-in-right 0.55s cubic-bezier(0.34,1.56,0.64,1) 2.0s forwards;
+}
+
+/* cursor: hidden then appears */
+.cursor {
+  opacity: 0;
+  animation: fade-in 0.4s ease-out 2.7s forwards,
+             cursor-pulse 1.5s ease-in-out 3.1s infinite;
+}
+</style>
+</head>
+<body>
+<div class="layout">
+  <div class="sidebar">
+    <div class="sidebar-logo">Metrics</div>
+    <div class="nav-item active">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M3 13h2v-2H3v2zm0 4h2v-2H3v2zm0-8h2V7H3v2zm4 4h14v-2H7v2zm0 4h14v-2H7v2zM7 7v2h14V7H7z"/></svg>
+      Overview
+    </div>
+    <div class="nav-item">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M16 6l2.29 2.29-4.88 4.88-4-4L2 16.59 3.41 18l6-6 4 4 6.3-6.29L22 12V6z"/></svg>
+      Revenue
+    </div>
+    <div class="nav-item">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5z"/></svg>
+      Users
+    </div>
+    <div class="nav-item">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/></svg>
+      Reports
+    </div>
+  </div>
+
+  <div class="main">
+    <div class="topbar">
+      <span class="topbar-title">Q3 Growth Dashboard</span>
+      <span class="topbar-badge">▲ 34% vs Q2</span>
+    </div>
+    <div class="content">
+      <div class="metrics-row">
+        <div class="metric-card">
+          <div class="metric-label">Monthly Revenue</div>
+          <div class="metric-value">$248,910</div>
+          <div class="metric-delta">▲ 28% vs last month</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-label">Active Users</div>
+          <div class="metric-value">18,402</div>
+          <div class="metric-delta">▲ 12% vs last month</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-label">Conversion</div>
+          <div class="metric-value">6.8%</div>
+          <div class="metric-delta">▲ 1.2pp vs last month</div>
+        </div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-title">Monthly Recurring Revenue</div>
+        <div class="chart-area" id="chart">
+          <div class="bar-group"><div class="bar dim"  style="height:38%"></div></div>
+          <div class="bar-group"><div class="bar dim"  style="height:46%"></div></div>
+          <div class="bar-group"><div class="bar dim"  style="height:42%"></div></div>
+          <div class="bar-group"><div class="bar dim"  style="height:58%"></div></div>
+          <div class="bar-group"><div class="bar dim"  style="height:65%"></div></div>
+          <div class="bar-group"><div class="bar peak" style="height:100%"></div></div>
+        </div>
+        <div class="bar-axis">
+          <span>May</span><span>Jun</span><span>Jul</span>
+          <span>Aug</span><span>Sep</span><span class="peak">Oct</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Overlay tint (Pointly activates) -->
+<div class="overlay-tint"></div>
+
+<!-- Hotkey HUD -->
+<div class="hud">
+  <span class="hud-key">⌘</span>
+  <span class="hud-key">⇧</span>
+  <span class="hud-key">P</span>
+  <span class="hud-label">Activate Pointly</span>
+</div>
+
+<!-- Pointly Toolbar -->
+<div class="toolbar">
+  <div class="tb-handle"><i></i><i></i><i></i></div>
+  <div class="tb-mode">
+    <svg viewBox="0 0 24 24" width="13" fill="#fff"><path d="M3 17.25V21h3.75L17.8 9.94l-3.75-3.75L3 17.25zM20.7 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>
+    Draw
+  </div>
+  <div class="tb-lbl">Tools</div>
+  <div class="tb-grid">
+    <div class="tb-btn on"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 17.25V21h3.75L17.8 9.94l-3.75-3.75L3 17.25zM20.7 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg></div>
+    <div class="tb-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 18h10M6 13l6-6 5 5-6 6H6v-5z"/></svg></div>
+    <div class="tb-btn"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M5 16l7-13 3 1.6L9 17l-4-1z"/><rect x="4" y="18" width="7" height="3" rx="1"/></svg></div>
+    <div class="tb-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 20h16M6 16l9-9 3 3-9 9H6v-3z"/></svg></div>
+    <div class="tb-btn lock"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="3" fill="currentColor" stroke="none"/></svg></div>
+    <div class="tb-btn lock"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><line x1="12" y1="2" x2="12" y2="5"/><line x1="12" y1="19" x2="12" y2="22"/><line x1="2" y1="12" x2="5" y2="12"/><line x1="19" y1="12" x2="22" y2="12"/></svg></div>
+  </div>
+  <div class="tb-div"></div>
+  <div class="tb-swatches">
+    <div class="sw on" style="background:#F4644D"></div>
+    <div class="sw" style="background:#FF8C42"></div>
+    <div class="sw" style="background:#FFD166"></div>
+    <div class="sw" style="background:#34D399"></div>
+    <div class="sw" style="background:#4FACFE"></div>
+    <div class="sw" style="background:#A78BFA"></div>
+    <div class="sw" style="background:#E9458C"></div>
+    <div class="sw" style="background:#fff"></div>
+  </div>
+</div>
+
+<!-- Brand cursor (starts hidden, appears at 2.7s) -->
+<div class="cursor" id="cursor" style="left:960px;top:540px;"></div>
+
+<script>
+// Cursor gently drifts to center after appearing
+const cursor = document.getElementById('cursor');
+let cx = 960, cy = 540;
+const target = { x: 820, y: 480 };
+let started = false;
+
+setTimeout(() => {
+  started = true;
+  function move() {
+    cx += (target.x - cx) * 0.04;
+    cy += (target.y - cy) * 0.04;
+    cursor.style.left = cx + 'px';
+    cursor.style.top  = cy + 'px';
+    requestAnimationFrame(move);
+  }
+  requestAnimationFrame(move);
+}, 2700);
+</script>
+</body>
+</html>

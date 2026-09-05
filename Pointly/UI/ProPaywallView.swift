@@ -306,13 +306,15 @@ struct ProPaywallView: View {
 
                             Button("Redeem Code") {
                                 Task {
-                                    if let vc = NSApplication.shared.keyWindow?.contentViewController {
-                                        if #available(macOS 15.0, *) {
-                                            try? await AppStore.presentOfferCodeRedeemSheet(from: vc)
-                                        } else {
-                                            NSWorkspace.shared.open(URL(string: "https://apps.apple.com/redeem")!)
-                                        }
+                                    if #available(macOS 15.0, *),
+                                       let vc = NSApplication.shared.keyWindow?.contentViewController {
+                                        try? await AppStore.presentOfferCodeRedeemSheet(from: vc)
+                                    } else {
+                                        NSWorkspace.shared.open(URL(string: "https://apps.apple.com/redeem")!)
                                     }
+                                    // Sheet closed — re-check entitlements whether the code was
+                                    // just redeemed now or was already redeemed in the App Store app.
+                                    await proManager.refreshEntitlements()
                                 }
                             }
                             .font(.system(size: 10))
@@ -623,57 +625,32 @@ private struct BlurBrushPreview: View {
 }
 
 // MARK: - Laser Pointer Preview
-// The laser draws a glowing stroke along your cursor path, then it fades away automatically.
-// Shows: cursor moves → neon glowing stroke appears → stroke fades out.
+// Matches the actual feature: bright dot + multi-layer glow trail that fades
+// tail→head via gradient mask, evaporates naturally when cursor stops.
 
 private struct LaserPointerPreview: View {
-    @State private var drawProgress: CGFloat = 0
-    @State private var globalOpacity: Double = 1.0
-    @State private var cursorPos = CGPoint(x: 30, y: 95)
+    @State private var cursorPos    = CGPoint(x: 45, y: 108)
+    @State private var trailPts: [CGPoint] = []
+    @State private var trailOpacity: Double = 0
+    @State private var dotOpacity:   Double = 0
 
-    private let laserPath: Path = {
-        var p = Path()
-        p.move(to: CGPoint(x: 30, y: 120))
-        p.addCurve(
-            to:       CGPoint(x: 195, y: 70),
-            control1: CGPoint(x: 90,  y: 60),
-            control2: CGPoint(x: 150, y: 55)
-        )
-        p.addCurve(
-            to:       CGPoint(x: 360, y: 115),
-            control1: CGPoint(x: 245, y: 85),
-            control2: CGPoint(x: 310, y: 145)
-        )
-        return p
-    }()
+    private let waypoints: [CGPoint] = [
+        CGPoint(x: 45,  y: 108),
+        CGPoint(x: 100, y: 62),
+        CGPoint(x: 168, y: 48),
+        CGPoint(x: 208, y: 68),
+        CGPoint(x: 260, y: 100),
+        CGPoint(x: 318, y: 128),
+        CGPoint(x: 358, y: 100),
+    ]
 
-    // Sample cursor position along the path at given progress t ∈ [0,1]
-    private func point(at t: CGFloat) -> CGPoint {
-        // Approximate via parametric Bezier eval
-        let p0 = CGPoint(x: 30,  y: 120)
-        let p1 = CGPoint(x: 90,  y: 60)
-        let p2 = CGPoint(x: 150, y: 55)
-        let p3 = CGPoint(x: 195, y: 70)
-        let p4 = CGPoint(x: 245, y: 85)
-        let p5 = CGPoint(x: 310, y: 145)
-        let p6 = CGPoint(x: 360, y: 115)
-
-        if t <= 0.5 {
-            let u = t * 2
-            return cubicBezier(p0, p1, p2, p3, t: u)
-        } else {
-            let u = (t - 0.5) * 2
-            return cubicBezier(p3, p4, p5, p6, t: u)
-        }
-    }
-
-    private func cubicBezier(_ a: CGPoint, _ b: CGPoint, _ c: CGPoint, _ d: CGPoint, t: CGFloat) -> CGPoint {
-        let mt = 1 - t
-        return CGPoint(
-            x: mt*mt*mt*a.x + 3*mt*mt*t*b.x + 3*mt*t*t*c.x + t*t*t*d.x,
-            y: mt*mt*mt*a.y + 3*mt*mt*t*b.y + 3*mt*t*t*c.y + t*t*t*d.y
-        )
-    }
+    // Gradient mask so the trail fades from nothing at the tail to full at the dot
+    private let fadeMask = LinearGradient(
+        stops: [.init(color: .clear, location: 0),
+                .init(color: .white, location: 0.55),
+                .init(color: .white, location: 1)],
+        startPoint: .leading, endPoint: .trailing
+    )
 
     var body: some View {
         ZStack {
@@ -688,71 +665,80 @@ private struct LaserPointerPreview: View {
             }
             .offset(x: -60, y: -15)
 
-            // Wide outer glow
-            laserPath
-                .trim(from: 0, to: drawProgress)
-                .stroke(
-                    (Color(hex: "#F4644D") ?? .orange).opacity(0.35),
-                    style: StrokeStyle(lineWidth: 22, lineCap: .round, lineJoin: .round)
-                )
-                .blur(radius: 10)
-                .opacity(globalOpacity)
+            if trailPts.count > 1 {
+                // Layer 1: wide soft orange bloom
+                Path { p in p.move(to: trailPts[0]); trailPts.dropFirst().forEach { p.addLine(to: $0) } }
+                    .stroke((Color(hex: "#F4644D") ?? .orange),
+                            style: StrokeStyle(lineWidth: 32, lineCap: .round, lineJoin: .round))
+                    .blur(radius: 12)
+                    .opacity(trailOpacity * 0.50)
+                    .mask(fadeMask)
 
-            // Mid glow
-            laserPath
-                .trim(from: 0, to: drawProgress)
-                .stroke(
-                    (Color(hex: "#FF8C42") ?? .orange).opacity(0.65),
-                    style: StrokeStyle(lineWidth: 8, lineCap: .round, lineJoin: .round)
-                )
-                .blur(radius: 3)
-                .opacity(globalOpacity)
+                // Layer 2: medium orange glow
+                Path { p in p.move(to: trailPts[0]); trailPts.dropFirst().forEach { p.addLine(to: $0) } }
+                    .stroke((Color(hex: "#FF8C42") ?? .orange),
+                            style: StrokeStyle(lineWidth: 14, lineCap: .round, lineJoin: .round))
+                    .blur(radius: 5)
+                    .opacity(trailOpacity * 0.80)
+                    .mask(fadeMask)
 
-            // Bright core
-            laserPath
-                .trim(from: 0, to: drawProgress)
-                .stroke(
-                    Color.white.opacity(0.95),
-                    style: StrokeStyle(lineWidth: 2.5, lineCap: .round, lineJoin: .round)
-                )
-                .opacity(globalOpacity)
+                // Layer 3: thin vivid white streak
+                Path { p in p.move(to: trailPts[0]); trailPts.dropFirst().forEach { p.addLine(to: $0) } }
+                    .stroke(Color.white,
+                            style: StrokeStyle(lineWidth: 2.2, lineCap: .round, lineJoin: .round))
+                    .opacity(trailOpacity * 0.95)
+                    .mask(fadeMask)
+            }
 
-            // Cursor dot at stroke tip
+            // Laser dot — big bloom matching the real implementation
             ZStack {
                 Circle()
-                    .fill((Color(hex: "#F4644D") ?? .orange).opacity(0.4))
-                    .frame(width: 18, height: 18)
-                    .blur(radius: 5)
+                    .fill((Color(hex: "#F4644D") ?? .orange).opacity(0.35))
+                    .frame(width: 44, height: 44)
+                    .blur(radius: 10)
+                Circle()
+                    .fill((Color(hex: "#FF8C42") ?? .orange).opacity(0.55))
+                    .frame(width: 22, height: 22)
+                    .blur(radius: 4)
                 Circle()
                     .fill(Color.white)
-                    .frame(width: 6, height: 6)
+                    .frame(width: 9, height: 9)
             }
             .position(cursorPos)
-            .opacity(drawProgress < 1 ? 1 : 0)
-            .animation(.easeOut(duration: 0.2), value: drawProgress)
+            .opacity(dotOpacity)
         }
         .task {
             while !Task.isCancelled {
-                drawProgress  = 0
-                globalOpacity = 1.0
-                cursorPos     = point(at: 0)
+                trailPts     = []
+                trailOpacity = 0
+                dotOpacity   = 0
+                cursorPos    = waypoints[0]
                 try? await Task.sleep(nanoseconds: 300_000_000)
+                withAnimation(.easeIn(duration: 0.12)) { dotOpacity = 1 }
 
-                // Draw the stroke, moving cursor along path
-                let steps = 40
-                for i in 1...steps {
-                    let t = CGFloat(i) / CGFloat(steps)
-                    withAnimation(.linear(duration: 0.04)) {
-                        drawProgress = t
-                        cursorPos    = point(at: t)
+                for i in 0..<(waypoints.count - 1) {
+                    let from = waypoints[i], to = waypoints[i + 1]
+                    for s in 1...22 {
+                        let t  = CGFloat(s) / 22
+                        let pt = CGPoint(x: from.x + (to.x - from.x) * t,
+                                         y: from.y + (to.y - from.y) * t)
+                        cursorPos = pt
+                        trailPts.append(pt)
+                        if trailPts.count == 1 {
+                            withAnimation(.easeIn(duration: 0.1)) { trailOpacity = 1 }
+                        }
+                        if trailPts.count > 22 { trailPts.removeFirst() }
+                        try? await Task.sleep(nanoseconds: 26_000_000)
                     }
-                    try? await Task.sleep(nanoseconds: 40_000_000)
                 }
 
-                // Hold briefly, then fade — matches the real 3-second auto-fade
-                try? await Task.sleep(nanoseconds: 800_000_000)
-                withAnimation(.easeIn(duration: 1.0)) { globalOpacity = 0 }
-                try? await Task.sleep(nanoseconds: 1_100_000_000)
+                // Cursor stops — trail evaporates (~0.28s, matching real implementation)
+                withAnimation(.easeOut(duration: 0.28)) { trailOpacity = 0 }
+                try? await Task.sleep(nanoseconds: 380_000_000)
+                withAnimation(.easeOut(duration: 0.15)) { dotOpacity = 0 }
+                try? await Task.sleep(nanoseconds: 350_000_000)
+                trailPts = []
+                try? await Task.sleep(nanoseconds: 200_000_000)
             }
         }
     }

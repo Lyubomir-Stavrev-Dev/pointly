@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="utf-8"><title>Pointly — Spotlight</title>
+<link rel="stylesheet" href="shared.css">
+<style>
+/* Duration: 5.0s */
+body { background: #0e0e18; }
+.layout { position:absolute; inset:0; display:flex; flex-direction:column; background:#0e0e18; }
+
+/* Keynote-style dark slide fill */
+.slide {
+  flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center;
+  padding: 60px 80px;
+  background: #0e0e18;
+  position: relative;
+}
+.slide-title {
+  font-size: 52px; font-weight: 800; color: #fff; letter-spacing: -1.5px;
+  text-align: center; margin-bottom: 16px;
+}
+.slide-sub {
+  font-size: 22px; color: rgba(255,255,255,0.5); text-align: center; margin-bottom: 64px;
+  font-weight: 400;
+}
+
+/* 3 feature cards */
+.cards {
+  display: flex; gap: 28px; width: 100%; max-width: 1300px;
+}
+.card {
+  flex: 1; background: #1a1a28; border-radius: 20px; padding: 34px 30px;
+  border: 1px solid rgba(255,255,255,0.07);
+}
+.card-icon {
+  width: 52px; height: 52px; border-radius: 14px; margin-bottom: 22px;
+}
+.card-title { font-size: 22px; font-weight: 700; color: #e8e8f0; margin-bottom: 10px; }
+.card-desc  { font-size: 15px; line-height: 1.7; color: rgba(255,255,255,0.5); }
+.card.featured {
+  background: #1f1f30;
+  border-color: rgba(255,255,255,0.13);
+  box-shadow: 0 0 0 1px rgba(255,140,66,0.18);
+}
+
+/* Spotlight scrim — radial gradient that leaves a hole */
+.spotlight-scrim {
+  position: absolute; inset: 0; z-index: 20; pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.8s ease-out;
+}
+
+/* Cursor (laser-dot style when spotlight is active) */
+.cursor {
+  width: 16px; height: 16px;
+  background: rgba(255,255,255,0.9);
+  box-shadow: 0 0 0 3px rgba(255,255,255,0.2), 0 0 16px rgba(255,255,255,0.6);
+  animation: cursor-pulse-white 1.5s ease-in-out 0.3s infinite;
+}
+@keyframes cursor-pulse-white {
+  0%,100% { box-shadow: 0 0 0 3px rgba(255,255,255,0.2), 0 0 16px rgba(255,255,255,0.6); }
+  50%      { box-shadow: 0 0 0 6px rgba(255,255,255,0.1), 0 0 28px rgba(255,255,255,0.4); }
+}
+</style>
+</head>
+<body>
+
+<div class="layout">
+  <div class="slide" id="slide">
+    <div class="slide-title">Built for presenters</div>
+    <div class="slide-sub">Every tool you need to command attention on screen</div>
+
+    <div class="cards">
+      <div class="card" id="card-draw">
+        <div class="card-icon" style="background:linear-gradient(135deg,#4FACFE,#00d2d3)"></div>
+        <div class="card-title">Annotate</div>
+        <div class="card-desc">Draw, highlight, and mark up directly on top of any app in real time.</div>
+      </div>
+      <div class="card featured" id="card-spotlight">
+        <div class="card-icon" style="background:linear-gradient(135deg,#F4644D,#FF8C42)"></div>
+        <div class="card-title">Spotlight</div>
+        <div class="card-desc">Dim everything but the region that matters. Keep every eye exactly where you want it.</div>
+      </div>
+      <div class="card" id="card-present">
+        <div class="card-icon" style="background:linear-gradient(135deg,#A78BFA,#E9458C)"></div>
+        <div class="card-title">Present</div>
+        <div class="card-desc">Laser pointer, blur, and cut &amp; move — the full presenter toolkit.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Spotlight scrim (dark overlay with hole) -->
+<div class="spotlight-scrim" id="scrim"></div>
+
+<!-- Toolbar — spotlight tool active -->
+<div class="toolbar">
+  <div class="tb-handle"><i></i><i></i><i></i></div>
+  <div class="tb-mode">
+    <svg viewBox="0 0 24 24" width="13" fill="#fff"><path d="M3 17.25V21h3.75L17.8 9.94l-3.75-3.75L3 17.25zM20.7 7.94a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>
+    Draw
+  </div>
+  <div class="tb-lbl">Tools</div>
+  <div class="tb-grid">
+    <div class="tb-btn"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 17.25V21h3.75L17.8 9.94l-3.75-3.75L3 17.25zM20.7 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg></div>
+    <div class="tb-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 18h10M6 13l6-6 5 5-6 6H6v-5z"/></svg></div>
+    <div class="tb-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="3" fill="currentColor" stroke="none"/></svg></div>
+    <div class="tb-btn on lock"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><circle cx="12" cy="12" r="5"/><line x1="12" y1="2" x2="12" y2="5"/><line x1="12" y1="19" x2="12" y2="22"/><line x1="2" y1="12" x2="5" y2="12"/><line x1="19" y1="12" x2="22" y2="12"/></svg></div>
+    <div class="tb-btn lock"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><line x1="12" y1="2" x2="12" y2="5"/></svg></div>
+    <div class="tb-btn lock"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 9l6 6M15 9l-6 6"/></svg></div>
+  </div>
+  <div class="tb-div"></div>
+  <div class="tb-swatches">
+    <div class="sw on" style="background:#F4644D"></div>
+    <div class="sw" style="background:#FF8C42"></div>
+    <div class="sw" style="background:#FFD166"></div>
+    <div class="sw" style="background:#34D399"></div>
+    <div class="sw" style="background:#4FACFE"></div>
+    <div class="sw" style="background:#A78BFA"></div>
+    <div class="sw" style="background:#E9458C"></div>
+    <div class="sw" style="background:#fff"></div>
+  </div>
+</div>
+
+<div class="cursor" id="cursor"></div>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  const scrim   = document.getElementById('scrim');
+  const cursor  = document.getElementById('cursor');
+  const feature = document.getElementById('card-spotlight');
+  const fr      = feature.getBoundingClientRect();
+
+  // Spotlight center = center of the featured card
+  const cx = fr.left + fr.width  / 2;
+  const cy = fr.top  + fr.height / 2;
+  // Spotlight radius = half the card diagonal + padding
+  const radius = Math.sqrt(fr.width * fr.width + fr.height * fr.height) / 2 + 40;
+
+  // Build the radial-gradient scrim
+  scrim.style.background = `
+    radial-gradient(circle ${radius}px at ${cx}px ${cy}px,
+      transparent 0%,
+      transparent ${radius - 30}px,
+      rgba(7,7,15,0.88) ${radius + 40}px
+    )
+  `;
+
+  // Cursor starts at slide center then drifts to spotlight card
+  cursor.style.left = '960px';
+  cursor.style.top  = '540px';
+  cursor.style.opacity = '1';
+
+  function easeIO(t) { return t < 0.5 ? 2*t*t : -1+(4-2*t)*t; }
+
+  // 0.3s: cursor moves to featured card center
+  setTimeout(() => {
+    const startX = 960, startY = 540;
+    const t0 = performance.now();
+    const dur = 1000;
+    function frame(now) {
+      const t = Math.min((now - t0) / dur, 1);
+      cursor.style.left = (startX + (cx - startX) * easeIO(t)) + 'px';
+      cursor.style.top  = (startY + (cy - startY) * easeIO(t)) + 'px';
+      if (t < 1) requestAnimationFrame(frame);
+      else {
+        // Spotlight activates
+        setTimeout(() => {
+          scrim.style.opacity = '1';
+          // Spotlight glow ring
+          feature.style.boxShadow = '0 0 0 3px rgba(255,140,66,0.5), 0 0 80px rgba(255,140,66,0.2)';
+          feature.style.transition = 'box-shadow 0.5s ease';
+        }, 300);
+      }
+    }
+    requestAnimationFrame(frame);
+  }, 300);
+
+  // 3s: spotlight shifts slightly (breathes)
+  setTimeout(() => {
+    const dx = 0, dy = 0;
+    const newCx = cx + dx, newCy = cy + dy;
+    scrim.style.background = `
+      radial-gradient(circle ${radius}px at ${newCx}px ${newCy}px,
+        transparent 0%, transparent ${radius - 30}px, rgba(7,7,15,0.88) ${radius + 40}px
+      )
+    `;
+    scrim.style.transition = 'none';
+  }, 3000);
+});
+</script>
+</body>
+</html>

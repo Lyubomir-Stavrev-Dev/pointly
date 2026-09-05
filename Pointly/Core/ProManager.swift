@@ -253,7 +253,7 @@ final class ProManager: ObservableObject {
 
     // MARK: - Entitlement Check
 
-    private func refreshEntitlements() async {
+    func refreshEntitlements() async {
         let proIDs = Self.allProProductIDs
         var entitled = false
         for await result in Transaction.currentEntitlements {

@@ -9,7 +9,7 @@ class OverlayWindowManager: ObservableObject {
     private var toolbarPanel: NSPanel?
     private var paywallPanel: NSPanel?
     private var spinWheelPanel: NSPanel?
-    private var liftedCaptures: [(panel: NSPanel, coverID: UUID)] = []
+    private var liftedCaptures: [(panel: NSPanel, coverID: UUID, state: LiftedCaptureState)] = []
     private var isOverlayActive = false
     private var colorPanelObserver: NSKeyValueObservation?
     private var keyMonitor: Any?
@@ -57,6 +57,12 @@ class OverlayWindowManager: ObservableObject {
         NotificationCenter.default.addObserver(
             self, selector: #selector(restoreCanvasLevel),
             name: .restoreCanvasLevel, object: nil)
+        NotificationCenter.default.addObserver(
+            self, selector: #selector(pauseToolHotkeysForRecorder),
+            name: .pauseToolHotkeys, object: nil)
+        NotificationCenter.default.addObserver(
+            self, selector: #selector(resumeToolHotkeysAfterRecorder),
+            name: .resumeToolHotkeys, object: nil)
 
         sharedDrawingState.onWillUndo     = { [weak self] in self?.dismissAllLiftedCaptures() }
         sharedDrawingState.onWillRedo     = { [weak self] in self?.dismissAllLiftedCaptures() }
@@ -127,6 +133,11 @@ class OverlayWindowManager: ObservableObject {
             }
 
             switch event.keyCode {
+            case 36, 76: // ↩ Return / numpad Enter — deactivate (hide border), keep panel
+                if let last = self.liftedCaptures.last, last.state.isActive {
+                    DispatchQueue.main.async { last.state.isActive = false }
+                    return nil
+                }
             case 51, 117: // ⌫ / ⌦
                 if event.modifierFlags.contains(.command) {
                     DispatchQueue.main.async { ds.clearAll() }
@@ -190,6 +201,10 @@ class OverlayWindowManager: ObservableObject {
             }
 
             switch event.keyCode {
+            case 36, 76: // ↩ Return / numpad Enter — deactivate (hide border), keep panel
+                if let last = self.liftedCaptures.last, last.state.isActive {
+                    DispatchQueue.main.async { last.state.isActive = false }
+                }
             case 51, 117:
                 if event.modifierFlags.contains(.command) {
                     DispatchQueue.main.async { ds.clearAll() }
@@ -264,7 +279,7 @@ class OverlayWindowManager: ObservableObject {
         panel.hasShadow          = true
         panel.ignoresMouseEvents = false
         panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
-        panel.isMovable          = true   // lets performDrag work
+        panel.isMovable = true   // lets performDrag work
         panel.hidesOnDeactivate  = false  // stay visible when another app gets focus
         let hostingView = FirstMouseHostingView(rootView:
             ToolbarPanelView(
@@ -285,6 +300,8 @@ class OverlayWindowManager: ObservableObject {
 
     // Resize the panel to exactly wrap the toolbar content (no empty transparent area).
     // Guard against no-op resizes — unnecessary setFrame calls steal focus mid-click.
+    // For large height jumps (accordion open/close) use Core Animation so the window
+    // composites as a layer snapshot — no per-button redraw flicker.
     private func fitPanel(_ panel: NSPanel?, to size: CGSize) {
         guard let panel else { return }
         let newH = ceil(size.height)
@@ -294,7 +311,8 @@ class OverlayWindowManager: ObservableObject {
             var frame = panel.frame
             frame.origin.y += frame.height - newH
             frame.size = CGSize(width: newW, height: newH)
-            panel.setFrame(self.clampedToScreen(frame), display: true)
+            let clamped = self.clampedToScreen(frame)
+            panel.setFrame(clamped, display: true)
         }
     }
 
@@ -371,8 +389,8 @@ class OverlayWindowManager: ObservableObject {
     // tap "Draw" (or any tool) to switch back without needing a keyboard shortcut.
 
     @objc private func applyModeToWindows() {
-        let isInteract = sharedInteractionMode.currentMode == .interact
-        let isCursor   = sharedDrawingState.selectedTool == .cursor
+        let isInteract  = sharedInteractionMode.currentMode == .interact
+        let isCursor    = sharedDrawingState.selectedTool == .cursor
         let passThrough = isInteract || isCursor
         for win in canvasWindows.values {
             win.ignoresMouseEvents = passThrough
@@ -380,10 +398,26 @@ class OverlayWindowManager: ObservableObject {
         }
         if let mainID = mainDisplayID { canvasWindows[mainID]?.makeKey() }
 
+        // Canvas level changes can push lifted capture panels behind the canvas
+        // in AppKit's z-ordering — always re-front them after any level transition.
+        for capture in liftedCaptures {
+            capture.panel.orderFrontRegardless()
+        }
+
         if isInteract { installGlobalKeyMonitor() } else { removeGlobalKeyMonitor() }
 
         // Editing hotkeys (⌘Z/⌘W/…) are owned only in capture modes — re-evaluate
         // which set to hold whenever mode or pass-through tool changes.
+        registerToolHotkeys()
+    }
+
+    // MARK: - Shortcut recorder hotkey pause/resume
+
+    @objc private func pauseToolHotkeysForRecorder() {
+        toolHotkeyManager.unregisterAll()
+    }
+
+    @objc private func resumeToolHotkeysAfterRecorder() {
         registerToolHotkeys()
     }
 
@@ -552,6 +586,7 @@ class OverlayWindowManager: ObservableObject {
         // applyModeToWindows) guards on it.
         isOverlayActive.toggle()
         if isOverlayActive { showAll() } else { hideAll() }
+        NotificationCenter.default.post(name: .updateMenuBarIcon, object: nil)
     }
 
     private func showAll() {
@@ -703,12 +738,40 @@ class OverlayWindowManager: ObservableObject {
         sharedDrawingState.deleteElements(in: viewRect)
         sharedInteractionMode.switchTo(mode: .interact)
 
-        let fillColor = Color(sampleEdgeColor(of: cgImage))
+        let fgImage = NSImage(cgImage: cgImage, size: screenRect.size)
+
+        // Sample background color from the ring SURROUNDING the selection,
+        // not from the selection itself. Surrounding pixels are definitively
+        // background (slide color, desktop, etc.) rather than content.
+        let expand: CGFloat = 40
+        let expandedCGRect = CGRect(
+            x: cgRect.minX - expand, y: cgRect.minY - expand,
+            width: cgRect.width + expand * 2, height: cgRect.height + expand * 2
+        )
+        let samplerRect = expandedCGRect.intersection(display.frame)
+        let samplerCfg = SCStreamConfiguration()
+        samplerCfg.sourceRect = CGRect(
+            x: samplerRect.minX - display.frame.minX,
+            y: samplerRect.minY - display.frame.minY,
+            width: samplerRect.width, height: samplerRect.height)
+        samplerCfg.width  = max(1, Int(samplerRect.width  * captureScale))
+        samplerCfg.height = max(1, Int(samplerRect.height * captureScale))
+        samplerCfg.scalesToFit = false
+        samplerCfg.showsCursor = false
+
+        let fillColor: Color
+        if !samplerRect.isEmpty,
+           let bgImage = try? await SCScreenshotManager.captureImage(
+               contentFilter: filter, configuration: samplerCfg) {
+            fillColor = Color(sampleSurroundingColor(of: bgImage,
+                                                      expanded: samplerRect, inner: cgRect))
+        } else {
+            fillColor = Color(sampleEdgeColor(of: cgImage))
+        }
+
         let coverID = sharedDrawingState.addLiftedCover(rect: viewRect, image: nil,
                                                         fillColor: fillColor,
                                                         displayID: sourceDisplayID)
-
-        let fgImage = NSImage(cgImage: cgImage, size: screenRect.size)
         let floatingRect = NSRect(x: screenRect.minX + 14, y: screenRect.minY - 14,
                                   width: screenRect.width, height: screenRect.height)
         showLiftedCapture(image: fgImage, floatingRect: floatingRect, coverID: coverID)
@@ -750,7 +813,45 @@ class OverlayWindowManager: ObservableObject {
         return NSColor(red: r/n/255, green: g/n/255, blue: b/n/255, alpha: 1)
     }
 
+    // Samples pixels from an expanded capture that are OUTSIDE the inner selection
+    // rect — these pixels are definitively background (surrounding context), giving
+    // a much more accurate fill color than sampling the selection edges themselves.
+    private func sampleSurroundingColor(of expandedImage: CGImage,
+                                        expanded: CGRect, inner: CGRect) -> NSColor {
+        let side = 100
+        guard let ctx = CGContext(data: nil, width: side, height: side,
+                                  bitsPerComponent: 8, bytesPerRow: side * 4,
+                                  space: CGColorSpaceCreateDeviceRGB(),
+                                  bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else {
+            return NSColor(white: 0.08, alpha: 1)
+        }
+        ctx.draw(expandedImage, in: CGRect(x: 0, y: 0, width: side, height: side))
+        guard let data = ctx.data else { return NSColor(white: 0.08, alpha: 1) }
+        let ptr = data.assumingMemoryBound(to: UInt8.self)
+
+        // Map the inner (selection) rect into the 100×100 downsampled space
+        let scaleX = CGFloat(side) / expanded.width
+        let scaleY = CGFloat(side) / expanded.height
+        let x0 = max(0, Int(((inner.minX - expanded.minX) * scaleX).rounded()))
+        let y0 = max(0, Int(((inner.minY - expanded.minY) * scaleY).rounded()))
+        let x1 = min(side, Int(((inner.maxX - expanded.minX) * scaleX).rounded()))
+        let y1 = min(side, Int(((inner.maxY - expanded.minY) * scaleY).rounded()))
+
+        var r: Double = 0, g: Double = 0, b: Double = 0, n: Double = 0
+        for y in 0..<side {
+            for x in 0..<side {
+                if x >= x0 && x < x1 && y >= y0 && y < y1 { continue }
+                let off = (y * side + x) * 4
+                r += Double(ptr[off]); g += Double(ptr[off+1]); b += Double(ptr[off+2])
+                n += 1
+            }
+        }
+        guard n > 0 else { return NSColor(white: 0.08, alpha: 1) }
+        return NSColor(red: r/n/255, green: g/n/255, blue: b/n/255, alpha: 1)
+    }
+
     private func showLiftedCapture(image: NSImage, floatingRect: NSRect, coverID: UUID) {
+        let captureState = LiftedCaptureState()
         let floating = NSPanel(
             contentRect: floatingRect,
             styleMask: [.borderless],
@@ -777,10 +878,11 @@ class OverlayWindowManager: ObservableObject {
                     self?.liftedCaptures.removeAll { $0.panel === floating }
                 },
                 onGetFrame: { [weak floating] in floating?.frame ?? .zero },
-                onSetFrame: { [weak floating] newFrame in floating?.setFrame(newFrame, display: true) }
+                onSetFrame: { [weak floating] newFrame in floating?.setFrame(newFrame, display: true) },
+                captureState: captureState
             )
         )
-        liftedCaptures.append((panel: floating, coverID: coverID))
+        liftedCaptures.append((panel: floating, coverID: coverID, state: captureState))
         floating.orderFrontRegardless()
     }
 
@@ -829,10 +931,10 @@ class OverlayWindowManager: ObservableObject {
                 if self?.isOverlayActive == true, let mainID = self?.mainDisplayID {
                     self?.canvasWindows[mainID]?.makeKey()
                 }
-                // Last-chance welcome offer for new users who walked away.
-                // spinOfferAvailable is false after a purchase, so this only
-                // fires on "Maybe Later".
-                self?.maybeShowSpinWheel()
+                // Always show the spin wheel when the user dismisses the paywall
+                // without purchasing — bypasses the one-shot flag so they always
+                // get the 60% offer as a last chance.
+                self?.maybeShowSpinWheel(force: true)
             }, initialPlan: initialPlan)
         )
         panel.contentViewController = paywallVC
@@ -844,8 +946,11 @@ class OverlayWindowManager: ObservableObject {
 
     // MARK: - Spin-wheel welcome offer
 
-    func maybeShowSpinWheel() {
-        guard ProManager.shared.spinOfferAvailable, spinWheelPanel == nil else { return }
+    func maybeShowSpinWheel(force: Bool = false) {
+        // force=true (Maybe Later path): always show for non-pro users, ignoring the one-shot flag.
+        // force=false (organic path): respect spinOfferAvailable (14-day window + one-shot).
+        guard !ProManager.shared.isPro, spinWheelPanel == nil else { return }
+        if !force { guard ProManager.shared.spinOfferAvailable else { return } }
 
         let size = CGSize(width: 400, height: 620)   // must match SpinWheelView's fixed frame
         let panel = NSPanel(
@@ -970,16 +1075,64 @@ class OverlayWindowManager: ObservableObject {
         panel.isReleasedWhenClosed = false
         panel.isMovableByWindowBackground = true
         panel.collectionBehavior   = [.canJoinAllSpaces, .fullScreenAuxiliary]
-        panel.contentView = FirstMouseHostingView(rootView:
+        let hosting = FirstMouseHostingView(rootView:
             TimerPanelView(controller: timerController, onClose: { [weak self, weak panel] in
                 self?.timerController.pause()
                 panel?.orderOut(nil)
                 self?.timerPanel = nil
             })
         )
+
+        // Size to content
+        let contentSize = hosting.fittingSize
+        panel.setContentSize(contentSize)
+        hosting.frame = CGRect(origin: .zero, size: contentSize)
+
+        // Wrap in a container so we can layer the AppKit drag handle on top
+        let container = NSView(frame: CGRect(origin: .zero, size: contentSize))
+        container.addSubview(hosting)
+
+        // Transparent drag handle that sits over the title bar (top ~34pt),
+        // leaving ~34pt on the right clear so the close button still works.
+        let dragHandle = TimerDragHandleView(
+            frame: NSRect(x: 0, y: contentSize.height - 34,
+                          width: contentSize.width - 34, height: 34)
+        )
+        dragHandle.autoresizingMask = [.width, .minYMargin]
+        container.addSubview(dragHandle)
+
+        panel.contentView = container
         timerPanel = panel
         panel.orderFrontRegardless()
     }
+}
+
+// MARK: - TimerDragHandleView
+// Transparent AppKit view layered over the timer title bar.
+// Intercepts mouseDown at the AppKit level (before SwiftUI) and calls
+// performWindowDrag — the only reliable way to drag a borderless panel
+// whose NSHostingView suppresses mouseDownCanMoveWindow.
+
+private final class TimerDragHandleView: NSView {
+    override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
+    override var acceptsFirstResponder: Bool { false }
+    override var mouseDownCanMoveWindow: Bool { false }
+
+    private var startMouse:  NSPoint = .zero
+    private var startOrigin: NSPoint = .zero
+
+    override func mouseDown(with event: NSEvent) {
+        startMouse  = NSEvent.mouseLocation
+        startOrigin = window?.frame.origin ?? .zero
+    }
+
+    override func mouseDragged(with event: NSEvent) {
+        let cur = NSEvent.mouseLocation
+        window?.setFrameOrigin(NSPoint(x: startOrigin.x + cur.x - startMouse.x,
+                                       y: startOrigin.y + cur.y - startMouse.y))
+    }
+
+    override func mouseUp(with event: NSEvent) {}
 }
 
 // MARK: - ToolbarPanel
@@ -1009,13 +1162,9 @@ private final class CanvasWindow: NSWindow {
         ]
         let panel = NSColorPanel.shared
         if panel.isVisible, mouseTypes.contains(event.type) {
-            // Convert the event's window-local point to screen coords, then check
-            // whether it falls inside the color panel.
             let screenPt = convertToScreen(
                 NSRect(origin: event.locationInWindow, size: .zero)).origin
             if panel.frame.contains(screenPt) {
-                // Re-create the event with coordinates in the panel's space and
-                // forward it, suppressing the original so nothing is drawn.
                 let panelPt = panel.convertFromScreen(
                     NSRect(origin: screenPt, size: .zero)).origin
                 if let fwd = NSEvent.mouseEvent(
@@ -1031,7 +1180,7 @@ private final class CanvasWindow: NSWindow {
                 ) {
                     panel.sendEvent(fwd)
                 }
-                return  // do NOT call super — canvas must not draw
+                return
             }
         }
         super.sendEvent(event)
@@ -1046,4 +1195,13 @@ private final class CanvasWindow: NSWindow {
 
 final class FirstMouseHostingView<Content: View>: NSHostingView<Content> {
     override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
+    // Prevent isMovableByWindowBackground from stealing drag events that
+    // SwiftUI gesture recognizers (e.g. the SizeBar slider) need to own.
+    override var mouseDownCanMoveWindow: Bool { false }
+    // Always show the arrow cursor over the toolbar, regardless of which
+    // drawing tool is active (the canvas sets tool cursors globally via
+    // NSCursor.set(), so without this the pen/marker/etc. cursor bleeds in).
+    override func resetCursorRects() {
+        addCursorRect(bounds, cursor: .arrow)
+    }
 }

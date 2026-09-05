@@ -93,6 +93,11 @@ class SettingsStore: ObservableObject {
     @Published var showExportNotification: Bool {
         didSet { UserDefaults.standard.set(showExportNotification, forKey: "showExportNotification") }
     }
+
+    /// Toolbar UI scale: 1.0 = original design size. Clamped 0.8–1.4 where applied.
+    @Published var toolbarScale: Double {
+        didSet { UserDefaults.standard.set(toolbarScale, forKey: "toolbarScale") }
+    }
     
     // MARK: - Computed Properties
     
@@ -146,6 +151,8 @@ class SettingsStore: ObservableObject {
         self.includeTimestampInFilename = UserDefaults.standard.object(forKey: "includeTimestampInFilename") as? Bool ?? true
         self.autoOpenExport = UserDefaults.standard.object(forKey: "autoOpenExport") as? Bool ?? true
         self.showExportNotification = UserDefaults.standard.object(forKey: "showExportNotification") as? Bool ?? true
+        self.toolbarScale = UserDefaults.standard.double(forKey: "toolbarScale") != 0 ?
+            UserDefaults.standard.double(forKey: "toolbarScale") : 1.12
     }
 
     // MARK: - Methods
@@ -171,6 +178,7 @@ class SettingsStore: ObservableObject {
             "includeTimestampInFilename": true,
             "autoOpenExport": true,
             "showExportNotification": true,
+            "toolbarScale": 1.12,
         ]
 
         UserDefaults.standard.register(defaults: defaults)
@@ -194,6 +202,7 @@ class SettingsStore: ObservableObject {
         includeTimestampInFilename = true
         autoOpenExport = true
         showExportNotification = true
+        toolbarScale = 1.12
     }
     
     /// Export settings to a dictionary

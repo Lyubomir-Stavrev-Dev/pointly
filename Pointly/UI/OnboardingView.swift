@@ -40,12 +40,16 @@ private let obSteps: [OBStep] = [
            subtitle: "Annotate anything on your screen in real time — perfect for presentations, code reviews, and live demos."),
     OBStep(title: "Activate with a Hotkey",
            subtitle: "Press ⌘⇧P anywhere to show or hide the drawing overlay. You can change this shortcut in Settings."),
+    OBStep(title: "Your Command Center",
+           subtitle: "Click the pencil icon in your menu bar to access Settings, the Countdown Timer, Whiteboard Canvas and more — anytime."),
     OBStep(title: "Two Modes, One Tap",
            subtitle: "Switch between Draw mode to annotate freely, and Interact mode to click through to apps underneath."),
     OBStep(title: "Every Tool You Need",
-           subtitle: "Pen, Highlighter, Shapes, Text, Laser Pointer and more — all in a sleek floating toolbar right by your side."),
+           subtitle: "Pen, Marker, Shapes, Stamps, Magnifier and more — all in a floating toolbar you can move and resize freely."),
+    OBStep(title: "Shapes & Color on Hover",
+           subtitle: "Hover the shapes chip to reveal 8 shape styles and a full color palette — the panel closes the moment your cursor moves away."),
     OBStep(title: "Unlock Pointly Pro",
-           subtitle: "Blur Brush, Laser Pointer, Spotlight, Dot Pen and Cut & Move — powerful tools built for pros."),
+           subtitle: "Blur Brush, Laser Pointer, Spotlight, Callout, Step Badge and more — powerful tools built for professionals."),
 ]
 
 // MARK: - Main
@@ -58,6 +62,7 @@ struct OnboardingView: View {
     @State private var hoverAnnual   = false
     @State private var hoverLifetime = false
     @State private var hoverFree     = false
+    @ObservedObject private var proManager = ProManager.shared
     let onDismiss: () -> Void
     var onContinueFree: (() -> Void)? = nil
 
@@ -80,9 +85,11 @@ struct OnboardingView: View {
                         switch step {
                         case 0: WelcomeIllustration()
                         case 1: HotkeyIllustration()
-                        case 2: ModesIllustration()
-                        case 3: ToolsIllustration()
-                        case 4: ProIllustration()
+                        case 2: MenuBarIllustration()
+                        case 3: ModesIllustration()
+                        case 4: ToolsIllustration()
+                        case 5: ShapesHoverIllustration()
+                        case 6: ProIllustration()
                         default: EmptyView()
                         }
                     }
@@ -148,7 +155,7 @@ struct OnboardingView: View {
                                 VStack(alignment: .leading, spacing: 2) {
                                     Text("Go Pro")
                                         .font(.system(size: 14, weight: .bold))
-                                    Text("$12.99 / year")
+                                    Text("\(proManager.product(for: .annual)?.displayPrice ?? "$12.99") / year")
                                         .font(.system(size: 11))
                                         .opacity(0.7)
                                 }
@@ -188,7 +195,7 @@ struct OnboardingView: View {
                                 VStack(alignment: .leading, spacing: 2) {
                                     Text("Get Pro+")
                                         .font(.system(size: 14, weight: .bold))
-                                    Text("$39.99 · One-time lifetime")
+                                    Text("\(proManager.product(for: .lifetime)?.displayPrice ?? "$39.99") · One-time")
                                         .font(.system(size: 11))
                                         .opacity(0.65)
                                 }
@@ -286,13 +293,333 @@ struct OnboardingView: View {
                     .padding(.bottom, 36)
                 }
             }
+            // Keyboard navigation — arrow keys step through slides
+            Button("") { withAnimation { if step > 0 { step -= 1 } } }
+                .keyboardShortcut(.leftArrow, modifiers: [])
+                .hidden()
+            Button("") {
+                withAnimation {
+                    if step < obSteps.count - 1 { step += 1 }
+                }
+            }
+            .keyboardShortcut(.rightArrow, modifiers: [])
+            .hidden()
         }
         .frame(width: 520, height: 580)
         .preferredColorScheme(.dark)
     }
 }
 
-// MARK: - Step 4: Pro upsell
+// MARK: - Step 5: Shapes hover illustration
+
+private struct ShapesHoverIllustration: View {
+    @State private var cursorVisible  = false
+    @State private var cursorPos      = CGPoint(x: 50, y: -60)
+    @State private var chipGlow       = false
+    @State private var expandH: CGFloat = 0
+    @State private var contentOpacity: Double = 0
+    @State private var selectedShape  = -1
+    @State private var selectedColor  = -1
+
+    private let shapes     = ["square", "circle", "triangle", "diamond"]
+    private let drawIcons  = ["pencil.tip", "highlighter", "paintbrush.fill",
+                               "eraser", "text.cursor", "scissors"]
+    private let lineIcons  = ["arrow.up.right", "line.diagonal"]
+    private let swatchColors: [Color] = [
+        .white,
+        Color(hex: "#F4644D") ?? .orange,
+        Color(hex: "#E9458C") ?? .pink,
+        Color(hex: "#4FACFE") ?? .blue,
+        Color(hex: "#34D399") ?? .green,
+        Color(hex: "#FFD166") ?? .yellow,
+    ]
+    private let expandedH: CGFloat = 76
+
+    var body: some View {
+        // Toolbar sits at the top of the ZStack; expansion grows downward
+        // into free space — the bottom row clips out naturally (realistic).
+        ZStack {
+            VStack(spacing: 0) {
+                miniToolbar
+                Spacer(minLength: 0)
+            }
+
+            Image(systemName: "cursorarrow")
+                .font(.system(size: 16, weight: .regular))
+                .foregroundColor(.white.opacity(0.92))
+                .shadow(color: .black.opacity(0.65), radius: 3, x: 1, y: 1)
+                .offset(x: cursorPos.x, y: cursorPos.y)
+                .opacity(cursorVisible ? 1 : 0)
+                .animation(.easeInOut(duration: 0.65), value: cursorPos)
+                .animation(.easeInOut(duration: 0.25), value: cursorVisible)
+        }
+        .task { await runLoop() }
+    }
+
+    // MARK: - Mini floating toolbar
+
+    private var miniToolbar: some View {
+        VStack(spacing: 0) {
+            // Drag handle
+            HStack(spacing: 3) {
+                ForEach(0..<3, id: \.self) { _ in
+                    Capsule().fill(Color.white.opacity(0.22))
+                        .frame(width: 18, height: 2.5)
+                }
+            }
+            .frame(height: 16)
+
+            sep
+
+            // DRAW mode pill
+            HStack(spacing: 4) {
+                Circle().fill(obGradient).frame(width: 5, height: 5)
+                Text("DRAW")
+                    .font(.system(size: 6.5, weight: .bold, design: .rounded))
+                    .foregroundColor(.white.opacity(0.9)).tracking(0.6)
+            }
+            .frame(maxWidth: .infinity).frame(height: 16)
+            .background(RoundedRectangle(cornerRadius: 6).fill(obGradient.opacity(0.28)))
+
+            sep
+
+            // Draw tools — 3 × 2 mini grid (static, no hover state)
+            VStack(spacing: 2) {
+                ForEach([[0,1,2],[3,4,5]], id: \.self) { row in
+                    HStack(spacing: 2) {
+                        ForEach(row, id: \.self) { idx in
+                            Image(systemName: drawIcons[idx])
+                                .font(.system(size: 7.5))
+                                .foregroundColor(.white.opacity(0.45))
+                                .frame(width: 15, height: 15)
+                                .background(RoundedRectangle(cornerRadius: 4)
+                                    .fill(Color.white.opacity(0.06)))
+                        }
+                    }
+                }
+            }
+            .padding(.vertical, 3)
+
+            sep
+
+            // Line tools
+            HStack(spacing: 2) {
+                ForEach(lineIcons, id: \.self) { icon in
+                    Image(systemName: icon).font(.system(size: 7.5))
+                        .foregroundColor(.white.opacity(0.45))
+                        .frame(width: 15, height: 15)
+                        .background(RoundedRectangle(cornerRadius: 4).fill(Color.white.opacity(0.06)))
+                }
+            }
+            .padding(.vertical, 3)
+
+            sep
+
+            // ── Shapes & Color chip ──
+            VStack(spacing: 0) {
+                HStack(spacing: 0) {
+                    Image(systemName: selectedShape >= 0 ? shapes[selectedShape] : "square")
+                        .font(.system(size: 10, weight: selectedShape >= 0 ? .semibold : .regular))
+                        .foregroundStyle(
+                            (chipGlow || selectedShape >= 0)
+                                ? AnyShapeStyle(obGradient)
+                                : AnyShapeStyle(Color.white.opacity(0.45))
+                        )
+                        .frame(maxWidth: .infinity, minHeight: 22)
+
+                    Circle()
+                        .fill(selectedColor >= 0 ? swatchColors[selectedColor] : Color.white)
+                        .frame(width: 10, height: 10)
+                        .overlay(Circle().strokeBorder(
+                            LinearGradient(colors: [.white.opacity(0.5), .white.opacity(0.08)],
+                                           startPoint: .topLeading, endPoint: .bottomTrailing),
+                            lineWidth: 0.7
+                        ))
+                        .shadow(color: (selectedColor >= 0 ? swatchColors[selectedColor] : Color.white)
+                                    .opacity(chipGlow ? 0.9 : 0.2), radius: chipGlow ? 5 : 1)
+                        .frame(maxWidth: .infinity, minHeight: 22)
+                }
+                .background(
+                    ZStack {
+                        RoundedRectangle(cornerRadius: 7)
+                            .fill(chipGlow ? Color.white.opacity(0.13) : Color.white.opacity(0.07))
+                        RoundedRectangle(cornerRadius: 7)
+                            .strokeBorder(
+                                LinearGradient(
+                                    colors: [Color.white.opacity(chipGlow ? 0.34 : 0.18),
+                                             Color.white.opacity(0.08)],
+                                    startPoint: .topLeading, endPoint: .bottomTrailing
+                                ), lineWidth: 0.7
+                            )
+                    }
+                )
+                .animation(.easeOut(duration: 0.15), value: chipGlow)
+
+                // Expanding panel below chip
+                VStack(spacing: 0) {
+                    Rectangle().fill(Color.white.opacity(0.08)).frame(height: 0.5).padding(.vertical, 2)
+
+                    VStack(spacing: 2) {
+                        HStack(spacing: 3) {
+                            ForEach(shapes.indices, id: \.self) { i in
+                                Image(systemName: shapes[i])
+                                    .font(.system(size: 7, weight: selectedShape == i ? .semibold : .regular))
+                                    .foregroundStyle(
+                                        selectedShape == i
+                                            ? AnyShapeStyle(obGradient)
+                                            : AnyShapeStyle(Color.white.opacity(0.5))
+                                    )
+                                    .frame(width: 17, height: 14)
+                                    .background(RoundedRectangle(cornerRadius: 4)
+                                        .fill(selectedShape == i
+                                              ? AnyShapeStyle(obGradient.opacity(0.22))
+                                              : AnyShapeStyle(Color.white.opacity(0.06))))
+                                    .scaleEffect(selectedShape == i ? 1.12 : 1.0)
+                                    .animation(.spring(response: 0.22, dampingFraction: 0.7), value: selectedShape == i)
+                            }
+                        }
+                        HStack(spacing: 3) {
+                            ForEach(shapes.indices, id: \.self) { i in
+                                Image(systemName: shapes[i] + ".fill")
+                                    .font(.system(size: 7))
+                                    .foregroundColor(.white.opacity(0.35))
+                                    .frame(width: 17, height: 14)
+                                    .background(RoundedRectangle(cornerRadius: 4)
+                                        .fill(Color.white.opacity(0.05)))
+                            }
+                        }
+                    }
+                    .padding(.vertical, 2)
+
+                    Rectangle().fill(Color.white.opacity(0.08)).frame(height: 0.5).padding(.vertical, 2)
+
+                    HStack(spacing: 4) {
+                        ForEach(swatchColors.indices, id: \.self) { i in
+                            Circle().fill(swatchColors[i]).frame(width: 8, height: 8)
+                                .overlay(Circle().strokeBorder(
+                                    selectedColor == i
+                                        ? AnyShapeStyle(obGradient)
+                                        : AnyShapeStyle(Color.white.opacity(0.18)),
+                                    lineWidth: selectedColor == i ? 1.2 : 0.5
+                                ))
+                                .scaleEffect(selectedColor == i ? 1.35 : 1.0)
+                                .animation(.spring(response: 0.2, dampingFraction: 0.7), value: selectedColor == i)
+                        }
+                    }
+                    .padding(.vertical, 4)
+                }
+                .opacity(contentOpacity)
+                .frame(height: expandH, alignment: .top)
+                .clipped()
+            }
+
+            sep
+
+            // Undo / Redo
+            HStack(spacing: 2) {
+                Image(systemName: "arrow.uturn.backward").font(.system(size: 7.5))
+                    .foregroundColor(.white.opacity(0.45))
+                    .frame(width: 15, height: 15)
+                    .background(RoundedRectangle(cornerRadius: 4).fill(Color.white.opacity(0.06)))
+                Image(systemName: "arrow.uturn.forward").font(.system(size: 7.5))
+                    .foregroundColor(.white.opacity(0.22))
+                    .frame(width: 15, height: 15)
+                    .background(RoundedRectangle(cornerRadius: 4).fill(Color.white.opacity(0.06)))
+            }
+            .padding(.vertical, 3)
+
+            // Export / Clear
+            HStack(spacing: 2) {
+                Image(systemName: "square.and.arrow.up").font(.system(size: 7.5))
+                    .foregroundColor(.white.opacity(0.45))
+                    .frame(width: 15, height: 15)
+                    .background(RoundedRectangle(cornerRadius: 4).fill(Color.white.opacity(0.06)))
+                Image(systemName: "trash").font(.system(size: 7.5))
+                    .foregroundStyle(AnyShapeStyle((Color(hex: "#F4644D") ?? .orange).opacity(0.7)))
+                    .frame(width: 15, height: 15)
+                    .background(RoundedRectangle(cornerRadius: 4).fill(Color.white.opacity(0.06)))
+            }
+            .padding(.bottom, 3)
+        }
+        .frame(width: 60)
+        .padding(.horizontal, 7)
+        .padding(.vertical, 8)
+        .background(
+            RoundedRectangle(cornerRadius: 16)
+                .fill(Color(red: 0.06, green: 0.06, blue: 0.14).opacity(0.97))
+                .overlay(RoundedRectangle(cornerRadius: 16)
+                    .strokeBorder(
+                        LinearGradient(colors: [.white.opacity(0.18), .white.opacity(0.05)],
+                                       startPoint: .topLeading, endPoint: .bottomTrailing),
+                        lineWidth: 0.8
+                    ))
+                .shadow(color: .black.opacity(0.55), radius: 22, x: 0, y: 8)
+        )
+    }
+
+    private var sep: some View {
+        Rectangle().fill(Color.white.opacity(0.08)).frame(height: 0.7).padding(.vertical, 3)
+    }
+
+    // MARK: - Animation loop
+    //
+    // Cursor y offsets: ZStack center = 0, toolbar top-aligned at -105.
+    //   Chip center (collapsed) : +27
+    //   Shapes outline row      : +52  (after expansion)
+    //   Color row               : +89  (after expansion)
+
+    private func runLoop() async {
+        while !Task.isCancelled {
+            // Reset — no animation
+            cursorPos      = CGPoint(x: 50, y: 27)
+            chipGlow       = false; expandH = 0; contentOpacity = 0
+            selectedShape  = -1; selectedColor = -1
+            cursorVisible  = false
+
+            try? await Task.sleep(nanoseconds: 500_000_000)
+
+            // Cursor appears off to the right at chip height, then glides in
+            withAnimation(.easeInOut(duration: 0.25)) { cursorVisible = true }
+            try? await Task.sleep(nanoseconds: 700_000_000)
+            withAnimation(.easeInOut(duration: 0.65)) { cursorPos = CGPoint(x: -8, y: 27) }
+            try? await Task.sleep(nanoseconds: 700_000_000)
+
+            // Chip lights up
+            withAnimation { chipGlow = true }
+            try? await Task.sleep(nanoseconds: 160_000_000)
+
+            // Panel springs open
+            withAnimation(.spring(response: 0.28, dampingFraction: 0.80)) { expandH = expandedH }
+            try? await Task.sleep(nanoseconds: 60_000_000)
+            withAnimation(.easeOut(duration: 0.18)) { contentOpacity = 1 }
+            try? await Task.sleep(nanoseconds: 700_000_000)
+
+            // Move to outline shapes row → pick triangle (index 2, center x ≈ +10)
+            withAnimation(.easeInOut(duration: 0.55)) { cursorPos = CGPoint(x: 10, y: 52) }
+            try? await Task.sleep(nanoseconds: 600_000_000)
+            withAnimation { selectedShape = 2 }
+            try? await Task.sleep(nanoseconds: 650_000_000)
+
+            // Move to color row → pick blue (index 3, cursor tip lands at blue)
+            withAnimation(.easeInOut(duration: 0.55)) { cursorPos = CGPoint(x: -6, y: 89) }
+            try? await Task.sleep(nanoseconds: 600_000_000)
+            withAnimation { selectedColor = 3 }
+            try? await Task.sleep(nanoseconds: 900_000_000)
+
+            // Cursor drifts away → panel collapses
+            withAnimation(.easeInOut(duration: 0.55)) { cursorPos = CGPoint(x: 50, y: 27); chipGlow = false }
+            try? await Task.sleep(nanoseconds: 300_000_000)
+            withAnimation(.easeIn(duration: 0.10)) { contentOpacity = 0 }
+            try? await Task.sleep(nanoseconds: 80_000_000)
+            withAnimation(.spring(response: 0.26, dampingFraction: 0.84)) { expandH = 0 }
+            try? await Task.sleep(nanoseconds: 350_000_000)
+            withAnimation(.easeInOut(duration: 0.25)) { cursorVisible = false }
+            try? await Task.sleep(nanoseconds: 600_000_000)
+        }
+    }
+}
+
+// MARK: - Step 6: Pro upsell
 
 private struct ProIllustration: View {
     @State private var float = false
@@ -304,14 +631,16 @@ private struct ProIllustration: View {
         ("rays",            "Spotlight"),
         ("circle.dotted",   "Dot Pen"),
         ("scissors",        "Cut & Move"),
+        ("1.circle",        "Step Badge"),
+        ("text.bubble",     "Callout"),
     ]
 
     var body: some View {
         ZStack {
-            // Outer ring
+            // Outer ring — scaled up slightly to fit 7 tools
             Circle()
                 .stroke(obGradient.opacity(0.25), lineWidth: 1)
-                .frame(width: 168, height: 168)
+                .frame(width: 186, height: 186)
                 .scaleEffect(glow ? 1.06 : 0.94)
                 .animation(.easeInOut(duration: 2.6).repeatForever(autoreverses: true), value: glow)
 
@@ -319,7 +648,7 @@ private struct ProIllustration: View {
             ForEach(proTools.indices, id: \.self) { i in
                 let angle = Double(i) * (360.0 / Double(proTools.count)) - 90
                 let rad   = Double.pi * angle / 180
-                let r: CGFloat = 76
+                let r: CGFloat = 84
                 let x = r * CGFloat(cos(rad))
                 let y = r * CGFloat(sin(rad))
 
@@ -380,6 +709,173 @@ private struct ProIllustration: View {
             }
         }
         .onAppear { float = true; glow = true }
+    }
+}
+
+// MARK: - Menu Bar Hint (shown once via NSPopover after first onboarding)
+
+struct MenuBarHintView: View {
+    private let gradient = LinearGradient(
+        colors: [Color(hex: "#F4644D") ?? .orange, Color(hex: "#E9458C") ?? .pink],
+        startPoint: .topLeading, endPoint: .bottomTrailing
+    )
+
+    var body: some View {
+        HStack(spacing: 12) {
+            ZStack {
+                Circle()
+                    .fill((Color(hex: "#F4644D") ?? .orange).opacity(0.12))
+                    .frame(width: 40, height: 40)
+                Image(systemName: "pencil.circle.fill")
+                    .font(.system(size: 22))
+                    .foregroundStyle(gradient)
+            }
+            VStack(alignment: .leading, spacing: 3) {
+                Text("Everything lives up here")
+                    .font(.system(size: 13, weight: .semibold))
+                Text("Settings, Timer, Canvas & more")
+                    .font(.system(size: 11))
+                    .foregroundColor(.secondary)
+            }
+            Spacer()
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 10)
+        .frame(width: 272)
+    }
+}
+
+// MARK: - Step 2: Menu Bar
+
+private struct MenuBarIllustration: View {
+    @State private var iconHighlighted = false
+    @State private var menuOpen        = false
+    @State private var itemsShown      = 0
+
+    private let items: [(icon: String, label: String)] = [
+        ("rectangle.on.rectangle.angled", "Whiteboard Canvas"),
+        ("timer",                          "Countdown Timer"),
+        ("gearshape",                      "Settings"),
+    ]
+
+    var body: some View {
+        VStack(alignment: .trailing, spacing: 0) {
+            Spacer().frame(height: 18)
+
+            // ── Menu bar strip ──
+            ZStack(alignment: .trailing) {
+                RoundedRectangle(cornerRadius: 8)
+                    .fill(Color.white.opacity(0.07))
+                    .overlay(RoundedRectangle(cornerRadius: 8)
+                        .strokeBorder(Color.white.opacity(0.10), lineWidth: 0.5))
+
+                // Left: fake system labels
+                HStack(spacing: 14) {
+                    Image(systemName: "apple.logo")
+                        .font(.system(size: 11))
+                    Text("Pointly")
+                        .font(.system(size: 11, weight: .semibold))
+                    Text("File")
+                        .font(.system(size: 11))
+                    Text("Edit")
+                        .font(.system(size: 11))
+                }
+                .foregroundColor(.white.opacity(0.35))
+                .padding(.leading, 14)
+                .frame(maxWidth: .infinity, alignment: .leading)
+
+                // Right: mock system icons + Pointly icon
+                HStack(spacing: 10) {
+                    Image(systemName: "wifi")
+                        .font(.system(size: 11))
+                        .foregroundColor(.white.opacity(0.25))
+                    Image(systemName: "battery.100")
+                        .font(.system(size: 11))
+                        .foregroundColor(.white.opacity(0.25))
+
+                    // Pointly icon — highlights when "clicked"
+                    ZStack {
+                        if iconHighlighted {
+                            RoundedRectangle(cornerRadius: 4)
+                                .fill(Color.white.opacity(0.18))
+                                .frame(width: 28, height: 22)
+                        }
+                        Image(systemName: "pencil.circle.fill")
+                            .font(.system(size: 13, weight: .medium))
+                            .foregroundStyle(
+                                iconHighlighted
+                                    ? AnyShapeStyle(obGradient)
+                                    : AnyShapeStyle(Color.white.opacity(0.70))
+                            )
+                    }
+                    .animation(.easeInOut(duration: 0.14), value: iconHighlighted)
+                }
+                .padding(.trailing, 14)
+            }
+            .frame(maxWidth: .infinity)
+            .frame(height: 28)
+
+            // ── Dropdown menu ──
+            if menuOpen {
+                VStack(alignment: .leading, spacing: 0) {
+                    ForEach(0..<min(itemsShown, items.count), id: \.self) { i in
+                        HStack(spacing: 9) {
+                            Image(systemName: items[i].icon)
+                                .font(.system(size: 11, weight: .medium))
+                                .foregroundStyle(obGradient)
+                                .frame(width: 16, alignment: .center)
+                            Text(items[i].label)
+                                .font(.system(size: 12))
+                                .foregroundColor(.white.opacity(0.88))
+                            Spacer()
+                        }
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 7)
+
+                        if i < items.count - 1 {
+                            Rectangle()
+                                .fill(Color.white.opacity(0.06))
+                                .frame(height: 0.5)
+                                .padding(.horizontal, 8)
+                        }
+                    }
+                }
+                .frame(width: 192)
+                .background(
+                    RoundedRectangle(cornerRadius: 9)
+                        .fill(Color(white: 0.13))
+                        .overlay(RoundedRectangle(cornerRadius: 9)
+                            .strokeBorder(Color.white.opacity(0.10), lineWidth: 0.5))
+                        .shadow(color: .black.opacity(0.50), radius: 18, x: 0, y: 8)
+                )
+                .transition(.asymmetric(
+                    insertion: .scale(scale: 0.88, anchor: .topTrailing).combined(with: .opacity),
+                    removal:   .scale(scale: 0.88, anchor: .topTrailing).combined(with: .opacity)
+                ))
+                .padding(.top, 4)
+                .padding(.trailing, 14)
+            }
+
+            Spacer()
+        }
+        .padding(.horizontal, 20)
+        .task {
+            while !Task.isCancelled {
+                try? await Task.sleep(nanoseconds: 500_000_000)
+                withAnimation(.easeIn(duration: 0.14)) { iconHighlighted = true }
+                try? await Task.sleep(nanoseconds: 280_000_000)
+                withAnimation(.spring(response: 0.30, dampingFraction: 0.74)) { menuOpen = true }
+                for _ in 0..<items.count {
+                    try? await Task.sleep(nanoseconds: 130_000_000)
+                    withAnimation(.easeOut(duration: 0.11)) { itemsShown += 1 }
+                }
+                try? await Task.sleep(nanoseconds: 2_000_000_000)
+                withAnimation(.easeOut(duration: 0.18)) { menuOpen = false; iconHighlighted = false }
+                try? await Task.sleep(nanoseconds: 320_000_000)
+                itemsShown = 0
+                try? await Task.sleep(nanoseconds: 500_000_000)
+            }
+        }
     }
 }
 

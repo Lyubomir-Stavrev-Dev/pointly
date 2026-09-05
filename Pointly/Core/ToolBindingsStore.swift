@@ -73,6 +73,8 @@ final class ToolBindingsStore: ObservableObject {
 }
 
 extension Notification.Name {
-    static let toolBindingsChanged = Notification.Name("ToolBindingsChanged")
-    static let navigateToShortcuts = Notification.Name("NavigateToShortcuts")
+    static let toolBindingsChanged  = Notification.Name("ToolBindingsChanged")
+    static let navigateToShortcuts  = Notification.Name("NavigateToShortcuts")
+    static let pauseToolHotkeys     = Notification.Name("PauseToolHotkeys")
+    static let resumeToolHotkeys    = Notification.Name("ResumeToolHotkeys")
 }

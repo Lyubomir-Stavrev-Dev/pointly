@@ -10,6 +10,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private var settingsWindow: NSWindow?
     private var onboardingWindow: NSWindow?
     private var upgradeMenuItems: [NSMenuItem] = []
+    private var menuBarHintPopover: NSPopover?
+    private var widgetPopover: NSPopover?
+    private var contextMenu = NSMenu()
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         CrashReporter.setup()
@@ -54,6 +57,12 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                 NotificationCenter.default.post(name: .showPaywallForPlan, object: ProPlan.lifetime)
             }
         }
+        // defaults write com.pointly.macos debugShowUpdateCardOnLaunch -bool true
+        if UserDefaults.standard.bool(forKey: "debugShowUpdateCardOnLaunch") {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+                UpdateChecker.showPreview()
+            }
+        }
         #endif
 
         if !isFirstLaunch {
@@ -65,6 +74,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                 NSApp.activate(ignoringOtherApps: false)
             }
         }
+
+        UpdateChecker.checkOnLaunch()
 
         globalHotkeyManager = GlobalHotkeyManager()
         globalHotkeyManager?.delegate = self
@@ -113,48 +124,43 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         // notched Macs when the menu bar overflows, or if the user ever dragged the
         // item off). This app is menu-bar-only, so the item must never stay hidden.
         item.isVisible = true
-        item.behavior = []   // system/user cannot remove it
+        item.behavior = []
 
         if let button = item.button {
             button.image = menuBarImage(named: "pencil.circle")
             button.imagePosition = .imageOnly
-            button.toolTip = "Pointly"
-            button.appearsDisabled = true   // app starts with overlay off
-            button.action = #selector(statusItemClicked)
+            button.toolTip = "Pointly — Click to open, right-click for more"
+            button.appearsDisabled = true
+            button.action = #selector(statusBarButtonClicked)
             button.target = self
+            button.sendAction(on: [.leftMouseUp, .rightMouseUp])
         }
 
-        let menu = NSMenu()
-
-        menu.addItem(NSMenuItem(title: "Toggle Overlay (⌘⇧P)", action: #selector(toggleOverlay), keyEquivalent: ""))
-        menu.addItem(NSMenuItem(title: "Whiteboard Canvas (⌘W)", action: #selector(toggleWhiteboardMode), keyEquivalent: ""))
-        menu.addItem(NSMenuItem(title: "Countdown Timer", action: #selector(toggleTimer), keyEquivalent: ""))
-        menu.addItem(NSMenuItem(title: "Presenter Cues (clicks & keys)", action: #selector(toggleCues), keyEquivalent: ""))
-        menu.addItem(NSMenuItem(title: "Presenter Zoom", action: #selector(toggleZoom), keyEquivalent: ""))
-
-        let upgradeSeparator = NSMenuItem.separator()
-        menu.addItem(upgradeSeparator)
-        let goProItem = NSMenuItem(title: "Upgrade to Pro…", action: #selector(buyPro), keyEquivalent: "")
+        // Right-click context menu (power users / keyboard fallback)
+        let upgradeSep   = NSMenuItem.separator()
+        let goProItem    = NSMenuItem(title: "Upgrade to Pro…",      action: #selector(buyPro),     keyEquivalent: "")
         let goProPlusItem = NSMenuItem(title: "Get Pro+ (Lifetime)…", action: #selector(buyProPlus), keyEquivalent: "")
-        menu.addItem(goProItem)
-        menu.addItem(goProPlusItem)
-        upgradeMenuItems = [upgradeSeparator, goProItem, goProPlusItem]
-        menu.delegate = self
+        upgradeMenuItems = [upgradeSep, goProItem, goProPlusItem]
 
-        menu.addItem(NSMenuItem.separator())
-        menu.addItem(NSMenuItem(title: "Settings...", action: #selector(openSettings), keyEquivalent: ","))
-        menu.addItem(NSMenuItem(title: "Keyboard Shortcuts...", action: #selector(openKeyboardShortcuts), keyEquivalent: ""))
-        menu.addItem(NSMenuItem(title: "Show Tutorial", action: #selector(showTutorial), keyEquivalent: ""))
-        menu.addItem(NSMenuItem.separator())
-        menu.addItem(NSMenuItem(title: "Quit Pointly", action: #selector(quitApp), keyEquivalent: "q"))
-
-        statusItem?.menu = menu
+        contextMenu.addItem(NSMenuItem(title: "Toggle Overlay (⌘⇧P)",  action: #selector(toggleOverlay),        keyEquivalent: ""))
+        contextMenu.addItem(upgradeSep)
+        contextMenu.addItem(goProItem)
+        contextMenu.addItem(goProPlusItem)
+        contextMenu.addItem(NSMenuItem.separator())
+        contextMenu.addItem(NSMenuItem(title: "Settings…",             action: #selector(openSettings),          keyEquivalent: ","))
+        contextMenu.addItem(NSMenuItem(title: "Keyboard Shortcuts…",   action: #selector(openKeyboardShortcuts), keyEquivalent: ""))
+        contextMenu.addItem(NSMenuItem(title: "Show Tutorial",         action: #selector(showTutorial),          keyEquivalent: ""))
+        contextMenu.addItem(NSMenuItem.separator())
+        contextMenu.addItem(NSMenuItem(title: "Quit Pointly",          action: #selector(quitApp),               keyEquivalent: "q"))
+        contextMenu.delegate = self
     }
 
     // Always returns a non-nil template image so the variable-length status item
     // can never collapse to zero width (invisible) if an SF Symbol is unavailable.
     private func menuBarImage(named name: String) -> NSImage {
-        if let img = NSImage(systemSymbolName: name, accessibilityDescription: "Pointly") {
+        let config = NSImage.SymbolConfiguration(pointSize: 15.5, weight: .semibold)
+        if let img = NSImage(systemSymbolName: name, accessibilityDescription: "Pointly")?
+                        .withSymbolConfiguration(config) {
             img.isTemplate = true
             return img
         }
@@ -169,7 +175,44 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         return img
     }
 
-    @objc private func statusItemClicked() {}
+    @objc private func statusBarButtonClicked() {
+        guard let event = NSApp.currentEvent else { return }
+        if event.type == .rightMouseUp {
+            statusItem?.menu = contextMenu
+            statusItem?.button?.performClick(nil)
+            statusItem?.menu = nil
+        } else {
+            toggleWidgetPopover()
+        }
+    }
+
+    private func toggleWidgetPopover() {
+        guard let button = statusItem?.button else { return }
+        if let pop = widgetPopover, pop.isShown {
+            pop.close()
+            return
+        }
+        if widgetPopover == nil {
+            let pop = NSPopover()
+            pop.contentViewController = NSHostingController(rootView: MenuBarWidgetView(
+                onToggleOverlay:     { [weak self] in pop.close(); self?.toggleOverlay() },
+                onCanvas:            { [weak self] in pop.close(); self?.toggleWhiteboardMode() },
+                onTimer:             { [weak self] in pop.close(); self?.toggleTimer() },
+                onCues:              { [weak self] in pop.close(); self?.toggleCues() },
+                onZoom:              { [weak self] in pop.close(); self?.toggleZoom() },
+                onSettings:          { [weak self] in pop.close(); self?.openSettings() },
+                onKeyboardShortcuts: { [weak self] in pop.close(); self?.openKeyboardShortcuts() },
+                onTutorial:          { [weak self] in pop.close(); self?.showTutorial() },
+                onQuit:              { [weak self] in self?.quitApp() }
+            ))
+            pop.contentSize = NSSize(width: 270, height: 330)
+            pop.behavior = .transient
+            pop.animates = true
+            pop.appearance = NSAppearance(named: .darkAqua)
+            widgetPopover = pop
+        }
+        widgetPopover?.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
+    }
 
     @objc private func toggleOverlay() {
         guard let mgr = overlayWindowManager else { return }
@@ -244,6 +287,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             self.onboardingWindow?.orderOut(nil)
             if thenShowToolbar {
                 self.overlayWindowManager?.toggleOverlay()
+            }
+            // One-time menu bar hint so users discover the status icon
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.4) {
+                self.showMenuBarHint()
             }
         }, onContinueFree: {
             // User skipped purchasing — show spin-wheel welcome offer if eligible.
@@ -377,6 +424,9 @@ extension AppDelegate: NSWindowDelegate {
         // this, first-run users who close the window get onboarding again on
         // every launch and (LSUIElement, no Dock icon) an app that looks dead.
         UserDefaults.standard.set(true, forKey: "hasSeenOnboarding")
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+            self.showMenuBarHint()
+        }
     }
 }
 
@@ -385,7 +435,10 @@ extension AppDelegate: NSWindowDelegate {
 
 extension AppDelegate {
     @objc private func handleModeChange() {
-        DispatchQueue.main.async { self.updateMenuBarIcon() }
+        DispatchQueue.main.async {
+            self.updateMenuBarIcon()
+            MenuBarState.shared.isOverlayActive = self.overlayWindowManager?.isActive ?? false
+        }
     }
 
     // Always a pencil so the menu bar item stays recognizably Pointly:
@@ -404,6 +457,30 @@ extension AppDelegate {
         } else {
             button.image = menuBarImage(named: "pencil.circle")
             button.appearsDisabled = true
+        }
+    }
+}
+
+// MARK: - Menu Bar Hint Popover
+
+extension AppDelegate {
+    func showMenuBarHint() {
+        guard !UserDefaults.standard.bool(forKey: "menuBarHintShown") else { return }
+        guard let button = statusItem?.button else { return }
+        UserDefaults.standard.set(true, forKey: "menuBarHintShown")
+
+        let popover = NSPopover()
+        popover.contentViewController = NSHostingController(rootView: MenuBarHintView())
+        popover.contentSize = NSSize(width: 272, height: 64)
+        popover.behavior = .transient
+        popover.animates = true
+        popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
+        menuBarHintPopover = popover
+
+        // Auto-dismiss after 6 seconds in case the user doesn't click anywhere
+        DispatchQueue.main.asyncAfter(deadline: .now() + 6) { [weak self] in
+            self?.menuBarHintPopover?.close()
+            self?.menuBarHintPopover = nil
         }
     }
 }

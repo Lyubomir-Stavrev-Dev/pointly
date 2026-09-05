@@ -1,11 +1,16 @@
 import SwiftUI
 import AppKit
 
+class LiftedCaptureState: ObservableObject {
+    @Published var isActive: Bool = true
+}
+
 struct LiftedCaptureView: View {
     let image: NSImage
     let onDismiss: () -> Void
     let onGetFrame: () -> NSRect
     let onSetFrame: (NSRect) -> Void
+    @ObservedObject var captureState: LiftedCaptureState
 
     @State private var isHovered = false
 
@@ -21,15 +26,20 @@ struct LiftedCaptureView: View {
         case topLeft, topRight, bottomLeft, bottomRight
     }
 
+    private var showChrome: Bool { captureState.isActive || isHovered }
+
     var body: some View {
         ZStack(alignment: .topTrailing) {
             Image(nsImage: image)
                 .resizable()
                 .gesture(moveDrag)
 
-            RoundedRectangle(cornerRadius: 3)
-                .stroke(Color.accentColor.opacity(0.9), lineWidth: 1.5)
-                .allowsHitTesting(false)
+            if showChrome {
+                RoundedRectangle(cornerRadius: 3)
+                    .stroke(Color.accentColor.opacity(0.9), lineWidth: 1.5)
+                    .allowsHitTesting(false)
+                    .transition(.opacity.animation(.easeInOut(duration: 0.15)))
+            }
 
             if isHovered {
                 Button(action: onDismiss) {
@@ -49,15 +59,12 @@ struct LiftedCaptureView: View {
         }
         .clipShape(RoundedRectangle(cornerRadius: 3))
         .shadow(color: .black.opacity(0.35), radius: 8, x: 0, y: 3)
-        .overlay(alignment: .topLeading)     { if isHovered { handle(.topLeft) } }
-        .overlay(alignment: .topTrailing)    { if isHovered { handle(.topRight) } }
-        .overlay(alignment: .bottomLeading)  { if isHovered { handle(.bottomLeft) } }
-        .overlay(alignment: .bottomTrailing) { if isHovered { handle(.bottomRight) } }
+        .overlay(alignment: .topLeading)     { if showChrome { handle(.topLeft) } }
+        .overlay(alignment: .topTrailing)    { if showChrome { handle(.topRight) } }
+        .overlay(alignment: .bottomLeading)  { if showChrome { handle(.bottomLeft) } }
+        .overlay(alignment: .bottomTrailing) { if showChrome { handle(.bottomRight) } }
         .onHover { hovered in
             withAnimation { isHovered = hovered }
-            // Only set the hand on entry — forcing .arrow on exit stomped the
-            // custom tool cursor when the pointer moved back onto the canvas
-            // (the canvas's onContinuousHover restores it anyway).
             if hovered { NSCursor.openHand.set() }
         }
     }

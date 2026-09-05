@@ -35,23 +35,28 @@ struct SettingsView: View {
     @StateObject private var settings = SettingsStore()
     @State private var selectedTab: SettingsTab = .general
     @State private var showResetAlert = false
+    @State private var recordingTool: DrawingTool? = nil
 
     init(initialTab: SettingsTab = .general) {
         _selectedTab = State(initialValue: initialTab)
     }
 
     var body: some View {
-        HStack(spacing: 0) {
-            sidebar
-            // Thin gradient divider
-            LinearGradient(
-                colors: [.white.opacity(0.12), .white.opacity(0.03)],
-                startPoint: .top, endPoint: .bottom
-            )
-            .frame(width: 1)
-            content
+        ZStack {
+            HStack(spacing: 0) {
+                sidebar
+                Rectangle()
+                    .fill(Color.white.opacity(0.07))
+                    .frame(width: 1)
+                content
+            }
+
+            if let tool = recordingTool {
+                ShortcutRecorderOverlay(tool: tool, onDismiss: { recordingTool = nil })
+                    .transition(.opacity.combined(with: .scale(scale: 0.96)))
+            }
         }
-        .frame(width: 640, height: 500)
+        .frame(width: 700, height: 540)
         .background(
             ZStack {
                 GlassBackground()
@@ -69,6 +74,7 @@ struct SettingsView: View {
                     )
             )
         )
+        .animation(.spring(response: 0.22, dampingFraction: 0.82), value: recordingTool == nil)
         .preferredColorScheme(.dark)
         .alert("Reset Settings", isPresented: $showResetAlert) {
             Button("Cancel", role: .cancel) {}
@@ -85,75 +91,45 @@ struct SettingsView: View {
 
     private var sidebar: some View {
         VStack(spacing: 0) {
-            // Window drag zone (replaces hidden title bar)
-            SettingsDragHandle()
-                .frame(height: 28)
-
-            // Logo / header
-            VStack(spacing: 8) {
-                ZStack {
-                    Circle()
-                        .fill(brandGradient)
-                        .frame(width: 46, height: 46)
-                        .shadow(color: (Color(hex: "#F4644D") ?? .orange).opacity(0.5), radius: 12, x: 0, y: 4)
-                    Image(systemName: "pencil.tip.crop.circle.fill")
-                        .font(.system(size: 22, weight: .semibold))
-                        .foregroundColor(.white)
+            ZStack {
+                SettingsDragHandle()
+                HStack(spacing: 6) {
+                    Image(systemName: "pencil.circle.fill")
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundStyle(brandGradient)
+                    Text("Pointly")
+                        .font(.system(size: 12, weight: .bold))
+                        .foregroundStyle(brandGradient)
                 }
-                Text("Pointly")
-                    .font(.system(size: 13, weight: .bold))
-                    .foregroundStyle(brandGradient)
             }
-            .padding(.top, 28)
-            .padding(.bottom, 22)
+            .frame(height: 46)
 
-            // Nav items
-            VStack(spacing: 3) {
+            Rectangle()
+                .fill(Color.white.opacity(0.07))
+                .frame(height: 1)
+
+            VStack(spacing: 2) {
                 ForEach(SettingsTab.allCases) { tab in
                     sidebarItem(tab)
                 }
             }
-            .padding(.horizontal, 10)
+            .padding(.horizontal, 8)
+            .padding(.top, 10)
 
             Spacer()
 
             Text("v\(Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "1.0")")
                 .font(.system(size: 10))
-                .foregroundColor(.white.opacity(0.3))
-                .padding(.bottom, 16)
+                .foregroundColor(.white.opacity(0.22))
+                .padding(.bottom, 14)
         }
-        .frame(width: 168)
+        .frame(width: 158)
         .background(Color.white.opacity(0.04))
     }
 
     @ViewBuilder
     private func sidebarItem(_ tab: SettingsTab) -> some View {
-        let isActive = selectedTab == tab
-        Button { selectedTab = tab } label: {
-            HStack(spacing: 10) {
-                ZStack {
-                    RoundedRectangle(cornerRadius: 7)
-                        .fill(isActive ? AnyShapeStyle(brandGradient) : AnyShapeStyle(Color.white.opacity(0.08)))
-                        .frame(width: 28, height: 28)
-                        .shadow(color: isActive ? (Color(hex: "#F4644D") ?? .orange).opacity(0.4) : .clear,
-                                radius: 6, x: 0, y: 2)
-                    Image(systemName: tab.icon)
-                        .font(.system(size: 12, weight: .semibold))
-                        .foregroundColor(isActive ? .white : .white.opacity(0.55))
-                }
-                Text(tab.label)
-                    .font(.system(size: 12, weight: isActive ? .semibold : .regular))
-                    .foregroundColor(isActive ? .white : .white.opacity(0.55))
-                Spacer()
-            }
-            .padding(.horizontal, 8)
-            .padding(.vertical, 6)
-            .background(
-                RoundedRectangle(cornerRadius: 9)
-                    .fill(isActive ? Color.white.opacity(0.08) : Color.clear)
-            )
-        }
-        .buttonStyle(.plain)
+        SidebarItemButton(tab: tab, isActive: selectedTab == tab) { selectedTab = tab }
     }
 
     // MARK: Content
@@ -167,7 +143,7 @@ struct SettingsView: View {
                 case .general:    GeneralContent(settings: settings)
                 case .appearance: AppearanceContent(settings: settings)
                 case .drawing:    DrawingContent(settings: settings)
-                case .shortcuts:  ShortcutsContent()
+                case .shortcuts:  ShortcutsContent(onRecord: { recordingTool = $0 })
                 case .export:     ExportContent(settings: settings)
                 case .advanced:   AdvancedContent(settings: settings, showReset: $showResetAlert)
                 }
@@ -178,15 +154,53 @@ struct SettingsView: View {
     }
 
     private var contentHeader: some View {
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: 10) {
             Text(selectedTab.label)
-                .font(.system(size: 22, weight: .bold))
-                .foregroundStyle(brandGradient)
+                .font(.system(size: 20, weight: .bold))
+                .foregroundColor(.white)
             Rectangle()
-                .fill(brandGradient.opacity(0.6))
-                .frame(height: 1.5)
-                .cornerRadius(1)
+                .fill(Color.white.opacity(0.08))
+                .frame(height: 1)
         }
+    }
+}
+
+// MARK: - Sidebar item with hover
+
+private struct SidebarItemButton: View {
+    let tab: SettingsTab
+    let isActive: Bool
+    let action: () -> Void
+    @State private var hover = false
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 9) {
+                Image(systemName: tab.icon)
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundStyle(isActive
+                                     ? AnyShapeStyle(brandGradient)
+                                     : AnyShapeStyle(Color.white.opacity(hover ? 0.65 : 0.40)))
+                    .frame(width: 18)
+                Text(tab.label)
+                    .font(.system(size: 12, weight: isActive ? .semibold : .regular))
+                    .foregroundColor(isActive ? .white : .white.opacity(hover ? 0.80 : 0.55))
+                Spacer()
+            }
+            .padding(.horizontal, 10)
+            .padding(.vertical, 7)
+            .background(
+                RoundedRectangle(cornerRadius: 8)
+                    .fill(isActive
+                          ? Color.white.opacity(0.09)
+                          : hover ? Color.white.opacity(0.06) : Color.clear)
+                    .overlay(RoundedRectangle(cornerRadius: 8)
+                        .strokeBorder(isActive ? Color.white.opacity(0.10) : Color.clear, lineWidth: 0.5))
+            )
+            .animation(.easeInOut(duration: 0.10), value: hover)
+        }
+        .buttonStyle(.plain)
+        .onHover { hover = $0 }
     }
 }
 
@@ -215,6 +229,63 @@ enum SettingsTab: String, CaseIterable, Identifiable {
         case .export:     return "square.and.arrow.up"
         case .advanced:   return "gearshape.2"
         }
+    }
+}
+
+// MARK: - Compact segment button with hover
+
+private struct SegmentButton: View {
+    let label: String
+    var icon: String? = nil
+    let isSelected: Bool
+    let action: () -> Void
+    @State private var hover = false
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 4) {
+                if let icon {
+                    Image(systemName: icon).font(.system(size: 9, weight: .semibold))
+                }
+                Text(label)
+            }
+            .font(.system(size: 12, weight: isSelected ? .semibold : .regular))
+            .foregroundColor(isSelected ? .white : .white.opacity(hover ? 0.72 : 0.46))
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 5)
+            .background(
+                Group {
+                    if isSelected {
+                        RoundedRectangle(cornerRadius: 7).fill(brandGradient)
+                    } else {
+                        RoundedRectangle(cornerRadius: 7)
+                            .fill(hover ? Color.white.opacity(0.07) : Color.clear)
+                    }
+                }
+            )
+            .animation(.easeInOut(duration: 0.10), value: hover)
+        }
+        .buttonStyle(.plain)
+        .onHover { hover = $0 }
+    }
+}
+
+// MARK: - Hover-aware tappable row
+
+private struct HoverRow: View {
+    let action: () -> Void
+    @ViewBuilder let content: () -> AnyView
+    @State private var hover = false
+
+    var body: some View {
+        content()
+            .padding(.horizontal, 6)
+            .padding(.vertical, 3)
+            .background(RoundedRectangle(cornerRadius: 7).fill(hover ? Color.white.opacity(0.05) : Color.clear))
+            .contentShape(Rectangle())
+            .onTapGesture { action() }
+            .onHover { hover = $0 }
+            .animation(.easeInOut(duration: 0.10), value: hover)
     }
 }
 
@@ -282,17 +353,17 @@ private struct GeneralContent: View {
                 VStack(alignment: .leading, spacing: 8) {
                     ForEach([("Show in Menu Bar", "menubar"),
                              ("Start Hidden", "hidden")], id: \.1) { title, tag in
-                        HStack {
-                            Image(systemName: settings.startupBehavior == tag
-                                  ? "circle.inset.filled" : "circle")
-                                .foregroundStyle(settings.startupBehavior == tag
-                                                 ? AnyShapeStyle(brandGradient)
-                                                 : AnyShapeStyle(Color.white.opacity(0.35)))
-                            Text(title).font(.system(size: 13))
-                            Spacer()
+                        HoverRow(action: { settings.startupBehavior = tag }) {
+                            AnyView(HStack {
+                                Image(systemName: settings.startupBehavior == tag
+                                      ? "circle.inset.filled" : "circle")
+                                    .foregroundStyle(settings.startupBehavior == tag
+                                                     ? AnyShapeStyle(brandGradient)
+                                                     : AnyShapeStyle(Color.white.opacity(0.35)))
+                                Text(title).font(.system(size: 13))
+                                Spacer()
+                            })
                         }
-                        .contentShape(Rectangle())
-                        .onTapGesture { settings.startupBehavior = tag }
                     }
                 }
                 Toggle("Auto-save Annotations", isOn: $settings.autoSaveAnnotations)
@@ -326,26 +397,17 @@ private struct AppearanceContent: View {
             SettingsCard(title: "Toolbar Theme") {
                 HStack(spacing: 0) {
                     ForEach([("System", "system"), ("Light", "light"), ("Dark", "dark")], id: \.1) { label, tag in
-                        let isSelected = settings.toolbarTheme == tag
-                        Button(label) { settings.toolbarTheme = tag }
-                            .buttonStyle(.plain)
-                            .font(.system(size: 12, weight: isSelected ? .semibold : .regular))
-                            .foregroundColor(isSelected ? .white : .white.opacity(0.5))
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 7)
-                            .background(
-                                Group {
-                                    if isSelected {
-                                        RoundedRectangle(cornerRadius: 8).fill(brandGradient)
-                                    } else {
-                                        RoundedRectangle(cornerRadius: 8).fill(Color.clear)
-                                    }
-                                }
-                            )
+                        SegmentButton(label: label, isSelected: settings.toolbarTheme == tag) {
+                            settings.toolbarTheme = tag
+                        }
                     }
                 }
                 .padding(3)
-                .background(RoundedRectangle(cornerRadius: 11).fill(Color.white.opacity(0.08)))
+                .background(RoundedRectangle(cornerRadius: 9).fill(Color.white.opacity(0.07)))
+            }
+
+            SettingsCard(title: "Toolbar Size") {
+                ToolbarSizeControl(settings: settings)
             }
 
             SettingsCard(title: "Default Drawing") {
@@ -381,6 +443,82 @@ private struct AppearanceContent: View {
     }
 }
 
+// MARK: - Toolbar size control
+
+private struct ToolbarSizeControl: View {
+    @ObservedObject var settings: SettingsStore
+    @State private var isSliding = false
+
+    private static let presets: [(label: String, scale: Double)] = [
+        ("Compact", 0.9), ("Default", 1.12), ("Large", 1.3)
+    ]
+
+    var body: some View {
+        VStack(spacing: 14) {
+            // Live mini preview — solid neutral background avoids glass bleed-through
+            HStack {
+                Spacer()
+                VStack(spacing: 4) {
+                    RoundedRectangle(cornerRadius: 3)
+                        .fill(brandGradient)
+                        .frame(width: 20, height: 8)
+                    ForEach(0..<3, id: \.self) { _ in
+                        HStack(spacing: 3) {
+                            Circle().fill(Color.white.opacity(0.4)).frame(width: 6, height: 6)
+                            Circle().fill(Color.white.opacity(0.4)).frame(width: 6, height: 6)
+                        }
+                    }
+                }
+                .padding(6)
+                .background(
+                    RoundedRectangle(cornerRadius: 8)
+                        .fill(Color.white.opacity(0.10))
+                        .overlay(RoundedRectangle(cornerRadius: 8)
+                            .strokeBorder(Color.white.opacity(0.14), lineWidth: 0.8))
+                )
+                .scaleEffect(settings.toolbarScale)
+                .frame(width: 60, height: 78)
+                .animation(isSliding ? nil : .spring(response: 0.3, dampingFraction: 0.75),
+                           value: settings.toolbarScale)
+                Spacer()
+            }
+            .padding(.vertical, 10)
+            .background(RoundedRectangle(cornerRadius: 10).fill(Color(white: 0.10)))
+
+            // Preset chips
+            HStack(spacing: 0) {
+                ForEach(Self.presets, id: \.label) { preset in
+                    let isSelected = settings.toolbarScale == preset.scale
+                    SegmentButton(label: preset.label, isSelected: isSelected) {
+                        withAnimation(.spring(response: 0.3, dampingFraction: 0.75)) {
+                            settings.toolbarScale = preset.scale
+                        }
+                    }
+                }
+            }
+            .padding(3)
+            .background(RoundedRectangle(cornerRadius: 9).fill(Color.white.opacity(0.07)))
+
+            // Fine-tune slider between small/large toolbar glyphs
+            HStack(spacing: 10) {
+                Image(systemName: "rectangle.portrait")
+                    .font(.system(size: 10))
+                    .foregroundColor(.white.opacity(0.4))
+                Slider(value: $settings.toolbarScale, in: 0.8...1.4,
+                       onEditingChanged: { isSliding = $0 })
+                    .tint(Color(hex: "#F4644D") ?? .orange)
+                Image(systemName: "rectangle.portrait")
+                    .font(.system(size: 16))
+                    .foregroundColor(.white.opacity(0.4))
+                Text("\(Int((settings.toolbarScale * 100).rounded()))%")
+                    .font(.system(size: 12, weight: .semibold, design: .monospaced))
+                    .foregroundColor(.white.opacity(0.7))
+                    .frame(width: 42, alignment: .trailing)
+            }
+        }
+    }
+}
+
 // MARK: - Drawing
 
 private struct DrawingContent: View {
@@ -399,41 +537,23 @@ private struct DrawingContent: View {
                         .foregroundColor(.white.opacity(0.85))
                     HStack(spacing: 0) {
                         ForEach([("Off", "off"), ("Low", "low"), ("High", "high")], id: \.1) { label, tag in
-                            let isSelected = settings.straightLineAssistLevel == tag
                             let locked = tag == "high" && !pro.isPro
-                            Button {
+                            SegmentButton(
+                                label: label,
+                                icon: locked ? "lock.fill" : nil,
+                                isSelected: settings.straightLineAssistLevel == tag
+                            ) {
                                 if locked {
                                     NotificationCenter.default.post(name: .showPaywallForPlan,
                                                                     object: ProPlan.annual)
                                 } else {
                                     settings.straightLineAssistLevel = tag
                                 }
-                            } label: {
-                                HStack(spacing: 4) {
-                                    if locked {
-                                        Image(systemName: "lock.fill").font(.system(size: 9))
-                                    }
-                                    Text(label)
-                                }
-                                .font(.system(size: 12, weight: isSelected ? .semibold : .regular))
-                                .foregroundColor(isSelected ? .white : .white.opacity(0.5))
-                                .frame(maxWidth: .infinity)
-                                .padding(.vertical, 7)
-                                .background(
-                                    Group {
-                                        if isSelected {
-                                            RoundedRectangle(cornerRadius: 8).fill(brandGradient)
-                                        } else {
-                                            RoundedRectangle(cornerRadius: 8).fill(Color.clear)
-                                        }
-                                    }
-                                )
                             }
-                            .buttonStyle(.plain)
                         }
                     }
                     .padding(3)
-                    .background(RoundedRectangle(cornerRadius: 11).fill(Color.white.opacity(0.08)))
+                    .background(RoundedRectangle(cornerRadius: 9).fill(Color.white.opacity(0.07)))
                     Text("Low keeps lines and shapes clean. High (Pro) adds magnetic 0°/45°/90° angle snapping and straightens nearly-straight pen strokes.")
                         .font(.system(size: 11))
                         .foregroundColor(.white.opacity(0.4))
@@ -494,17 +614,17 @@ private struct ExportContent: View {
                 VStack(alignment: .leading, spacing: 8) {
                     ForEach([("PNG Image", "png"), ("PDF Document", "pdf"), ("JPEG Image", "jpeg")],
                             id: \.1) { label, tag in
-                        HStack {
-                            Image(systemName: settings.exportFormat == tag
-                                  ? "circle.inset.filled" : "circle")
-                                .foregroundStyle(settings.exportFormat == tag
-                                                 ? AnyShapeStyle(brandGradient)
-                                                 : AnyShapeStyle(Color.white.opacity(0.35)))
-                            Text(label).font(.system(size: 13))
-                            Spacer()
+                        HoverRow(action: { settings.exportFormat = tag }) {
+                            AnyView(HStack {
+                                Image(systemName: settings.exportFormat == tag
+                                      ? "circle.inset.filled" : "circle")
+                                    .foregroundStyle(settings.exportFormat == tag
+                                                     ? AnyShapeStyle(brandGradient)
+                                                     : AnyShapeStyle(Color.white.opacity(0.35)))
+                                Text(label).font(.system(size: 13))
+                                Spacer()
+                            })
                         }
-                        .contentShape(Rectangle())
-                        .onTapGesture { settings.exportFormat = tag }
                     }
                 }
             }
@@ -547,11 +667,11 @@ private struct AdvancedContent: View {
     var body: some View {
         VStack(spacing: 14) {
             SettingsCard(title: "Settings Backup") {
-                HStack(spacing: 10) {
+                HStack(spacing: 8) {
                     Button("Export Settings") { exportSettings() }
-                        .buttonStyle(BrandButtonStyle(outline: true))
+                        .buttonStyle(SubtleButtonStyle())
                     Button("Import Settings") { importSettings() }
-                        .buttonStyle(BrandButtonStyle(outline: true))
+                        .buttonStyle(SubtleButtonStyle())
                 }
             }
 
@@ -632,32 +752,79 @@ private struct AdvancedContent: View {
     }
 }
 
+// MARK: - Subtle Button Style (inline secondary actions)
+
+private struct SubtleButtonStyle: ButtonStyle {
+    var recording = false
+    func makeBody(configuration: Configuration) -> some View {
+        SubtleBody(configuration: configuration, recording: recording)
+    }
+    struct SubtleBody: View {
+        let configuration: ButtonStyleConfiguration
+        let recording: Bool
+        @State private var hover = false
+        var body: some View {
+            configuration.label
+                .font(.system(size: 11, weight: .medium))
+                .foregroundColor(recording
+                                 ? (Color(hex: "#F4644D") ?? .orange)
+                                 : hover ? .white : .white.opacity(0.65))
+                .padding(.horizontal, 9)
+                .padding(.vertical, 4)
+                .background(
+                    RoundedRectangle(cornerRadius: 6)
+                        .fill(configuration.isPressed ? Color.white.opacity(0.16)
+                              : hover ? Color.white.opacity(0.12) : Color.white.opacity(0.08))
+                        .overlay(RoundedRectangle(cornerRadius: 6)
+                            .strokeBorder(Color.white.opacity(hover ? 0.14 : 0.10), lineWidth: 0.5))
+                )
+                .animation(.easeInOut(duration: 0.10), value: hover)
+                .onHover { hover = $0 }
+        }
+    }
+}
+
 // MARK: - Brand Button Style
 
 private struct BrandButtonStyle: ButtonStyle {
     var outline = false
     var destructive = false
-
     func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .font(.system(size: 12, weight: .semibold))
-            .foregroundColor(destructive ? .white : outline ? (Color(hex: "#FF8C42") ?? .orange) : .white)
-            .padding(.horizontal, 14)
-            .padding(.vertical, 7)
-            .background(
-                Group {
-                    if destructive {
-                        RoundedRectangle(cornerRadius: 8)
-                            .fill(Color.red.opacity(0.7))
-                    } else if outline {
-                        RoundedRectangle(cornerRadius: 8)
-                            .strokeBorder(Color(hex: "#FF8C42") ?? .orange, lineWidth: 1.5)
-                    } else {
-                        RoundedRectangle(cornerRadius: 8).fill(brandGradient)
+        BrandBody(configuration: configuration, outline: outline, destructive: destructive)
+    }
+    struct BrandBody: View {
+        let configuration: ButtonStyleConfiguration
+        let outline: Bool
+        let destructive: Bool
+        @State private var hover = false
+        var body: some View {
+            configuration.label
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundColor(destructive ? .white : outline ? (Color(hex: "#FF8C42") ?? .orange) : .white)
+                .padding(.horizontal, 14)
+                .padding(.vertical, 7)
+                .background(
+                    Group {
+                        if destructive {
+                            RoundedRectangle(cornerRadius: 8)
+                                .fill(hover ? Color.red.opacity(0.85) : Color.red.opacity(0.7))
+                        } else if outline {
+                            RoundedRectangle(cornerRadius: 8)
+                                .fill(hover ? (Color(hex: "#FF8C42") ?? .orange).opacity(0.12) : Color.clear)
+                                .overlay(RoundedRectangle(cornerRadius: 8)
+                                    .strokeBorder(Color(hex: "#FF8C42") ?? .orange, lineWidth: 1.5))
+                        } else {
+                            RoundedRectangle(cornerRadius: 8)
+                                .fill(brandGradient)
+                                .brightness(hover ? 0.06 : 0)
+                        }
                     }
-                }
-            )
-            .opacity(configuration.isPressed ? 0.75 : 1)
+                )
+                .scaleEffect(hover && !outline && !destructive ? 1.015 : 1.0)
+                .opacity(configuration.isPressed ? 0.72 : 1)
+                .animation(.easeInOut(duration: 0.11), value: hover)
+                .onHover { hover = $0 }
+        }
     }
 }
 
@@ -677,6 +844,7 @@ private struct SettingsDragHandle: NSViewRepresentable {
 
 private struct ShortcutsContent: View {
     @ObservedObject private var store = ToolBindingsStore.shared
+    let onRecord: (DrawingTool) -> Void
 
     private let sections: [(title: String, tools: [DrawingTool])] = [
         ("Draw Tools", [.select, .cursor, .pen, .highlighter, .marker,
@@ -703,7 +871,7 @@ private struct ShortcutsContent: View {
                 SettingsCard(title: section.title) {
                     VStack(spacing: 0) {
                         ForEach(Array(section.tools.enumerated()), id: \.element) { idx, tool in
-                            ShortcutRow(tool: tool, store: store)
+                            ShortcutRow(tool: tool, store: store, onRecord: { onRecord(tool) })
                             if idx < section.tools.count - 1 {
                                 Rectangle()
                                     .fill(Color.white.opacity(0.06))
@@ -749,7 +917,7 @@ private struct ShortcutsContent: View {
             HStack {
                 Spacer()
                 Button("Reset to Defaults") { store.resetToDefaults() }
-                    .buttonStyle(BrandButtonStyle(outline: true))
+                    .buttonStyle(SubtleButtonStyle())
             }
         }
     }
@@ -769,23 +937,28 @@ private struct ShortcutRow: View {
     let tool: DrawingTool
     @ObservedObject var store: ToolBindingsStore
     @ObservedObject private var pro = ProManager.shared
+    let onRecord: () -> Void
+    @State private var hover    = false
+    @State private var xHover   = false
+
+    private var current: String { store.bindings[tool] ?? "" }
 
     var body: some View {
         HStack(spacing: 10) {
             ZStack {
                 RoundedRectangle(cornerRadius: 6)
-                    .fill(Color.white.opacity(0.08))
+                    .fill(Color.white.opacity(hover ? 0.12 : 0.08))
                     .frame(width: 26, height: 26)
-                Image(systemName: tool.systemImage)
+                ToolIconView(tool: tool, size: 12)
                     .font(.system(size: 11, weight: .medium))
-                    .foregroundColor(.white.opacity(0.75))
+                    .foregroundColor(.white.opacity(hover ? 0.95 : 0.75))
             }
 
             VStack(alignment: .leading, spacing: 1) {
                 HStack(spacing: 4) {
                     Text(tool.displayName)
                         .font(.system(size: 12, weight: .medium))
-                        .foregroundColor(.white.opacity(0.9))
+                        .foregroundColor(.white.opacity(hover ? 1 : 0.9))
                     if pro.isLocked(tool) {
                         Image(systemName: "lock.fill")
                             .font(.system(size: 9))
@@ -794,94 +967,326 @@ private struct ShortcutRow: View {
                 }
                 Text(tool.description)
                     .font(.system(size: 10))
-                    .foregroundColor(.white.opacity(0.35))
+                    .foregroundColor(.white.opacity(hover ? 0.50 : 0.35))
                     .lineLimit(1)
             }
 
             Spacer()
 
-            ToolHotkeyRecorder(tool: tool, store: store)
+            HStack(spacing: 5) {
+                if !current.isEmpty {
+                    Text(current)
+                        .font(.system(size: 11, weight: .medium, design: .monospaced))
+                        .foregroundColor(.white.opacity(0.85))
+                        .padding(.horizontal, 7)
+                        .padding(.vertical, 3)
+                        .background(
+                            RoundedRectangle(cornerRadius: 5)
+                                .fill(Color.white.opacity(0.10))
+                                .overlay(RoundedRectangle(cornerRadius: 5)
+                                    .strokeBorder(Color.white.opacity(0.12), lineWidth: 0.7))
+                        )
+                }
+                Button(current.isEmpty ? "Set" : "Change") { onRecord() }
+                    .buttonStyle(SubtleButtonStyle())
+                if !current.isEmpty {
+                    Button { store.clearBinding(for: tool) } label: {
+                        Image(systemName: "xmark")
+                            .font(.system(size: 9, weight: .bold))
+                            .foregroundColor(xHover ? .white.opacity(0.80) : .white.opacity(0.35))
+                            .frame(width: 18, height: 18)
+                            .background(Circle().fill(xHover ? Color.white.opacity(0.12) : Color.clear))
+                    }
+                    .buttonStyle(.plain)
+                    .onHover { xHover = $0 }
+                    .help("Clear shortcut")
+                }
+            }
         }
         .padding(.vertical, 5)
+        .padding(.horizontal, 4)
+        .background(
+            RoundedRectangle(cornerRadius: 8)
+                .fill(hover ? Color.white.opacity(0.04) : Color.clear)
+        )
+        .animation(.easeInOut(duration: 0.10), value: hover)
+        .onHover { hover = $0 }
     }
 }
 
-private struct ToolHotkeyRecorder: View {
-    let tool: DrawingTool
-    @ObservedObject var store: ToolBindingsStore
-    @State private var isRecording = false
-    @State private var monitor: Any?
+// MARK: - Shortcut Recorder Overlay
 
-    private var current: String { store.bindings[tool] ?? "" }
+private struct ShortcutRecorderOverlay: View {
+    let tool: DrawingTool
+    let onDismiss: () -> Void
+
+    @ObservedObject private var store = ToolBindingsStore.shared
+    @ObservedObject private var pro   = ProManager.shared
+
+    @State private var liveKeys      = ""
+    @State private var pendingShortcut = ""
+    @State private var conflictTool: DrawingTool? = nil
+    @State private var phase: RecordPhase = .waiting
+    @State private var flagMonitor: Any?
+    @State private var keyMonitor: Any?
+
+    private static let reservedShortcuts: Set<String> = [
+        "⌘⌫", "⌘Z", "⌘⇧Z", "⌘=", "⌘−", "⌘W"
+    ]
+
+    enum RecordPhase: Equatable { case waiting, toolConflict, reserved, success }
 
     var body: some View {
-        HStack(spacing: 5) {
-            if !current.isEmpty {
-                Text(current)
-                    .font(.system(size: 11, weight: .medium, design: .monospaced))
-                    .foregroundColor(.white.opacity(0.85))
-                    .padding(.horizontal, 7)
-                    .padding(.vertical, 3)
-                    .background(
-                        RoundedRectangle(cornerRadius: 5)
+        ZStack {
+            Color.black.opacity(0.42)
+                .ignoresSafeArea()
+                .onTapGesture { dismiss() }
+
+            VStack(spacing: 0) {
+                // Header
+                HStack(spacing: 10) {
+                    ZStack {
+                        RoundedRectangle(cornerRadius: 7)
                             .fill(Color.white.opacity(0.10))
-                            .overlay(RoundedRectangle(cornerRadius: 5)
-                                .strokeBorder(Color.white.opacity(0.12), lineWidth: 0.7))
-                    )
-            }
-
-            Button(isRecording ? "Cancel" : (current.isEmpty ? "Set" : "Change")) {
-                isRecording ? stopRecording() : startRecording()
-            }
-            .buttonStyle(BrandButtonStyle(outline: true))
-
-            if !current.isEmpty && !isRecording {
-                Button { store.clearBinding(for: tool) } label: {
-                    Image(systemName: "xmark")
-                        .font(.system(size: 9, weight: .bold))
-                        .foregroundColor(.white.opacity(0.4))
-                        .frame(width: 16, height: 16)
+                            .frame(width: 30, height: 30)
+                        ToolIconView(tool: tool, size: 13)
+                            .foregroundColor(.white.opacity(0.80))
+                    }
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text("Set Shortcut")
+                            .font(.system(size: 13, weight: .semibold))
+                            .foregroundColor(.white)
+                        Text(tool.displayName)
+                            .font(.system(size: 10))
+                            .foregroundColor(.white.opacity(0.42))
+                    }
+                    Spacer()
+                    Button { dismiss() } label: {
+                        Image(systemName: "xmark")
+                            .font(.system(size: 10, weight: .bold))
+                            .foregroundColor(.white.opacity(0.35))
+                            .frame(width: 22, height: 22)
+                            .background(Circle().fill(Color.white.opacity(0.08)))
+                    }
+                    .buttonStyle(.plain)
                 }
-                .buttonStyle(.plain)
-                .help("Clear shortcut")
+                .padding(.horizontal, 18)
+                .padding(.top, 18)
+                .padding(.bottom, 14)
+
+                Divider().overlay(Color.white.opacity(0.08))
+
+                // Key cap display
+                ZStack {
+                    RoundedRectangle(cornerRadius: 12)
+                        .fill(Color.white.opacity(0.05))
+                    if liveKeys.isEmpty && phase == .waiting {
+                        Text("Press your shortcut…")
+                            .font(.system(size: 13))
+                            .foregroundColor(.white.opacity(0.28))
+                    } else {
+                        keyCapsView
+                    }
+                }
+                .frame(height: 68)
+                .padding(.horizontal, 18)
+                .padding(.vertical, 16)
+
+                Divider().overlay(Color.white.opacity(0.08))
+
+                // Status area
+                statusArea
+                    .padding(.horizontal, 18)
+                    .padding(.vertical, 14)
             }
+            .frame(width: 300)
+            .background(
+                RoundedRectangle(cornerRadius: 18)
+                    .fill(Color(white: 0.13))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 18)
+                            .strokeBorder(Color.white.opacity(0.12), lineWidth: 0.8)
+                    )
+            )
+            .shadow(color: .black.opacity(0.5), radius: 32, x: 0, y: 12)
         }
-        .onDisappear { stopRecording() }
+        .onAppear { installMonitors() }
+        .onDisappear { removeMonitors() }
     }
 
-    private func startRecording() {
-        isRecording = true
-        monitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
-            if event.keyCode == 53 {
-                self.stopRecording()
-            } else {
-                let shortcut = self.formatShortcut(from: event)
-                if !shortcut.isEmpty {
-                    self.store.setBinding(shortcut, for: self.tool)
-                    self.stopRecording()
+    // Individual key caps for the shortcut
+    @ViewBuilder
+    private var keyCapsView: some View {
+        HStack(spacing: 5) {
+            ForEach(Array(liveKeys.unicodeScalars.map { String($0) }.enumerated()), id: \.offset) { _, char in
+                keyCap(char, color: capColor)
+            }
+        }
+    }
+
+    private var capColor: Color {
+        switch phase {
+        case .toolConflict: return Color(hex: "#F4644D") ?? .orange
+        case .reserved:     return Color(hex: "#F4644D") ?? .orange
+        case .success:      return .green
+        case .waiting:      return .white
+        }
+    }
+
+    private func keyCap(_ text: String, color: Color) -> some View {
+        Text(text)
+            .font(.system(size: 17, weight: .semibold))
+            .foregroundColor(color)
+            .frame(minWidth: 34, minHeight: 34)
+            .padding(.horizontal, 4)
+            .background(
+                RoundedRectangle(cornerRadius: 8)
+                    .fill(Color.white.opacity(0.10))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 8)
+                            .strokeBorder(color.opacity(0.30), lineWidth: 0.8)
+                    )
+            )
+            .animation(.easeInOut(duration: 0.12), value: phase)
+    }
+
+    @ViewBuilder
+    private var statusArea: some View {
+        switch phase {
+        case .waiting:
+            Text("Needs at least one modifier  ⌃ ⌥ ⇧ ⌘")
+                .font(.system(size: 11))
+                .foregroundColor(.white.opacity(0.30))
+                .frame(maxWidth: .infinity, alignment: .center)
+
+        case .toolConflict:
+            VStack(spacing: 10) {
+                if let c = conflictTool {
+                    HStack(spacing: 6) {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .font(.system(size: 11))
+                            .foregroundColor(Color(hex: "#F4644D") ?? .orange)
+                        Text("Already used by **\(c.displayName)**")
+                            .font(.system(size: 12))
+                            .foregroundColor(.white.opacity(0.75))
+                    }
+                }
+                HStack(spacing: 8) {
+                    Button("Cancel") { dismiss() }
+                        .buttonStyle(SubtleButtonStyle())
+                    Button("Reassign to \(tool.displayName)") { reassign() }
+                        .buttonStyle(SubtleButtonStyle(recording: true))
                 }
             }
+            .frame(maxWidth: .infinity, alignment: .center)
+
+        case .reserved:
+            HStack(spacing: 6) {
+                Image(systemName: "lock.fill")
+                    .font(.system(size: 10))
+                    .foregroundColor(Color(hex: "#F4644D") ?? .orange)
+                Text("This shortcut is reserved by Pointly")
+                    .font(.system(size: 11))
+                    .foregroundColor(.white.opacity(0.55))
+            }
+            .frame(maxWidth: .infinity, alignment: .center)
+
+        case .success:
+            HStack(spacing: 6) {
+                Image(systemName: "checkmark.circle.fill")
+                    .font(.system(size: 13))
+                    .foregroundColor(.green)
+                Text("Shortcut saved!")
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundColor(.white.opacity(0.80))
+            }
+            .frame(maxWidth: .infinity, alignment: .center)
+        }
+    }
+
+    private func installMonitors() {
+        NotificationCenter.default.post(name: .pauseToolHotkeys, object: nil)
+
+        flagMonitor = NSEvent.addLocalMonitorForEvents(matching: .flagsChanged) { event in
+            guard self.phase == .waiting else { return event }
+            let mods = event.modifierFlags.intersection([.command, .shift, .option, .control])
+            var parts: [String] = []
+            if mods.contains(.control) { parts.append("⌃") }
+            if mods.contains(.option)  { parts.append("⌥") }
+            if mods.contains(.shift)   { parts.append("⇧") }
+            if mods.contains(.command) { parts.append("⌘") }
+            self.liveKeys = parts.joined()
+            return event
+        }
+
+        keyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
+            if event.keyCode == 53 { self.dismiss(); return nil }
+            guard self.phase == .waiting else { return nil }
+
+            let mods = event.modifierFlags.intersection([.command, .shift, .option, .control])
+            guard !mods.isEmpty,
+                  let char = event.charactersIgnoringModifiers?.uppercased(),
+                  !char.isEmpty, char != "\u{1b}" else {
+                // Bare key (no modifier) — flash a reminder
+                return nil
+            }
+
+            var parts: [String] = []
+            if mods.contains(.control) { parts.append("⌃") }
+            if mods.contains(.option)  { parts.append("⌥") }
+            if mods.contains(.shift)   { parts.append("⇧") }
+            if mods.contains(.command) { parts.append("⌘") }
+            parts.append(char)
+            let shortcut = parts.joined()
+
+            self.liveKeys = shortcut
+
+            // Reserved check
+            if Self.reservedShortcuts.contains(shortcut) {
+                self.phase = .reserved
+                DispatchQueue.main.asyncAfter(deadline: .now() + 1.8) {
+                    self.phase = .waiting
+                    self.liveKeys = ""
+                }
+                return nil
+            }
+
+            // Tool conflict check (exclude self)
+            if let conflicting = self.store.bindings.first(where: {
+                $0.key != self.tool && Set($0.value) == Set(shortcut)
+            })?.key {
+                self.pendingShortcut = shortcut
+                self.conflictTool    = conflicting
+                self.phase           = .toolConflict
+                return nil
+            }
+
+            // All clear — commit
+            self.store.setBinding(shortcut, for: self.tool)
+            self.phase = .success
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.9) { self.dismiss() }
             return nil
         }
     }
 
-    private func stopRecording() {
-        isRecording = false
-        if let m = monitor { NSEvent.removeMonitor(m); monitor = nil }
+    private func removeMonitors() {
+        if let m = flagMonitor { NSEvent.removeMonitor(m); flagMonitor = nil }
+        if let m = keyMonitor  { NSEvent.removeMonitor(m); keyMonitor  = nil }
+        NotificationCenter.default.post(name: .resumeToolHotkeys, object: nil)
     }
 
-    private func formatShortcut(from event: NSEvent) -> String {
-        let mods = event.modifierFlags.intersection([.command, .shift, .option, .control])
-        guard !mods.isEmpty else { return "" }
-        var parts: [String] = []
-        if mods.contains(.control) { parts.append("⌃") }
-        if mods.contains(.option)  { parts.append("⌥") }
-        if mods.contains(.shift)   { parts.append("⇧") }
-        if mods.contains(.command) { parts.append("⌘") }
-        guard let c = event.charactersIgnoringModifiers?.uppercased(),
-              !c.isEmpty, c != "\u{1b}" else { return "" }
-        parts.append(c)
-        return parts.joined()
+    private func reassign() {
+        guard let c = conflictTool else { return }
+        store.clearBinding(for: c)
+        store.setBinding(pendingShortcut, for: tool)
+        conflictTool = nil
+        phase = .success
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.9) { dismiss() }
+    }
+
+    private func dismiss() {
+        removeMonitors()
+        onDismiss()
     }
 }
 
@@ -914,7 +1319,7 @@ struct HotkeyRecorderView: View {
             Button(isRecording ? "Cancel" : "Change") {
                 isRecording ? stopRecording() : startRecording()
             }
-            .buttonStyle(BrandButtonStyle(outline: true))
+            .buttonStyle(SubtleButtonStyle(recording: isRecording))
         }
         .onDisappear { stopRecording() }
     }

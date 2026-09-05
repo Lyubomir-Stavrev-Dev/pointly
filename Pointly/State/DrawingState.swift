@@ -1,5 +1,6 @@
 import SwiftUI
 import Combine
+import ScreenCaptureKit
 
 /// Drawing tools available in the toolbar
 enum DrawingTool: String, CaseIterable {
@@ -66,7 +67,7 @@ enum DrawingTool: String, CaseIterable {
         case .highlighter: return "highlighter"
         case .eraser: return "eraser"
         case .marker: return "paintbrush"
-        case .blurBrush: return "camera.filters"
+        case .blurBrush: return "wand.and.sparkles"
         case .laserPointer: return "laser.burst"
         case .dotPen: return "circle.dotted"
         case .cutMove: return "scissors"
@@ -204,6 +205,7 @@ struct DrawingElement: Identifiable {
     /// shared element list otherwise mirrors annotations onto every screen.
     /// nil (pre-existing saves) renders everywhere.
     var displayID: CGDirectDisplayID? = nil
+    var backgroundCapture: CGImage? = nil  // pixel snapshot for real blur brush rendering
 
     init(tool: DrawingTool, points: [CGPoint], color: Color, thickness: CGFloat,
          blurRadius: CGFloat? = nil, glowIntensity: CGFloat? = nil,
@@ -231,11 +233,16 @@ struct DrawingElement: Identifiable {
     /// Current opacity considering time-based fade (laser pointer).
     var currentOpacity: Double {
         guard shouldFade else { return opacity }
-
-        let age = Date().timeIntervalSince(timestamp)
-        let fadeTime: TimeInterval = 3.0
+        let age      = Date().timeIntervalSince(timestamp)
+        let fadeTime = 3.5
         if age >= fadeTime { return 0.0 }
-        return opacity * (1.0 - age / fadeTime)
+        // Hold at full brightness for the first 25%, then cosine ease-out.
+        // This keeps the laser crisp while the presenter is pointing,
+        // then lets it dissolve naturally rather than disappearing abruptly.
+        let holdFraction = 0.25
+        if age / fadeTime < holdFraction { return opacity }
+        let t = (age / fadeTime - holdFraction) / (1.0 - holdFraction) // 0 → 1
+        return opacity * 0.5 * (1.0 + cos(.pi * t))
     }
 
     var boundingBox: CGRect {
@@ -333,6 +340,66 @@ class DrawingState: ObservableObject {
     @Published var isTextInputActive: Bool = false
     @Published var liftedCovers: [LiftedCover] = []
     @Published var whiteboardMode: Bool = false
+    /// Live cursor position while laser tool is active — the laser dot IS the
+    /// cursor. Fed by OverlayView's hover + drag handlers; DrawingCanvas
+    /// renders the dot and the fading trail from here. The laser never
+    /// creates drawing elements.
+    @Published var liveLaserPoint: CGPoint? = nil
+    /// Display the live laser point belongs to (points are window-local).
+    var liveLaserDisplayID: CGDirectDisplayID? = nil
+    /// Rolling buffer of recent laser positions with capture times — rendered
+    /// as the light trail, each point fading by age (hover and drag alike).
+    var liveLaserTrail: [(point: CGPoint, time: Date)] = []
+
+    /// Pre-captured screen snapshot for the next blur brush stroke.
+    /// Refreshed when blurBrush is selected and after each stroke finishes.
+    var pendingBlurCapture: CGImage? = nil
+
+    @MainActor
+    func refreshBlurCapture(displayID: CGDirectDisplayID) async {
+        // Try high-quality SCK capture (excludes Pointly's own overlay)
+        if let content = try? await SCShareableContent.current,
+           let scDisplay = content.displays.first(where: { $0.displayID == displayID })
+                        ?? content.displays.first {
+            let ourPID = pid_t(ProcessInfo.processInfo.processIdentifier)
+            let excluded = content.windows.filter { $0.owningApplication?.processID == ourPID }
+            let filter = SCContentFilter(display: scDisplay, excludingWindows: excluded)
+            let cfg = SCStreamConfiguration()
+            cfg.width  = scDisplay.width
+            cfg.height = scDisplay.height
+            cfg.showsCursor = false
+            if let img = try? await SCScreenshotManager.captureImage(
+                contentFilter: filter, configuration: cfg) {
+                pendingBlurCapture = img
+                return
+            }
+        }
+        // Synchronous fallback — works even when SCK permission dialog hasn't fired yet
+        let did = displayID != 0 ? displayID : CGMainDisplayID()
+        pendingBlurCapture = CGDisplayCreateImage(did)
+    }
+
+    func updateLiveLaser(_ point: CGPoint, displayID: CGDirectDisplayID?) {
+        liveLaserDisplayID = displayID
+        let now = Date()
+        liveLaserTrail.append((point, now))
+        let cutoff = now.addingTimeInterval(-0.5)
+        liveLaserTrail.removeAll { $0.time < cutoff }
+        liveLaserPoint = point
+    }
+
+    /// Clear only if `displayID` owns the dot — when the cursor crosses to
+    /// another display, the new display sets its point before the old
+    /// display's hover-ended fires, and must not be clobbered.
+    func clearLiveLaser(ownedBy displayID: CGDirectDisplayID?) {
+        guard liveLaserDisplayID == displayID else { return }
+        clearLiveLaser()
+    }
+
+    func clearLiveLaser() {
+        liveLaserPoint = nil
+        liveLaserTrail.removeAll()
+    }
 
     // Drawing elements and undo/redo stacks
     @Published private(set) var elements: [DrawingElement] = []
@@ -390,7 +457,7 @@ class DrawingState: ObservableObject {
         saveStateForUndo()
         currentStroke = [point]
         isDrawing = true
-        
+
         // Tool-specific initialization
         initializeToolSpecificProperties()
     }
@@ -501,7 +568,7 @@ class DrawingState: ObservableObject {
         isDrawing = true
         selectedTool = tool
     }
-    
+
     private func continueStroke(to point: CGPoint) {
         currentStroke.append(point)
         updateCurrentElement()
@@ -781,13 +848,17 @@ class DrawingState: ObservableObject {
             )
             
         case .blurBrush:
-            return DrawingElement(
+            var el = DrawingElement(
                 tool: selectedTool,
                 points: currentStroke,
                 color: selectedColor,
                 thickness: strokeThickness,
                 blurRadius: strokeThickness * 2.0
             )
+            // Use pre-warmed async capture if ready, otherwise grab synchronously
+            el.backgroundCapture = pendingBlurCapture
+                ?? CGDisplayCreateImage(activeDisplayID ?? CGMainDisplayID())
+            return el
             
         case .laserPointer:
             return DrawingElement(

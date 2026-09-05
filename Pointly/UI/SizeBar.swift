@@ -91,7 +91,8 @@ struct SizeBar: View {
     private func content(_ cfg: Config) -> some View {
         if horizontal {
             HStack(spacing: 10) {
-                Image(systemName: cfg.icon)
+                ToolIconView(tool: drawingState.selectedTool, size: 12,
+                             systemImageOverride: cfg.icon)
                     .font(.system(size: 11, weight: .semibold))
                     .foregroundStyle(barGradient)
                     .id(cfg.icon)
@@ -113,7 +114,8 @@ struct SizeBar: View {
             .padding(.vertical, 8)
         } else {
             VStack(spacing: 8) {
-                Image(systemName: cfg.icon)
+                ToolIconView(tool: drawingState.selectedTool, size: 12,
+                             systemImageOverride: cfg.icon)
                     .font(.system(size: 11, weight: .semibold))
                     .foregroundStyle(barGradient)
                     .frame(height: 16)

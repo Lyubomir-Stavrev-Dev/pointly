@@ -26,8 +26,13 @@ struct ToolbarPanelView: View {
 
     @State private var toolbarSize: CGSize = CGSize(width: 72, height: 360)
     @AppStorage("toolbarHorizontal") private var horizontal = false
+    /// User-adjustable UI scale (Settings → Appearance). Written by
+    /// SettingsStore; @AppStorage keeps the live toolbar in sync.
+    @AppStorage("toolbarScale") private var toolbarScale = 1.12
+    @State private var unscaledSize: CGSize = .zero
 
     private var isInteract: Bool { interactionMode.currentMode == .interact }
+    private var scale: CGFloat { CGFloat(min(1.4, max(0.8, toolbarScale))) }
 
     var body: some View {
         Group {
@@ -70,6 +75,21 @@ struct ToolbarPanelView: View {
             }
         }
         .animation(.spring(response: 0.38, dampingFraction: 0.76), value: isInteract)
+        .fixedSize()
+        // Scale trick: scaleEffect is purely visual, so measure the natural
+        // size first, then claim a frame of natural × scale — layout, hit
+        // testing, and the panel-fitting callback all see the scaled size.
+        .background(
+            GeometryReader { geo in
+                Color.clear
+                    .onAppear    { unscaledSize = geo.size }
+                    .onChange(of: geo.size) { _, newSize in unscaledSize = newSize }
+            }
+        )
+        .scaleEffect(scale, anchor: .topLeading)
+        .frame(width:  unscaledSize == .zero ? nil : unscaledSize.width  * scale,
+               height: unscaledSize == .zero ? nil : unscaledSize.height * scale,
+               alignment: .topLeading)
         .background(
             GeometryReader { geo in
                 Color.clear
@@ -77,7 +97,6 @@ struct ToolbarPanelView: View {
                     .onChange(of: geo.size) { _, newSize in onSizeChange?(newSize) }
             }
         )
-        .fixedSize()
     }
 }
 
@@ -137,7 +156,7 @@ struct MiniToolbarPill: View {
             separator
 
             // Tool icon — tap to expand back to full toolbar
-            Image(systemName: drawingState.selectedTool.systemImage)
+            ToolIconView(tool: drawingState.selectedTool, size: 14)
                 .font(.system(size: 13, weight: .semibold))
                 .foregroundStyle(miniGradient)
                 .frame(width: 36, height: 36)

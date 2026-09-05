@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="utf-8"><title>Pointly — Draw</title>
+<link rel="stylesheet" href="shared.css">
+<style>
+/* Duration: 5.5s */
+.layout { position:absolute; inset:0; display:flex; }
+.main { flex:1; display:flex; flex-direction:column; background:#f4f5f8; }
+.topbar {
+  height:60px; flex-shrink:0; background:#fff; border-bottom:1px solid #e8e9ec;
+  display:flex; align-items:center; padding:0 40px; gap:14px;
+}
+.topbar-title { font-size:18px; font-weight:700; color:#1a1c24; flex:1; }
+.topbar-badge { padding:6px 14px; border-radius:20px; font-size:13px; font-weight:600; background:#f0faf4; color:#22a06b; }
+.content { flex:1; padding:28px 40px; display:flex; flex-direction:column; gap:18px; overflow:hidden; }
+
+/* Overlay tint (Pointly is active) */
+.overlay-tint { position:absolute; inset:0; z-index:8; background:rgba(7,7,15,0.06); pointer-events:none; }
+
+/* Ink SVG paths animated via JS */
+path.drawn { fill:none; stroke-linecap:round; stroke-linejoin:round; }
+
+/* Cursor */
+.cursor { animation: cursor-pulse 1.5s ease-in-out 0.3s infinite; }
+</style>
+</head>
+<body>
+<div class="layout">
+  <div class="sidebar">
+    <div class="sidebar-logo">Metrics</div>
+    <div class="nav-item active">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M3 13h2v-2H3v2zm0 4h2v-2H3v2zm0-8h2V7H3v2zm4 4h14v-2H7v2zm0 4h14v-2H7v2zM7 7v2h14V7H7z"/></svg>
+      Overview
+    </div>
+    <div class="nav-item">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M16 6l2.29 2.29-4.88 4.88-4-4L2 16.59 3.41 18l6-6 4 4 6.3-6.29L22 12V6z"/></svg>
+      Revenue
+    </div>
+    <div class="nav-item">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5z"/></svg>
+      Users
+    </div>
+  </div>
+  <div class="main">
+    <div class="topbar">
+      <span class="topbar-title">Q3 Growth Dashboard</span>
+      <span class="topbar-badge">▲ 34% vs Q2</span>
+    </div>
+    <div class="content">
+      <div class="metrics-row">
+        <div class="metric-card" id="mrr-card">
+          <div class="metric-label">Monthly Revenue</div>
+          <div class="metric-value">$248,910</div>
+          <div class="metric-delta">▲ 28% vs last month</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-label">Active Users</div>
+          <div class="metric-value">18,402</div>
+          <div class="metric-delta">▲ 12% vs last month</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-label">Conversion</div>
+          <div class="metric-value">6.8%</div>
+          <div class="metric-delta">▲ 1.2pp vs last month</div>
+        </div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-title">Monthly Recurring Revenue</div>
+        <div class="chart-area" id="chart">
+          <div class="bar-group"><div class="bar dim" style="height:38%"></div></div>
+          <div class="bar-group"><div class="bar dim" style="height:46%"></div></div>
+          <div class="bar-group"><div class="bar dim" style="height:42%"></div></div>
+          <div class="bar-group"><div class="bar dim" style="height:58%"></div></div>
+          <div class="bar-group"><div class="bar dim" style="height:65%"></div></div>
+          <div class="bar-group" id="peak-group"><div class="bar peak" style="height:100%"></div></div>
+        </div>
+        <div class="bar-axis">
+          <span>May</span><span>Jun</span><span>Jul</span>
+          <span>Aug</span><span>Sep</span><span class="peak">Oct</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="overlay-tint"></div>
+
+<!-- Toolbar (pen tool active) -->
+<div class="toolbar">
+  <div class="tb-handle"><i></i><i></i><i></i></div>
+  <div class="tb-mode">
+    <svg viewBox="0 0 24 24" width="13" fill="#fff"><path d="M3 17.25V21h3.75L17.8 9.94l-3.75-3.75L3 17.25zM20.7 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>
+    Draw
+  </div>
+  <div class="tb-lbl">Tools</div>
+  <div class="tb-grid">
+    <div class="tb-btn on"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 17.25V21h3.75L17.8 9.94l-3.75-3.75L3 17.25zM20.7 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg></div>
+    <div class="tb-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 18h10M6 13l6-6 5 5-6 6H6v-5z"/></svg></div>
+    <div class="tb-btn"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M5 16l7-13 3 1.6L9 17l-4-1z"/><rect x="4" y="18" width="7" height="3" rx="1"/></svg></div>
+    <div class="tb-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 20h16M6 16l9-9 3 3-9 9H6v-3z"/></svg></div>
+    <div class="tb-btn lock"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="3" fill="currentColor" stroke="none"/></svg></div>
+    <div class="tb-btn lock"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><line x1="12" y1="2" x2="12" y2="5"/><line x1="12" y1="19" x2="12" y2="22"/><line x1="2" y1="12" x2="5" y2="12"/><line x1="19" y1="12" x2="22" y2="12"/></svg></div>
+  </div>
+  <div class="tb-div"></div>
+  <div class="tb-swatches">
+    <div class="sw on" style="background:#F4644D"></div>
+    <div class="sw" style="background:#FF8C42"></div>
+    <div class="sw" style="background:#FFD166"></div>
+    <div class="sw" style="background:#34D399"></div>
+    <div class="sw" style="background:#4FACFE"></div>
+    <div class="sw" style="background:#A78BFA"></div>
+    <div class="sw" style="background:#E9458C"></div>
+    <div class="sw" style="background:#fff"></div>
+  </div>
+</div>
+
+<!-- Ink overlay SVG -->
+<svg class="ink" id="ink">
+  <!-- circle drawn around peak bar (coordinates set by JS) -->
+  <ellipse id="circle" cx="0" cy="0" rx="0" ry="0"
+    stroke="#F4644D" stroke-width="7" fill="none" stroke-linecap="round"/>
+  <!-- arrow from circle to MRR card -->
+  <path id="arrow" d="" stroke="#E9458C" stroke-width="6.5" fill="none" stroke-linecap="round"/>
+  <!-- arrowhead -->
+  <path id="arrowhead" d="" stroke="#E9458C" stroke-width="6.5" fill="none"
+    stroke-linecap="round" stroke-linejoin="round" opacity="0"/>
+</svg>
+
+<!-- Cursor -->
+<div class="cursor" id="cursor"></div>
+
+<script>
+(function() {
+  // easing
+  function easeInOut(t) { return t < 0.5 ? 2*t*t : -1+(4-2*t)*t; }
+
+  // Animate element along path using rAF
+  function followPath(pathEl, cursorEl, startMs, durMs, onDone) {
+    const len = pathEl.getTotalLength();
+    setTimeout(() => {
+      const t0 = performance.now();
+      function frame(now) {
+        const raw = (now - t0) / durMs;
+        const t = Math.min(raw, 1);
+        const pt = pathEl.getPointAtLength(easeInOut(t) * len);
+        cursorEl.style.left = pt.x + 'px';
+        cursorEl.style.top  = pt.y + 'px';
+        if (t < 1) requestAnimationFrame(frame);
+        else if (onDone) onDone(pt);
+      }
+      requestAnimationFrame(frame);
+    }, startMs);
+  }
+
+  // Animate SVG stroke drawing
+  function drawPath(el, startMs, durMs) {
+    const len = el.getTotalLength ? el.getTotalLength() : Math.PI * 2 * Math.max(
+      parseFloat(el.getAttribute('rx')||0), parseFloat(el.getAttribute('ry')||0)
+    );
+    el.style.strokeDasharray  = len;
+    el.style.strokeDashoffset = len;
+    setTimeout(() => {
+      el.style.transition = `stroke-dashoffset ${durMs/1000}s cubic-bezier(0.42,0,0.58,1)`;
+      el.style.strokeDashoffset = 0;
+    }, startMs);
+  }
+
+  document.addEventListener('DOMContentLoaded', () => {
+    const peakGroup = document.getElementById('peak-group');
+    const mrrCard   = document.getElementById('mrr-card');
+    const circleEl  = document.getElementById('circle');
+    const arrowEl   = document.getElementById('arrow');
+    const arrowHd   = document.getElementById('arrowhead');
+    const cursor    = document.getElementById('cursor');
+
+    const pr  = peakGroup.getBoundingClientRect();
+    const mr  = mrrCard.getBoundingClientRect();
+
+    // Circle around peak bar
+    const cx = pr.left + pr.width  / 2;
+    const cy = pr.top  + pr.height / 2;
+    const rx = pr.width / 2 + 64;
+    const ry = pr.height / 2 + 36;
+    circleEl.setAttribute('cx', cx);
+    circleEl.setAttribute('cy', cy);
+    circleEl.setAttribute('rx', rx);
+    circleEl.setAttribute('ry', ry);
+
+    // Build a path along the ellipse perimeter so we can animate cursor along it
+    // Ellipse as cubic bezier path (approximate):
+    const k = 0.5523;
+    const ellipsePath = document.createElementNS('http://www.w3.org/2000/svg','path');
+    ellipsePath.setAttribute('d',
+      `M ${cx} ${cy-ry} C ${cx+rx*k} ${cy-ry} ${cx+rx} ${cy-ry*k} ${cx+rx} ${cy} ` +
+      `C ${cx+rx} ${cy+ry*k} ${cx+rx*k} ${cy+ry} ${cx} ${cy+ry} ` +
+      `C ${cx-rx*k} ${cy+ry} ${cx-rx} ${cy+ry*k} ${cx-rx} ${cy} ` +
+      `C ${cx-rx} ${cy-ry*k} ${cx-rx*k} ${cy-ry} ${cx} ${cy-ry} Z`
+    );
+    document.getElementById('ink').appendChild(ellipsePath);
+    ellipsePath.style.opacity = 0; // invisible path, only used for cursor motion
+
+    // Arrow from circle edge to MRR card
+    const ax1 = cx - rx - 20;
+    const ay1 = cy;
+    const ax2 = mr.right + 40;
+    const ay2 = mr.top + mr.height / 2;
+    // Control points for a nice curve
+    const cpx = (ax1 + ax2) / 2 - 80;
+    const cpy = Math.min(ay1, ay2) - 60;
+    const arrowD = `M ${ax1} ${ay1} C ${cpx} ${cpy} ${cpx+80} ${ay2-40} ${ax2} ${ay2}`;
+    arrowEl.setAttribute('d', arrowD);
+
+    // Arrowhead pointing right (since we end going →)
+    const arrowHdD = `M ${ax2} ${ay2} L ${ax2-22} ${ay2-10} M ${ax2} ${ay2} L ${ax2-22} ${ay2+10}`;
+    arrowHd.setAttribute('d', arrowHdD);
+
+    // --- Sequencing ---
+    // 0.4s: cursor appears at top of circle, starts moving around it
+    cursor.style.left = cx + 'px';
+    cursor.style.top  = (cy - ry) + 'px';
+    cursor.style.opacity = '1';
+
+    // 0.4s: start drawing circle (2s duration)
+    drawPath(circleEl, 400, 2000);
+    // 0.4s: cursor follows ellipse path (2s)
+    followPath(ellipsePath, cursor, 400, 2000, (endPt) => {
+      // After circle: cursor moves to arrow start
+      cursor.style.transition = 'left 0.4s ease-in-out, top 0.4s ease-in-out';
+      cursor.style.left = ax1 + 'px';
+      cursor.style.top  = ay1 + 'px';
+      setTimeout(() => {
+        cursor.style.transition = '';
+        // Draw arrow (1.5s, starting 0.5s after circle done)
+        drawPath(arrowEl, 0, 1500);
+        // Cursor follows arrow
+        followPath(arrowEl, cursor, 0, 1500, () => {
+          // Show arrowhead
+          arrowHd.style.opacity = '1';
+        });
+      }, 600);
+    });
+  });
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="utf-8"><title>Pointly — Highlight</title>
+<link rel="stylesheet" href="shared.css">
+<style>
+/* Duration: 4.5s */
+body { background: #fff; }
+.layout { position:absolute; inset:0; display:flex; }
+.main { flex:1; display:flex; flex-direction:column; background:#fff; }
+
+/* macOS-style window chrome at top */
+.chrome {
+  height: 44px; flex-shrink: 0;
+  background: #f2f2f4; border-bottom: 1px solid rgba(0,0,0,0.08);
+  display: flex; align-items: center; padding: 0 16px; gap: 8px;
+}
+.address-bar {
+  flex: 1; max-width: 700px; margin: 0 auto;
+  height: 28px; border-radius: 7px;
+  background: rgba(0,0,0,0.06);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 13px; color: #6b6b72; gap: 6px;
+}
+
+/* Article content */
+.doc {
+  flex: 1; overflow: hidden;
+  padding: 60px 0;
+  display: flex; justify-content: center;
+}
+.article {
+  width: 680px;
+}
+.article-kicker {
+  font-size: 12px; font-weight: 700; letter-spacing: 0.1em; color: #F4644D;
+  text-transform: uppercase; margin-bottom: 16px;
+}
+.article-title {
+  font-size: 42px; font-weight: 800; letter-spacing: -1.5px; line-height: 1.1;
+  color: #16181d; margin-bottom: 20px;
+}
+.article-meta {
+  font-size: 14px; color: #8a8a95; margin-bottom: 32px;
+  display: flex; gap: 16px;
+}
+.article-body {
+  font-size: 19px; line-height: 1.72; color: #3a3d47;
+}
+.article-body p { margin-bottom: 24px; }
+
+/* Highlight layer — clip-path: inset animates right edge inward to reveal */
+.highlight-layer {
+  position: absolute; z-index: 20; pointer-events: none;
+  inset: 0;
+}
+.hl {
+  position: absolute;
+  background: rgba(255, 209, 102, 0.55);
+  border-radius: 3px;
+  /* start fully clipped (right side = 100%) → animate to 0% */
+  clip-path: inset(0 100% 0 0);
+}
+/* Highlighter brush cursor (wider, flat) */
+.cursor {
+  width: 36px; height: 14px;
+  border-radius: 4px;
+  background: rgba(255,209,102,0.9);
+  box-shadow: 0 0 0 3px rgba(255,209,102,0.4), 0 4px 14px rgba(255,180,0,0.5);
+  transform: translate(-50%, -50%);
+}
+/* Toolbar highlight tool active (yellow) */
+.tb-btn.hl-on {
+  background: linear-gradient(135deg,#FFD166,#FFB347) !important;
+  box-shadow: 0 6px 16px -3px rgba(255,209,102,0.7) !important;
+}
+</style>
+</head>
+<body>
+
+<div class="layout">
+  <div class="main">
+    <div class="chrome">
+      <span class="dot r"></span><span class="dot y"></span><span class="dot g"></span>
+      <div class="address-bar">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#6b6b72" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+        medium.com · The Future of Async Work
+      </div>
+    </div>
+    <div class="doc">
+      <div class="article">
+        <div class="article-kicker">Productivity</div>
+        <div class="article-title">Why the best teams<br>present differently</div>
+        <div class="article-meta">
+          <span>Sarah Chen</span>
+          <span>·</span>
+          <span>6 min read</span>
+        </div>
+        <div class="article-body">
+          <p>The difference between a forgettable demo and one that lands a deal is rarely the product itself — it's how the presenter directs attention in real time.</p>
+          <p id="p2">The most effective remote presenters treat their screen the way a <span id="span-key">stage director treats the spotlight</span>: deliberate, purposeful, always keeping the audience's gaze on what matters most.</p>
+          <p>Studies of attention in video calls show that viewers lose focus within 90 seconds when there is no visual anchor. Annotation tools change that — they give the presenter a way to say <em>"look here"</em> without saying a word.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Overlay tint -->
+<div style="position:absolute;inset:0;z-index:8;background:rgba(7,7,15,0.05);pointer-events:none;"></div>
+
+<!-- Highlight layer -->
+<div class="highlight-layer" id="hl-layer"></div>
+
+<!-- Toolbar — highlighter active -->
+<div class="toolbar">
+  <div class="tb-handle"><i></i><i></i><i></i></div>
+  <div class="tb-mode" style="background:linear-gradient(135deg,#FFD166,#FFB347);box-shadow:0 8px 22px -4px rgba(255,209,102,0.6);">
+    <svg viewBox="0 0 24 24" width="13" fill="#fff"><path d="M7 18h10M6 13l6-6 5 5-6 6H6v-5z" stroke="#fff" stroke-width="2" fill="none"/></svg>
+    Mark
+  </div>
+  <div class="tb-lbl">Tools</div>
+  <div class="tb-grid">
+    <div class="tb-btn"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 17.25V21h3.75L17.8 9.94l-3.75-3.75L3 17.25zM20.7 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg></div>
+    <div class="tb-btn hl-on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 18h10M6 13l6-6 5 5-6 6H6v-5z"/></svg></div>
+    <div class="tb-btn"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M5 16l7-13 3 1.6L9 17l-4-1z"/><rect x="4" y="18" width="7" height="3" rx="1"/></svg></div>
+    <div class="tb-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 20h16M6 16l9-9 3 3-9 9H6v-3z"/></svg></div>
+    <div class="tb-btn lock"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="3" fill="currentColor" stroke="none"/></svg></div>
+    <div class="tb-btn lock"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><line x1="12" y1="2" x2="12" y2="5"/><line x1="12" y1="19" x2="12" y2="22"/><line x1="2" y1="12" x2="5" y2="12"/><line x1="19" y1="12" x2="22" y2="12"/></svg></div>
+  </div>
+  <div class="tb-div"></div>
+  <div class="tb-swatches">
+    <div class="sw" style="background:#F4644D"></div>
+    <div class="sw" style="background:#FF8C42"></div>
+    <div class="sw on" style="background:#FFD166"></div>
+    <div class="sw" style="background:#34D399"></div>
+    <div class="sw" style="background:#4FACFE"></div>
+    <div class="sw" style="background:#A78BFA"></div>
+    <div class="sw" style="background:#E9458C"></div>
+    <div class="sw" style="background:#fff"></div>
+  </div>
+</div>
+
+<div class="cursor" id="cursor"></div>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  const cursor  = document.getElementById('cursor');
+  const hlLayer = document.getElementById('hl-layer');
+
+  // Find the key span positions
+  const spanKey = document.getElementById('span-key');
+  const p2El    = document.getElementById('p2');
+
+  function addHighlight(el, delay, color) {
+    const r = el.getBoundingClientRect();
+    const padding = 4;
+    const hl = document.createElement('div');
+    hl.className = 'hl';
+    hl.style.cssText = `
+      left:${r.left - padding}px; top:${r.top - padding}px;
+      width:${r.width + padding*2}px; height:${r.height + padding*2}px;
+      background:${color};
+    `;
+    hlLayer.appendChild(hl);
+    setTimeout(() => {
+      hl.style.transition = `clip-path ${r.width / 420}s linear`;
+      hl.style.clipPath = 'inset(0 0% 0 0)';
+    }, delay);
+    return hl;
+  }
+
+  function moveCursor(x, y, duration, delay, cb) {
+    const cur = { x: parseFloat(cursor.style.left) || x, y: parseFloat(cursor.style.top) || y };
+    setTimeout(() => {
+      const t0 = performance.now();
+      function frame(now) {
+        const t = Math.min((now - t0) / duration, 1);
+        const e = t < 0.5 ? 2*t*t : -1+(4-2*t)*t;
+        cursor.style.left = (cur.x + (x - cur.x) * e) + 'px';
+        cursor.style.top  = (cur.y + (y - cur.y) * e) + 'px';
+        if (t < 1) requestAnimationFrame(frame);
+        else if (cb) cb();
+      }
+      requestAnimationFrame(frame);
+    }, delay);
+  }
+
+  // --- Line 1: highlight the key span ---
+  const sr = spanKey.getBoundingClientRect();
+  const p2r = p2El.getBoundingClientRect();
+
+  // Cursor starts at left of span
+  cursor.style.left = (sr.left - 10) + 'px';
+  cursor.style.top  = (sr.top + sr.height / 2) + 'px';
+  cursor.style.opacity = '1';
+
+  // Pause 0.3s then sweep across span
+  setTimeout(() => {
+    // Move cursor right across span while highlighting
+    addHighlight(spanKey, 200, 'rgba(255,209,102,0.55)');
+    const sweepDur = sr.width / 350 * 1000;
+    moveCursor(sr.right + 10, sr.top + sr.height / 2, sweepDur, 200, () => {
+      // brief pause then second highlight on first sentence of p2
+      setTimeout(() => {
+        // Get the bounding rect of p2's first line (tricky; use a Range)
+        const range = document.createRange();
+        range.selectNodeContents(p2El);
+        const rects = Array.from(range.getClientRects());
+        if (rects.length > 0) {
+          const firstLine = rects[0];
+          // Move cursor back left then sweep first line
+          moveCursor(firstLine.left - 10, firstLine.top + firstLine.height / 2, 400, 0, () => {
+            // Small highlight on the first line
+            const hl2 = document.createElement('div');
+            hl2.className = 'hl';
+            hl2.style.cssText = `
+              left:${firstLine.left - 4}px; top:${firstLine.top - 4}px;
+              width:${firstLine.width + 8}px; height:${firstLine.height + 8}px;
+              background:rgba(255,209,102,0.45);
+            `;
+            hlLayer.appendChild(hl2);
+            setTimeout(() => {
+              hl2.style.transition = `clip-path 0.9s linear`;
+              hl2.style.clipPath = 'inset(0 0% 0 0)';
+            }, 50);
+            moveCursor(firstLine.right + 10, firstLine.top + firstLine.height / 2, 900, 50, null);
+          });
+        }
+      }, 600);
+    });
+  }, 300);
+});
+</script>
+</body>
+</html>
