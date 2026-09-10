@@ -25,6 +25,7 @@ class OverlayWindowManager: ObservableObject {
     private var globalDrawKeyMonitor: Any?
     private var toolCancellable: AnyCancellable?
     private let toolHotkeyManager = GlobalHotkeyManager()
+    private var sessionStartDate: Date?
 
     let sharedDrawingState    = DrawingState()
     let sharedInteractionMode = InteractionModeManager()
@@ -622,6 +623,7 @@ class OverlayWindowManager: ObservableObject {
         applyModeToWindows()   // also registers the hotkey set for the current mode
         if let mainID = mainDisplayID { canvasWindows[mainID]?.makeKey() }
         NSApp.activate(ignoringOtherApps: true)
+        sessionStartDate = Date()
     }
 
     private func hideAll() {
@@ -637,6 +639,10 @@ class OverlayWindowManager: ObservableObject {
 
         // A completed session is a natural positive moment to ask for a rating.
         ReviewManager.recordCompletedSession()
+
+        let duration = sessionStartDate.map { Date().timeIntervalSince($0) } ?? 0
+        sessionStartDate = nil
+        ProNudgeManager.recordSession(duration: duration) { [weak self] in self?.showPaywall(tool: nil) }
     }
 
     // MARK: - Lifted capture management
